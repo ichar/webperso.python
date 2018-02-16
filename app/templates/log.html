@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block styles %}{% endblock %}
+
+{% block data_section_content %}
+
+  <h2>OrderFiles Log rows:</h2>
+
+  <div class="view-container">
+  <table class="view-data" cellspacing="0" border="1">
+  <thead>
+  <tr>
+  {% for column in columns %}
+    <td class="column">{{ column }}</td>
+  {% endfor %}
+  </tr>
+  </thead>
+
+  {% for row in rows %}
+  <tr>
+    {% for column in columns %}
+    <td class="column">{{ row[column] }}</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+  </table>
+  </div>
+
+{% endblock %}

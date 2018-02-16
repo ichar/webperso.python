@@ -1,0 +1,26 @@
+WebPerso change log
+===================
+
+ВАЖНЫЕ ИЗМЕНЕНИЯ И ИСПРАВЛЕНИЯ
+------------------------------
+
+20180207:
+
+  - исправлена последовательность статусов при печати контента файла (IBODY), ранее выгрузка выполнялась по ключу FileStatusID,
+    выгрузка текущего статуса, полная выгрузка, закладка IBODY (не виден DTC_Record)
+
+    > bankperso._get_filestatuses, параметр order='TID'
+    > dbo.WEB_GetOrderFileBody_sp
+    > добавлен индекс [BankDB].[dbo].[OrderFilesBody_tb]: IX_OrderFilesBody_FileID
+
+  - переопределена команда F5 (Refresh) для web-form (status/js/common.js, keydown, e.keyCode==116)
+
+  - параметр querystring `__` - блокировка маскирования (!!!)
+
+ВЕРСИИ
+------
+
+# 1.74: 
+
+  - добавлена закладка "Процессы" в модуле configurator (параметры процессов BPConfig, DIC_FTV_Process_tb)
+  - задана блокировка печати "Протокола проверки карт" для случая, когда кол-во карт в файле <= 10 (reports.js, Стороженко)

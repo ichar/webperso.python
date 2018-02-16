@@ -1,0 +1,22 @@
+{% import 'forms.html' as Forms %}
+
+<header id="page-header">
+  <div id="header-content" class="{{ header_class }}">
+    <div class="page-header {{ header_subclass }}" id="pageCaption">{{ page_title }}</div>
+  
+  {%- if navigation %}
+    <div class="navigation">
+
+    {%- if current_user.is_authenticated %}
+      <div class="visitor"><span class="hello">Здравствуйте,</span><span class="username"> {{ current_user.full_name() }}!</span></div>
+      <div class="menu">
+
+      {{ Forms.form('navigation', 'home', navigation) }}
+
+      </div>
+    {%- endif %}
+
+    </div>
+  {%- endif %}  
+  </div>
+</header>

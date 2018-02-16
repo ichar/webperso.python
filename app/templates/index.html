@@ -1,0 +1,252 @@
+﻿{% extends "base.html" %}
+
+{% block styles %}{% endblock %}
+
+{% block starter %}
+
+<script src="{{ url_for('static', filename='js/db.controller.js') }}"></script>
+<script src="{{ url_for('static', filename='js/log.default.js') }}"></script>
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+
+{% endblock %}
+
+{% block header %}{% include 'default-header.html' %}{% endblock %}
+
+{% block data_section_content %}
+
+  <div class="view-container" id="log-content">
+    <table class="view-data orders" border="1">
+    <thead>
+    <tr>
+    {%- for column in config['orders']['columns'] -%}
+      <td class="column header">{{ config['orders']['headers'][column] }}</td>
+    {%- endfor -%}
+    </tr>
+    </thead>
+
+    {% for row in orders -%}
+    <tr class="line {{ row['selected'] }} {{ loop.cycle('odd', 'even') }}" id="{{ row['id'] }}">
+      {%- for column in config['orders']['columns'] -%}
+        {% if row['Error'] %}
+      <td class="column error">{{ row[column]|safe }}</td>
+        {% elif row['Ready'] %}
+      <td class="column ready">{{ row[column]|safe }}</td>
+        {% else %}
+      <td class="column">{{ row[column]|safe }}</td>
+        {% endif %}
+      {%- endfor -%}
+    </tr>
+    {%- endfor %}
+    {%- if not orders -%}
+    <tr>
+      <td colspan="{{ config['orders']['columns']|length }}"><div class="nodata">Нет данных!</div></td>
+    </tr>
+    {%- endif -%}
+    </table>
+  </div>
+
+{% endblock %}
+
+{% block info_section_content %}
+
+  <div class="data-menu block">
+    <div class="menu selected" id="data-menu-batches">Партии</div>
+    <div class="menu" id="data-menu-statuses">История заказа</div>
+  </div>
+
+  <div id="info-container">
+    <div class="view-content" id="batches-content">
+      <div class="p50">
+        <h3>Партии файла <span class="filename">{{ current_file[1] }}</span>:</h3>
+        <div class="view-container inline">
+          <table class="view-data" border="1">
+          <thead>
+          <tr>
+          {%- for column in config['batches']['columns'] -%}
+            <td class="column header {{ column }}">{{ config['batches']['headers'][column] }}</td>
+          {%- endfor -%}
+          </tr>
+          </thead>
+
+          {% for row in batches -%}
+          <tr class="subline {{ row['selected'] }} {{ loop.cycle('odd', 'even') }}" id="{{ row['id'] }}">
+            {%- for column in config['batches']['columns'] -%}
+              {% if row['Found'] and column == 'TZ' %}
+            <td class="column found">{{ row[column]|safe }}</td>
+              {% elif row['Ready'] %}
+            <td class="column ready">{{ row[column]|safe }}</td>
+              {% else %}
+            <td class="column">{{ row[column]|safe }}</td>
+              {% endif %}
+            {%- endfor -%}
+          </tr>
+          {%- endfor %}
+          {%- if not batches -%}
+          <tr>
+            <td colspan="{{ config['batches']['columns']|length }}"><div class="nodata">Нет данных!</div></td>
+          </tr>
+          {%- endif -%}
+          </table>
+        </div>
+      </div><div class="p50" id="info-data" style="display:none">
+        <h3>Параметры ТЗ <span class="filename" id="pers_tz">{{ current_file[3] }}</span>:</h3>
+        <div class="view-container inline" id="TZ"></div>
+      </div>
+    </div>
+    
+    <div class="view-content" id="statuses-content" style="display:none;">
+      <h3>История заказа (хронология смены статусов):</h3>
+      <div class="view-container">
+        <table class="view-data" border="1">
+        <thead>
+        <tr>
+        {%- for column in config['logs']['columns'] -%}
+          <td class="column header">{{ config['logs']['headers'][column] }}</td>
+        {%- endfor -%}
+        </tr>
+        </thead>
+
+        {% for row in logs -%}
+        <tr class="{{ loop.cycle('odd', 'even') }}" id="{{ row['id'] }}">
+          {%- for column in config['logs']['columns'] -%}
+          <td class="column">{{ row[column]|safe }}</td>
+          {%- endfor -%}
+        </tr>
+        {%- endfor %}
+        {%- if not logs -%}
+        <tr>
+          <td colspan="{{ config['logs']['columns']|length }}"><div class="nodata">Нет данных!</div></td>
+        </tr>
+        {%- endif -%}
+        </table>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block pagination %}
+
+  <div id="log-pagination">
+    <table border="0">
+    <form action="{{ pagination['link'] }}" id="pagination-form" method="post">
+    <input type="hidden" name="page" value="{{ pagination['current_page'] }}" />
+    <input type="hidden" id="file_id" name="file_id" value="{{ current_file[0] }}" />
+    <input type="hidden" id="searched" name="search" value="{{ search }}">
+
+    <tr>
+      <td><div class="caption total_rows">Всего (заказов / карт):<div class="total">{{ pagination['total'] }}</div></div></td>
+      <td>
+        <div id="log-page">
+          <dl>
+            <dd id="page:prev" class="pagination auto prev">
+              <a class="nav {% if pagination['has_prev'] %}enabled{% else %}disabled{% endif %}" href="{{ pagination['link'] }}&page={{ pagination['current_page'] }}&prev=1" title="Назад"> << </a>
+            </dd>
+            <dd id="page:next" class="pagination auto next">
+              <a class="nav {% if pagination['has_next'] %}enabled{% else %}disabled{% endif %}" href="{{ pagination['link'] }}&page={{ pagination['current_page'] }}&next=1" title="Вперед"> >> </a>
+            </dd>
+            {% for p in pagination['iter_pages'] %}
+              {%- if p == -1 -%}
+            <dd class="pagination spaced disabled">...</dd>
+              {%- else -%}
+            <dd id="page:{{ p }}" class="pagination valid enabled {% if p == pagination['current_page'] %}selected{% endif %}">
+              <a href="{{ pagination['link'] }}&page={{ p }}">{{ p }}</a>
+            </dd>
+              {%- endif -%}
+            {% endfor -%}
+          </dl>
+        </div>
+      </td>
+      <td>
+        <div id="log-per-page">
+          <div class="caption per_page">Записей на странице:</div>
+          <select class="popup" id="per-page" name="per_page" onchange="this.form.submit()">
+          {% for o in pagination['per_page_options'] -%}
+            <option value="{{ o }}" {% if pagination['per_page'] == o %}selected{% endif %}>{{ o }}</option>
+          {%- endfor %}
+          </select>
+        </div>
+      </td>
+    </tr>
+    </form>
+    </table>
+  </div>
+
+{% endblock %}
+
+{% block filter %}
+
+  <div id="log-filter">
+    <table border="0">
+    <form action="{{ pagination['link'] }}" id="filter-form" method="post">
+    <input type="hidden" name="page" value="{{ pagination['current_page'] }}">
+    <input type="hidden" name="per-page" value="{{ pagination['per_page'] }}">
+    <input type="hidden" id="file_id" name="file_id" value="{{ current_file[0] }}">
+    <input type="hidden" id="searched" name="search" value="{{ search }}">
+    <input type="hidden" id="command" name="command" value="">
+
+    <tr>
+      <td><div class="caption bank">Клиент:</div></td>
+      <td>
+        <select class="field popup" id="bank" name="bank" onchange="this.form.submit()">
+          {% for bank in banks -%}
+            <option value="{{ bank }}" {% if args['bank'][1] == bank %}selected{% endif %}>{{ bank }}</option>
+          {%- endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td><div class="caption type">Тип файла:</div></td>
+      <td>
+        <select class="field popup" id="type" name="type" onchange="this.form.submit()">
+          {% for type in types -%}
+            <option value="{{ type }}" {% if args['type'][1] == type %}selected{% endif %}>{{ type }}</option>
+          {%- endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td><div class="caption status">Статус файла заказа:</div></td>
+      <td>
+        <select class="field popup" id="status" name="status" onchange="this.form.submit()">
+          {% for status in statuses -%}
+            <option value="{{ status }}" {% if args['status'][1] == status %}selected{% endif %}>{{ status }}</option>
+          {%- endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td><div class="caption order-date">Дата заказа c:</div></td>
+      <td>
+        <input class="field date" type="date" id="order-date-from" name="date_from" value="{{ args['date_from'][1] }}" onchange="this.form.submit()">
+        <span class="caption">по:</span>
+        <input class="field date" type="date" id="order-date-to" name="date_to" value="{{ args['date_to'][1] }}" onchange="this.form.submit()">
+      </td>
+    </tr>
+    </form>
+    </table>
+  </div>
+
+{% endblock %}
+
+{% block commands %}
+
+  <div id="menu">
+
+  <div id="menu-commands">
+    <form action="{{ base }}" id="init-form" method="get"></form>
+    <button class="btn btn-success" id="refresh">Обновить</button>
+    <button class="btn btn-warning" id="init-filter">Сбросить фильтр</button>
+    <button class="btn btn-primary" id="export">Экспортировать</button>
+  </div>
+
+  <div class="block" id="search-box">
+    <form action="{{ base }}" id="search-form" method="post">
+      <input class="string" id="search-context" name="search" type="text" value="{{ search }}">
+      <img id="search-icon" src="{{ root }}static/img/db-search.png" title="Найти" alt="">
+    </form>
+  </div>
+
+  </div>
+  
+{% endblock %}

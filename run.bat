@@ -1,0 +1,1 @@
+flask\Scripts\python.exe manage.py start

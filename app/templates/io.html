@@ -1,0 +1,38 @@
+<html>
+  <head>
+    {% if title %}
+    <title>{{ title }} of BankPerso!</title>
+    {% else %}
+    <title>Welcome to BankPerso connector!</title>
+    {% endif %}
+  </head>
+  <body>
+
+    <h2>Connection:</h2>
+    {% if connection %}
+    Server: {{ connection['server'] }}
+    User: {{ connection['user'] }}
+    Password: {{ connection['password'] }}
+    Database: {{ connection['database'] }}
+    {% endif %}
+
+    <h2>Total orders:</h2>
+    {{ total }}
+
+    <h1>Banks rows:</h1>
+    {% for row in banks %}
+    <div><b>{{ row }}</b></div>
+    {% endfor %}
+
+    <h1>Types rows:</h1>
+    {% for row in types %}
+    <div><b>{{ row }}</b></div>
+    {% endfor %}
+
+    <h1>Types statuses:</h1>
+    {% for row in statuses %}
+    <div><b>{{ row }}</b></div>
+    {% endfor %}
+
+  </body>
+</html>

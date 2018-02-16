@@ -1,0 +1,478 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2013-05-12 18:31+0400\n"
+"PO-Revision-Date: 2018-02-15 14:04+0300\n"
+"Last-Translator: ichar@g2.ru\n"
+"Language-Team: ru <LL@li.org>\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 0.9.6\n"
+"X-Generator: Poedit 2.0.2\n"
+"Language: ru\n"
+
+msgid "#"
+msgstr "№"
+
+msgid "Access to the service is denied!"
+msgstr "Доступ к сервису запрещен"
+
+msgid "An unexpected error has occurred"
+msgstr "Неожиданная ошибка"
+
+msgid "at"
+msgstr "в"
+
+msgid "About"
+msgstr "О программе"
+
+msgid "Active batches"
+msgstr "Партии для обработки"
+
+msgid "All"
+msgstr "Все"
+
+msgid "All clients"
+msgstr "Все клиенты"
+
+msgid "All batches"
+msgstr "Все партии"
+
+msgid "Attention"
+msgstr "ВНИМАНИЕ!"
+
+msgid "Apply filter"
+msgstr "Применить фильтр"
+
+msgid "Are you really going to"
+msgstr "Вы действительно собираетесь"
+
+msgid "Are you really going to change the status"
+msgstr "Вы действительно собираетесь изменить статус"
+
+msgid "Back"
+msgstr "Назад"
+
+msgid "BankPerso"
+msgstr "БанкПерсо"
+
+msgid "Batch/Oper is finished"
+msgstr "Операция завершена"
+
+msgid "Batch activation done with errors!"
+msgstr "Активация партии не выполнена!"
+
+msgid "Batch deleted"
+msgstr "Партия удалена"
+
+msgid "Batch error"
+msgstr "Ошибка обработки"
+
+msgid "Batch is activated"
+msgstr "Партия активирована"
+
+msgid "Batch is successfully completed"
+msgstr "Обработка партии успешно завершена"
+
+msgid "Cancel"
+msgstr "Отменить"
+
+msgid "Cancel search"
+msgstr "Отменить поиск"
+
+msgid "Caption"
+msgstr "Заголовок"
+
+msgid "change the status of batch"
+msgstr "изменить статус партии"
+
+msgid "change the status of file"
+msgstr "изменить статус файла"
+
+msgid "Choice the requested status from the given list"
+msgstr "Выберите требуемый статус из нижеследующего списка"
+
+msgid "Choice the requested item from the given list"
+msgstr "Выберите требуемый элемент из нижеследующего списка"
+
+msgid "Confirm"
+msgstr "Подтвердить"
+
+msgid "Click it to collapse&expand sidebar control"
+msgstr ""
+"Используйте данный указатель для управления положением командной панели.\n"
+"Указатель влево - панель свернуть, вправо - развернуть.\n"
+"Click - зафиксировать текущее положение.\n"
+"Используйте клавишный переключатель Shift-O/C для того, чтобы открыть или "
+"закрыть командную панель."
+
+msgid "Click to close top menu"
+msgstr "Скрыть панель меню"
+
+msgid "Click to open top menu"
+msgstr "Отобразить панель меню"
+
+msgid "Client segment"
+msgstr "Клиентский сегмент"
+
+msgid "Confirm notification form"
+msgstr "ВНИМАНИЕ!"
+
+msgid "Click here"
+msgstr ""
+
+msgid "Close"
+msgstr "Закрыть"
+
+msgid "Close page"
+msgstr "Закрыть страницу"
+
+msgid "Code"
+msgstr "Код"
+
+msgid "Command: Activate selected batch?"
+msgstr "Отправить партию на производство?"
+
+msgid "Command: Activate selected batches?"
+msgstr "Отправить выбранные партии на производство?"
+
+msgid "Command: Do you really want to reject selected batches?"
+msgstr "Вы действительно хотите отменить активацию для выбранных партий?"
+
+msgid "Command: Send request to the warehouse?"
+msgstr "Отправить заявку на склад?"
+
+msgid "Command: Reject activation?"
+msgstr "Отменить активацию?"
+
+msgid "create selected file"
+msgstr "перевыгрузить файл"
+
+msgid "Date"
+msgstr "Дата"
+
+msgid "Decline"
+msgstr "Отказаться"
+
+msgid "delete selected file"
+msgstr "удалить файл"
+
+msgid "Do you wish to change password?"
+msgstr "Вы хотите сменить пароль?"
+
+msgid "error"
+msgstr "ошибка"
+
+msgid "Error information"
+msgstr "Информация об ошибке"
+
+msgid "Error: Unexpected error."
+msgstr "Ошибка!"
+
+msgid "Execute"
+msgstr "Исполнить"
+
+msgid "Execution error"
+msgstr "Ошибка исполнения"
+
+msgid "Exchange System"
+msgstr "Система инфообмена"
+
+msgid "Exclamation: Exist inactive batches"
+msgstr "Не отправлены партии на производство"
+
+msgid "Exclamation: Exist materials to send in order"
+msgstr "Заявка на материалы не отправлена"
+
+msgid "Error: Empty or missed responses list."
+msgstr "Не получен ответ сервера."
+
+msgid "Error: Batch contains empty basic parameters:"
+msgstr "Партия содержит пустые ключевые параметры:"
+
+msgid "Error: Batch SumQty is zero."
+msgstr "Итоговая сумма количества карт равна нулю."
+
+msgid "Error: Client name is not present."
+msgstr "Наименование клента отсутствует."
+
+msgid "Error: Client ID is not unique."
+msgstr "Идентификатор клиента не уникален."
+
+msgid "Error: Client name is not unique."
+msgstr "Выбраны партии нескольких клиентов."
+
+msgid "Error: Final sum of batches is unmatched."
+msgstr "Не соответствуют итоговая и расчетная сумма количества карт партий."
+
+msgid "Error: Final sum of batches Qty is unmatched."
+msgstr "Не соответствуют итоговая и расчетная сумма количества карт партий."
+
+msgid "Error: File name is not present."
+msgstr "Имя файла не задано."
+
+msgid "Error: Materials for the given file is not defined."
+msgstr "Материалы для выбранного файла отсутствуют."
+
+msgid "Error: Perhaps, processing of selected orders was finished."
+msgstr "Вероятно, обработка выбранных партий уже завершена."
+
+msgid "Error: Selected batches with different status."
+msgstr "Выбраны партии с разными статусами."
+
+msgid "Error: Clients for selected files are not unique."
+msgstr "Выбраны файлы нескольких клиентов."
+
+msgid "Error: There were selected batches from a few Order files."
+msgstr "Выбраны партии нескольких файлов."
+
+msgid "Find"
+msgstr "Найти"
+
+msgid "of batch"
+msgstr "партии"
+
+msgid "of file"
+msgstr "файла"
+
+msgid "Forward"
+msgstr "Вперёд"
+
+msgid "Full screen"
+msgstr "Полный экран"
+
+msgid "Forward search"
+msgstr "Поиск вперёд"
+
+msgid "Help"
+msgstr "Помощь"
+
+msgid "Help information"
+msgstr "Справка"
+
+msgid "Helper keypress guide"
+msgstr "Использование клавиатуры"
+
+msgid "Illegal search context"
+msgstr "Недопустимый поисковый контекст"
+
+msgid "InfoExchange System"
+msgstr "Модуль инфообмена OutReceiver.exe"
+
+msgid "Invalid username or password."
+msgstr "Некорректный логин или пароль"
+
+msgid "Invalid password."
+msgstr "Некорректный пароль"
+
+msgid "Log Search form"
+msgstr "Поиск по журналам персосети"
+
+msgid "Log Search string format see in the application documentation."
+msgstr ""
+"Длина поискового контекста должна быть не менее 5 символов. Допускается "
+"использование символов логических операций: '&&' - И, '||' - ИЛИ, '()' - "
+"группа."
+
+msgid "Log-file types"
+msgstr "Типы файловых журналов"
+
+msgid "Message: Activation is perfomed successfully."
+msgstr "Отправка на производство выполнена успешно."
+
+msgid "Message: Reject performed successfully."
+msgstr "Отмена активации выполнена успешно."
+
+msgid "Message: Request was sent successfully."
+msgstr "Заявка успешно отправлена."
+
+msgid "New batch created"
+msgstr "Создана новая партия"
+
+msgid "New order created"
+msgstr "Принят новый файл заказа"
+
+msgid "No"
+msgstr "Нет"
+
+msgid "Notification form"
+msgstr "Уведомление о выполнении операции"
+
+msgid "No connection!"
+msgstr "Соединение с сервером не установлено"
+
+msgid "No data"
+msgstr "Нет данных"
+
+msgid "No data..."
+msgstr "Нет данных..."
+
+msgid "No data or access denied"
+msgstr "Нет данных или доступ к ресурсу заблокирован"
+
+msgid "None"
+msgstr "Нет"
+
+msgid "OK"
+msgstr "OK"
+
+msgid "OK: All batches done"
+msgstr "Все партии отправлены на производство"
+
+msgid "OK: Materials OK"
+msgstr "Обработка материалов выполнена"
+
+msgid "Oper is activated"
+msgstr "Партия отправлена на производство"
+
+msgid "Options"
+msgstr "Опции"
+
+msgid "Order/Batch is finished"
+msgstr "Статус заказа или партии завершен"
+
+msgid "Order confirmation form"
+msgstr "Подтверждение операции над файлом"
+
+msgid "Order deleted"
+msgstr "Файл заказа удален"
+
+msgid "Order error"
+msgstr "Ошибка заказа"
+
+msgid "Order is successfully completed"
+msgstr "Заказ выполнен"
+
+msgid "Password is incorrect!"
+msgstr "Некорректный пароль"
+
+msgid "Please log in to access this page."
+msgstr "Пожалуйста, авторизуйтесь для входа в приложение"
+
+msgid "Please, confirm"
+msgstr "Пожалуйста, подтвердите"
+
+msgid "Please, wait the system response"
+msgstr "Пожалуйста, ждите ответа"
+
+msgid "Please, update the page by Ctrl-F5!"
+msgstr "Пожалуйста, обновите страницу командой Ctrl-F5"
+
+msgid "Recovery is impossible!"
+msgstr "Восстановление невозможно!"
+
+msgid "Reference form"
+msgstr "Форма справочника"
+
+msgid "Reject for the given batch is not done!"
+msgstr "Отмена активации партии не выполнена!"
+
+msgid "Return to the Login page"
+msgstr "Возврат к странице авторизации"
+
+msgid "Run"
+msgstr "Выполнить"
+
+msgid "SDC"
+msgstr "SDC"
+
+msgid "Search"
+msgstr "Найти"
+
+msgid "Status changed"
+msgstr "Статус изменен"
+
+msgid "Status confirmation form"
+msgstr "Подтверждение смены статуса"
+
+msgid "Tag Search form"
+msgstr "Выгрузка списка тегов"
+
+msgid "Tag Search string format see in the application documentation."
+msgstr ""
+"Список тегов - имена тегов в формате текущего файла заказа с разделителем "
+"':', например: PLASTIC:PROD_ID:Is_Chip. Идентификаторы тегов контекстно-"
+"зависимы."
+
+msgid "The file is processed in the current status."
+msgstr "Файл обрабатывается в текущем статусе."
+
+msgid "Try to search a given context in the Log files."
+msgstr ""
+"Введите поисковый контекст для поиска сообщений в файловых журналах системы."
+
+msgid "Try to search a given Tag list inside Order-body content."
+msgstr "Введите список тегов для выгрузки из контента текущего файла заказа."
+
+msgid "Total"
+msgstr "Всего"
+
+msgid "Total lines"
+msgstr "Всего записей"
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "You cannot access this page!"
+msgstr "У Вас нет доступа к этому приложению!"
+
+msgid "You have not permission to run this action!"
+msgstr "У Вас нет полномочий на выполнение данной операции!"
+
+msgid "You should change you password!"
+msgstr "Вам необходимо сменить пароль!"
+
+msgid "You have been logged out."
+msgstr "Вы вышли из приложения"
+
+msgid "Your password has been updated."
+msgstr "Ваш пароль был успешно обновлен"
+
+msgid "Warning: All batches for the given file are already activated."
+msgstr "Все партии выбранного файла уже активированы."
+
+msgid "Warning: Missing parameter:"
+msgstr "Отсутствует параметр:"
+
+msgid "Warning: No report data."
+msgstr "Нет информации для формирования отчета."
+
+msgid "Warning: Parameter is empty:"
+msgstr "Значение параметра не определено:"
+
+msgid "Warning: Please, select items to execute before."
+msgstr "Партии для обработки не выбраны."
+
+msgid "WebPerso Administrator View"
+msgstr "Администратор WebPerso"
+
+msgid "WebPerso Auth"
+msgstr "Авторизация WebPerso"
+
+msgid "WebPerso Login"
+msgstr "Вход в WebPerso"
+
+msgid "WebPerso Cards Batch View"
+msgstr "Администратор персонализации"
+
+msgid "WebPerso Configurator View"
+msgstr "Конфигуратор БанкПерсо"
+
+msgid "WebPerso Change Password"
+msgstr "Смена пароля WebPerso"
+
+msgid "WebPerso Order Registry View"
+msgstr "Журнал заказов БанкПерсо"
+
+msgid "WebPerso Order State View"
+msgstr "Менеджер заказов БанкПерсо"
+
+msgid "WebPerso Preloading View"
+msgstr "Журнал предобработки БанкПерсо"
+
+msgid "WebPerso Reset Password"
+msgstr "Смена пароля WebPerso"

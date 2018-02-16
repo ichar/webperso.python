@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="author" content="Rosan Finance = Igor Kharlamov (ichar)">
+  {% if title %}
+<title>{{ title }}</title>
+  {% else %}
+<title>Bank Perso Viewer Main Page</title>
+  {% endif %}
+<link href="{{ url_for('static', filename='css/bootstrap.css') }}" rel="stylesheet" type="text/css" media="screen">
+<link href="{{ url_for('static', filename='css/bootstrap-responsive.min.css') }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for('static', filename='css/jquery-ui.custom.css') }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for('static', filename='css/style') }}.common.css{{ vsc }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for('static', filename='css/style') }}.{{ css }}.css{{ vsc }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for('static', filename='css/style') }}.{{ usertype }}.css{{ vsc }}" rel="stylesheet" type="text/css">
+{% block styles %}{% endblock %}
+<script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jquery.color.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jquery-ui.custom.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/verge.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/core.min.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/common.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/controls.js') }}{{ vsc }}"></script>
+{% block starter %}{% endblock %}
+<link rel="shortcut icon" href="{{ root }}static/img/favicon.ico">
+</head>
+<body>
+
+<div id="html-container">
+
+{% block sidebar_content %}{% endblock %}
+
+<div id="dataFrame">
+
+{% if show_flash %}
+
+<section class="" id="flash-section">
+  
+  {% for message in get_flashed_messages() %}
+
+    <table class="flash"><tr><td>{{ _(message) }}</td></tr></table>
+
+  {% endfor %}
+  
+</section>
+
+{% endif %}
+
+<section id="header-section">
+
+  {% block header %}{% include 'default-header.html' %}{% endblock %}
+
+</section>
+
+{% block page_content %}{% endblock %}
+
+</div>
+
+</div>
+
+<div id="error-container" title="" style="display:none;">
+  <div id="error-info">
+    <h3 id="error-notification">ВНИМАНИЕ!</h3>
+    <p id="error-text"></p>
+    <div id="error-button"></div>
+  </div>
+</div>
+
+<div id="page-loader" style="display:none;">
+  <div>{{ _('Please, wait the system response') }}...</div>
+  {#<img src="{{ root }}static/img/logo.png"><br>#}
+  <img src="{{ root }}static/img/loader.gif">
+</div>
+
+<div class="common-dialog" id="help-container" title="{{ _('Help information') }}" style="display:none;">
+  <h3>{{ _('Helper keypress guide') }}:</h3>
+  <div class="common-box" id="help-info"></div>
+</div>
+
+<div class="common-dialog" id="confirm-container" title="{{ _('Confirm notification form') }}" style="display:none;">
+  <h3 id="confirm-notification">{{ _('Please, confirm') }}:</h3>
+  <div id="confirm-info"></div>
+</div>
+
+<div class="common-dialog" id="notification-container" title="{{ _('Notification form') }}" style="display:none;">
+  <div id="notification-info"></div>
+</div>
+
+{% block dialogs_content %}{% endblock %}
+
+<script type="text/javascript">
+<!--
+// Core definitions
+// ----------------
+$SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+$IS_FRAME = {{ is_frame }};
+$IS_DEMO = {{ is_demo }};
+
+baseURI = '{{ root }}{{ base }}';
+loaderURI = '{{ loader|safe }}';
+keywords = { {{ keywords|join(', ')|safe }} };
+
+IsShowLoader = {{ is_show_loader }};
+
+{% if pagination %}
+LOG_SORT = new Array({{ pagination['sort']['modes']|join(', ')|safe }});
+current_sort = {{ pagination['sort']['current_sort'] }};
+{% endif %}
+
+$SidebarControl.state = {{ sidebar['state'] }};
+$Semaphore.init('{{ semaphore["state"] }}');
+//-->
+</script> 
+
+</body>
+</html>

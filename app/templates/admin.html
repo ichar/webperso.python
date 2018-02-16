@@ -1,0 +1,83 @@
+{% extends "common.html" %}
+
+{% import 'forms.html' as Forms %}
+
+{% block page_styles %}
+
+<link href="{{ url_for('static', filename='css/style') }}.admin.css{{ vsc }}" rel="stylesheet" type="text/css">
+
+{% endblock %}
+
+{% block starter %}
+
+<script src="{{ url_for('static', filename='js/db.controller.min.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/log.default.min.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+
+{% endblock %}
+
+{% if current_user.is_superuser() %}
+
+{% block data_section_content %}
+
+  {{ Forms.lines('users', users, config) }}
+
+  <div id="view-commands">
+    <form action="{{ base }}" id="command-form" method="post">
+      <input type="hidden" id="user_id" name="user_id" value="{{ user[0] }}" />
+      <input type="hidden" id="command" name="command" value="" />
+    </form>
+    <button class="btn btn-info" id="add">Добавить</button>
+    <button class="btn btn-info" id="delete">Удалить</button>
+  </div>
+
+{% endblock %}
+
+{% block info_section_content %}
+
+  <div id="info-container">
+    <div class="form-container" id="user-form-content">
+
+      {%- if errors %}
+        {% for error in errors -%}
+          <div class="error">{{ error }}</div>
+        {%- endfor -%}
+      {%- endif %}
+
+    {{ Forms.form('admin', 'user', forms['user']) }}
+
+    </div>
+
+    <div class="data-container" id="profile-content">
+
+    {{ Forms.form('admin', 'profile', clients) }}
+
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block pagination_title %}Пользователей{% endblock %}
+
+{% block pagination_form %}
+
+    <input type="hidden" id="page" name="page" value="" />
+
+{% endblock %}
+
+{% block filter %}
+
+  <div id="log-filter" class="admin-filter common-filter">
+    <form action="{{ link }}" id="filter-form" method="post">
+
+    <input type="hidden" id="user_id" name="user_id" value="{{ user[0] }}" />
+    <input type="hidden" id="command" name="command" value="" />
+    <input type="hidden" id="position" name="position" value="{{ pagination['position'] }}">
+    <input type="hidden" id="sidebar" name="sidebar" value="{{ sidebar['state'] }}">
+
+    </form>
+  </div>
+
+{% endblock %}
+
+{% endif %}
