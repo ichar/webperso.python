@@ -61,24 +61,23 @@ default_encoding       = 'cp1251'
 default_iso            = 'ISO-8859-1'
 
 CONNECTION = {
-    'bankperso'    : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'BankDB', 'timeout':15 },
-    'cards'        : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'Cards', 'timeout':15 },
-    'orderstate'   : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'OrderState', 'timeout':15  },
-    'preload'      : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'BankDB', 'timeout':15  },
-    'configurator' : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'BankDB', 'timeout':15  },
-    'orderlog'     : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'OrderLog', 'timeout':15  },
+    'bankperso'    : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'BankDB',     'timeout':15 },
+    'cards'        : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'Cards',      'timeout':15 },
+    'orderstate'   : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'OrderState', 'timeout':15 },
+    'preload'      : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'BankDB',     'timeout':15 },
+    'configurator' : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'BankDB',     'timeout':15 },
+    'orderlog'     : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'OrderLog',   'timeout':15 },
 }
 
 smtphost = {
-    'host' : 'mail2.rosan.ru', 
+    'host' : 'mail2.company.ru', 
     'port' : 25
 }
 
 email_address_list = {
-    'adminbd'      : 'admin_bd@rosan.ru',     
-    'support'      : 'support@expresscard.ru',
-   #'warehouse'    : 'skladperco@rosan.ru; kladovshik@rosan.ru; admin_bd@rosan.ru; kharlamov@rosan.ru',
-    'warehouse'    : 'kharlamov@rosan.ru',
+    'adminbd'      : 'admin@company.ru',     
+    'support'      : 'support@company.ru',
+    'warehouse'    : 'user@company.ru',
 }
 
 image_encoding = {
@@ -103,8 +102,8 @@ SDC_ROOT = {
 }
 
 EXCHANGE_ROOT = {
-    'default'      : (default_unicode, 'Z:/exchange/11.21', '(.*)_(\d{2}\.\d{2}\.\d{4}).*', 'with_aliases:jzdo:unique:count',),
-    'CITI_BANK'    : (default_unicode, 'Z:/exchange/11.18', '(.*)_(\d{2}\.\d{2}\.\d{4}).*', '*',),
+    'default'      : (default_unicode, 'Z:/exchange/11.01', '(.*)_(\d{2}\.\d{2}\.\d{4}).*', 'with_aliases:jzdo:unique:count',),
+    'CITI_BANK'    : (default_unicode, 'Z:/exchange/11.02', '(.*)_(\d{2}\.\d{2}\.\d{4}).*', '*',),
 }
 
 ansi = not sys.platform.startswith("win")
