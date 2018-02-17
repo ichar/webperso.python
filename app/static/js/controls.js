@@ -201,7 +201,6 @@ var $Semaphore = {
             this.items[i] = items[i];
         }
 
-
         if (this.IsTrace)
             alert(this.dump());
 
@@ -475,10 +474,12 @@ var $ReferenceDialog = {
     default_size : {'clients'      : [500, 604],
                     'file-status'  : [760, 618],
                     'batch-status' : [520, 480],
-                    'oper-list'    : [550, 620],
-                    'tag-params'   : [920, 635],
+                    'oper-list'    : [550, 618],
+                    'tag-params'   : [940, 635],
                     'default'      : [500, 400]
                     },
+
+    actions      : {'query':620},
 
     container    : null,
     box          : null,
@@ -500,6 +501,8 @@ var $ReferenceDialog = {
 
     search_width : 300,
 
+    is_open      : false,
+
     init: function() {
         this.container = $("#reference-container");
         this.box = $("#reference-box");
@@ -507,6 +510,8 @@ var $ReferenceDialog = {
         this.state = new Object();
         this.resizable = null;
         this.last = null;
+
+        this.is_open = false;
     },
 
     get_id: function() {
@@ -521,16 +526,36 @@ var $ReferenceDialog = {
         this.container.attr('mode', mode);
     },
 
-    set_size: function(mode, width, height) {
+    set_size: function(mode, width, height, force) {
+        var size = this.actual_size[mode];
+
+        if (force && is_null(size))
+            return;
+
+        if (this.IsTrace)
+            alert(mode+':'+width+':'+height+', size:'+size);
+
+        var w = force ? size[0] : width;
+        var h = force ? size[1] : height;
+
         switch(mode) {
             case 'resizable':
-                this.resizable.css("width", width.toString()+"px");
+                if (!is_null(w))
+                    this.resizable.css("width", w.toString()+"px");
                 break;
             case 'search':
-                this.search.css("width", width.toString()+"px");
+                if (!is_null(w))
+                    this.search.css("width", w.toString()+"px");
+                break;
+            case 'box':
+                if (!is_null(w))
+                    this.box.css("width", w.toString()+"px");
+                if (!is_null(h))
+                    this.box.css("height", h.toString()+"px");
                 break;
         }
-        this.actual_size[mode] = [width, height];
+
+        this.actual_size[mode] = [w, h];
     },
 
     get_size: function(mode, size) {
@@ -554,17 +579,11 @@ var $ReferenceDialog = {
         this.last = ob;
     },
 
-    setContent: function(id, value, data, config, title) {
+    setBody: function(id, data, config) {
         var mode = this.get_mode();
+        
         var columns = config['columns'];
         var headers = config['headers'];
-
-        //alert(id+':'+value+':'+data.length.toString()+':columns:'+columns.length.toString());
-
-        $("#reference-title").html(
-            title
-            );
-        $("#reference-confirmation").remove();
 
         var head = '';
         var item = '';
@@ -601,14 +620,28 @@ var $ReferenceDialog = {
 
         content = '<table class="reference-'+mode+'" id="reference-items">'+head+content+'</table>';
 
+        this.box.html(content);
+
+        this.resizable = $("#reference-head-name");
+
+        this.set_size('box', null, null, 1);
+    },
+
+    setContent: function(title) {
         var src = $SCRIPT_ROOT+'static/img/';
+
+        //alert(id+':'+value+':'+data.length.toString()+':columns:'+columns.length.toString());
+
+        $("#reference-title").html(
+            title
+            );
+        $("#reference-confirmation").remove();
 
         var html = 
             '<div class="common-confirmation" id="reference-confirmation">'+
             '<h4>'+keywords['select referenced item']+'</h4>'+
             //'<img src="'+src+'point.png" width="800px" height="1px" style="height:1px;margin:0;padding:0;">'+
             '<div class="common-box"><div id="reference-box">'+
-              content+
             '</div></div>'+
             '<div class="common-box"><div id="reference-panel">'+
             '<table border="0"><tr>'+
@@ -625,11 +658,10 @@ var $ReferenceDialog = {
 
         this.box = $("#reference-box");
         this.search = $("#reference-search");
-        this.resizable = $("#reference-head-name");
     },
 
     setDefaultSize: function(force) {
-        //alert('setDefaultSize');
+        //alert('>>> setDefaultSize');
 
         var mode = this.get_mode();
 
@@ -641,7 +673,6 @@ var $ReferenceDialog = {
         //alert(size);
 
         this.set_size('resizable', size[0], null);
-        //this.search.css("width", (size[0] - this.search_width).toString()+"px");
         this.set_size('search', size[0] - this.search_width, null);
 
         if (this.IsTrace)
@@ -655,14 +686,14 @@ var $ReferenceDialog = {
         // --------------------------------
 
         if (force)
-            this.box
-                //.css("width", size[0] - offset_width_init)
-                .css("height", (size[1] - this.offset_height_init).toString()+"px");
+            this.set_size('box', null, size[1] - this.offset_height_init);
+    },
+
+    _round: function(value) {
+        return Math.round(value);
     },
 
     onResize: function(force) {
-        //alert('resize');
-
         var mode = this.get_mode();
 
         if (!(mode in this.actual_size))
@@ -678,35 +709,34 @@ var $ReferenceDialog = {
 
         var size = this.actual_size[mode];
 
+        // ------------------
+        // New container size
+        // ------------------
+        
+        var width = this._round(this.container.width());
+        var height = this._round(this.container.height());
+
         // -------------
         // Resize offset
         // -------------
 
-        var w = this.container.width() - size[0];
-        var h = this.container.height() - size[1];
-
-        //alert(w+':'+h);
+        var w = width - size[0];
+        var h = height - size[1];
 
         // -----------------------
         // Adjust float box height
         // -----------------------
 
         var offset = this.offset_height_resize;
-        var new_height = this.container.height() - offset;
-
-        this.box.css("height", new_height.toString()+"px");
-
-        //this.box.css("height", (this.box.height() + h).toString()+"px");
+        var new_height = height - offset;
 
         // ----------------------------
         // Adjust float dialog controls
         // ----------------------------
 
-        //this.resizable.css("width", (this.resizable.width() + w).toString()+"px");
         this.set_size('resizable', this.get_size('resizable', 'w') + w, null);
-        //this.search.css("width", (this.container.width() - this.search_width).toString()+"px");
-        //this.search.css("width", (this.search.width() + w).toString()+"px");
         this.set_size('search', this.get_size('search', 'w') + w, null);
+        this.set_size('box', null, new_height);
 
         // -------------
         // Save new size
@@ -714,7 +744,8 @@ var $ReferenceDialog = {
 
         if (force)
             this.actual_size[mode] = [
-                this.container.width(), this.container.height() // + offset + 5 // ???
+                width, 
+                height + 90 // + offset + 5 // ???
             ];
 
         return true;
@@ -723,30 +754,52 @@ var $ReferenceDialog = {
     onOpen: function() {
         this.onResize(false);
         this.box.scrollTop(0);
+
+        this.is_open = true;
     },
 
     onClose: function() {
-        //this.actual_size[this.get_mode()] = [this.container.width(), this.container.height()];
+        //var mode = this.get_mode();
+        //this.actual_size[mode] = [this.container.width(), this.container.height()];
+
+        //alert(this.actual_size[mode]);
+
+        this.is_open = false;
     },
 
     onIconClick: function(ob) {
-        var id = ob.attr('id');
-        $ShowError(this.get_mode()+':Action:'+id, true, true, false);
+        var command = ob.attr('id').split(':')[1];
+
+        switch(command) {
+            case 'search':
+                this.submit(command);
+                break;
+            default:
+                $ShowError('Command is not responsable:'+this.get_mode()+':'+command, true, true, false);
+        }
     },
 
     confirmation: function(command) {
         this.init();
 
-        var action = '620';
+        var action = this.actions['query'];
+        var params = command;
 
         if (this.IsTrace)
-            alert('confirmation:'+action+':'+command);
+            alert('confirmation:'+action+', params['+params+']');
 
-        $web_logging(action, function(x) { $ReferenceDialog.open(x); }, command);
+        $web_logging(action, function(x) { $ReferenceDialog.open(x); }, params);
     },
 
-    submit: function() {
-        //$onParentFormSubmit();
+    submit: function(command) {
+        var mode = this.get_mode();
+        var action = this.actions['query'];
+        var params = command+':'+mode+':'+this.search.val();
+
+        if (this.IsTrace)
+            alert('confirmation:'+action+', params['+params+']');
+
+        $web_logging(action, function(x) { $ReferenceDialog.open(x); }, params);
     },
 
     open: function(x) {
@@ -754,7 +807,7 @@ var $ReferenceDialog = {
         var data = x['data'];
         var props = x['props'];
         var id = props['id'];
-        var value = props['value'];
+        //var value = props['value'];
         var title = props['title'];
         var mode = props['mode'];
         var table = props['table'];
@@ -763,18 +816,26 @@ var $ReferenceDialog = {
         //alert(id+':'+mode+':'+table);
 
         this.set_mode(mode);
-        this.setContent(id, value, data, config, title);
+
+        //alert(this.actual_size[mode]);
+
+        if (!this.is_open)
+            this.setContent(title);
+
+        this.setBody(id, data, config);
 
         this.container.dialog("option", "title", keywords['Status confirmation form']);
 
         this.setDefaultSize(false);
+
+        if (this.is_open)
+            return;
 
         this.container.dialog("open");
     },
 
     confirmed: function() {
         this.close();
-        this.submit();
     },
 
     close: function() {

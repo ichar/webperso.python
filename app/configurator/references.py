@@ -2,6 +2,7 @@
 
 __all__ = ['DicClients', 'reference_factory',]
 
+import types
 from operator import itemgetter
 
 from flask.ext.babel import gettext
@@ -12,6 +13,7 @@ from config import (
      )
 
 from ..database import getReferenceConfig
+from ..booleval import Token, new_token
 
 _UNDEFINED_ERROR = 2
 _ERROR = 1
@@ -21,15 +23,15 @@ _WARNING = 0
 ##  Abstract Reference Class
 ##  ========================
 
-def addSqlFilterItem(where, key, query, fields, operator=None):
+def addSqlFilterItem(where, key, value, fields, operator=None):
     if not key:
         return ''
     field = fields.get(key)
-    value = query.get(key)
+    #value = query.get(key)
     if field is None or value is None:
         return ''
     selector = field.get('selector')
-    return selector and value and ('%s%s' % (where and operator or ' AND ', selector % str(value))) or ''
+    return selector and value and ('%s%s' % (where and (operator or ' AND ') or '', selector % str(value))) or ''
 
 def getSqlOrder(fields):
     for key in fields.keys():
@@ -74,11 +76,49 @@ class AbstractReference(object):
     def columns(self):
         return self._config['columns']
 
+    def _check_search_query(self, value):
+        q = []
+        if isinstance(value, str):
+            #
+            # Query items can be `Token` class instance such as: (bank || client) && citi
+            #
+            token = new_token()
+            token._init_state(value)
+
+            n = 1
+            for x in token.get_token():
+                if callable(x) or isinstance(x, types.FunctionType):
+                    item = ('operator%s' % n, x(1,0) and ' OR ' or ' AND ')
+                elif x in '()':
+                    item = ('_%s' % n, x)
+                    n += 1
+                else:
+                    if x.isdigit():
+                        item = (self.id, int(x))
+                    else:
+                        item = (self.value, x)
+                q.append(item)
+        
+        elif isinstance(value, list):
+            #
+            # Query is a list: [(<key>, <value>),...]
+            #
+            q = value[:]
+        return q
+
     def _set_where(self, query):
         where = ''
+        has_items = False
         if query:
-            for key in query.keys():
-                where += addSqlFilterItem(where, key, query, self._fields)
+            operator = None
+            for key, value in self._check_search_query(query):
+                if key.startswith('_'):
+                    where += value
+                elif key.startswith('operator'):
+                    operator = value
+                else:
+                    where += addSqlFilterItem(has_items, key, value, self._fields, operator)
+                    has_items = True
         return where
 
     def _set_order(self, order=None):

@@ -399,12 +399,12 @@ def getTabProcessParams(file_id, **kw):
 
 ## ==================================================== ##
 
-def getReference(mode):
+def getReference(mode, query=None):
     reference = reference_factory.get(mode)
     if reference is None:
         return [], None, None, None
     ob = reference(engine)
-    data = ob.getItems()
+    data = ob.getItems(query)
     props = {'id' : ob.id, 'value' : ob.value, 'mode' : mode, 'table' : ob.table, 'title' : ob.title}
     return data, props, ob.columns, ob.config
 
@@ -872,8 +872,11 @@ def loader():
             data = getTabProcessParams(file_id, filter=filter)
 
         elif action == '620':
-            mode = params.split(DEFAULT_HTML_SPLITTER)[1]
-            data, props, columns, config = getReference(mode)
+            x = params.split(DEFAULT_HTML_SPLITTER)
+            command = x[0]
+            mode = x[1]
+            query = len(x) > 2 and x[2] or None
+            data, props, columns, config = getReference(mode, query)
 
     except:
         print_exception()
