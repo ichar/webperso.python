@@ -16,35 +16,6 @@ SUBLINE = '';
 // Dialog Action Handlers
 // ----------------------
 
-function $_reset_current_sort() {
-    current_page = 1;
-}
-
-function $_next_current_sort() {
-    current_sort = current_sort == LOG_SORT.length-1 ? 0 : current_sort + 1;
-    $_reset_current_sort();
-}
-
-function $_deactivate_search() {
-    is_search_activated = false;
-    search_context = '';
-    current_page = 1;
-}
-
-function $_reset_item() {
-    refresh_current_state = true;
-    SelectedReset();
-}
-
-function $_reset_page() {
-    SelectedReset();
-    current_row_id = null;
-}
-
-function $_calculating_disabled() {
-    return false;
-}
-
 // --------------
 // Page Functions
 // --------------
@@ -52,17 +23,18 @@ function $_calculating_disabled() {
 function $Init() {
     $SidebarControl.init();
 
-    $_reset_current_sort();
+    //$_reset_current_sort();
 
     SelectedReset();
 
     $LineSelector.init();
-
-    var parent = $("#admin-content");
+    /*
+    var parent = $("#line-content");
     var ob = $("tr[class~='selected']", parent);
     $onToggleSelectedClass(LINE, ob, 'add');
 
     $LineSelector.set_current(ob);
+    */
     $ResetPageState();
 
     $ShowMenu(null);
@@ -83,8 +55,13 @@ function $ShowMenu(id) {
     selected_data_menu_id = null;
 }
 
-function $onUserFormSubmit() {
+function $onRegisterFormSubmit(frm) {
+    return true;
+}
+
+function $onUserFormSubmit(frm) {
     var ob = $("#item-clients-all");
+    $SidebarControl.onBeforeSubmit();
     $("#profile_clients").val(!ob.prop('checked') ? $ProfileClients.getItems().join(DEFAULT_HTML_SPLITTER) : '');
     return true;
 }
@@ -122,6 +99,7 @@ function MakeFilterSubmit(mode, page) {
     }
 
     $ResetLogPage();
+    
     $setPaginationFormSubmit(page);
     $onParentFormSubmit('filter-form');
 }
@@ -137,18 +115,20 @@ jQuery(function($)
     // --------------
 
     $(".line").click(function(e) {
+        /*
         var ob = $(this);
         $LineSelector.set_current(ob);
         $onToggleSelectedClass(LINE, ob, 'submit', null);
-
-        isKeyboardDisabled = true;
+        */
+        $LineSelector.onRefresh($(this));
     });
 
     // -----------
     // User's Form
     // -----------
 
-    $("#user-form").on('change', $("input, select"), function(e) {
+    //$("#user-form").on('change', $("input, select"), function(e) {
+    $("input", "#user-form").on('change keyup paste', function(e) {
         $setUserFormSubmit(0);
     });
 
@@ -166,7 +146,8 @@ jQuery(function($)
         var parent = ob.parents("*[class^='profile-data-panel']").first();
         var disabled = parent.hasClass('disabled');
 
-        if (disabled) return;
+        if (disabled)
+            return;
         
         //alert(ob.attr('id')+':'+parent.attr('id')+':'+disabled);
 
@@ -178,7 +159,8 @@ jQuery(function($)
         var parent = ob.parents("*[class^='profile-data-panel']").first();
         var disabled = parent.hasClass('disabled');
 
-        if (disabled) return;
+        if (disabled)
+            return;
         
         //alert(ob.attr('id')+':'+parent.attr('id')+':'+disabled);
 
@@ -189,7 +171,8 @@ jQuery(function($)
         var ob = $(this);
         var disabled = ob.hasClass('disabled');
 
-        if (disabled) return;
+        if (disabled)
+            return;
         
         //alert(ob.prop('tagName'));
 
@@ -200,9 +183,8 @@ jQuery(function($)
         var ob = $(this);
         var disabled = ob.hasClass('disabled');
 
-        if (disabled) return;
-        
-        //alert(ob.prop('tagName'));
+        if (disabled)
+            return;
 
         $ProfileClients.onRemoveClientProfileItem(ob);
     });
@@ -210,6 +192,10 @@ jQuery(function($)
     // --------------------
     // Right side Data menu
     // --------------------
+
+    $(".btn-info").click(function(e) {
+        $SidebarControl.onBeforeSubmit();
+    });
 
     $("#add").click(function(e) {
         $("input[name^='command']").val('add');
@@ -222,20 +208,17 @@ jQuery(function($)
 
         $ProfileClients.reset();
         $ProfileClients.activate(true);
-
-        isKeyboardDisabled = true;
     });
 
     $("#delete").click(function(e) {
         $("input[name^='command']").val('delete');
         $onParentFormSubmit('command-form');
-        //e.preventDefault();
     });
 
     // -----------------
     // Top Command Panel
     // -----------------
-
+    /*
     $("#refresh").click(function(e) {
         $("#command").val('refresh');
         $onParentFormSubmit('filter-form');
@@ -284,7 +267,7 @@ jQuery(function($)
     $("#search-form").submit(function(e) {
         $onSearchSubmit(e);
     });
-
+    */
     // -------------
     // Resize window
     // -------------
@@ -293,6 +276,10 @@ jQuery(function($)
     // Keyboard
     // --------
 });
+
+function page_is_focused(e) {
+    return false;
+}
 
 // =======
 // STARTER
@@ -304,10 +291,11 @@ $(function()
         alert('Document Ready (admin)');
 
     current_context = 'admin';
+    isKeyboardDisabled = true;
 
     $("#search-context").attr('placeholder', 'Найти (name, login, email)...');
 
-    document.oncontextmenu = function() { return false; };
+    //document.oncontextmenu = function() { return false; };
 
     $_init();
 });

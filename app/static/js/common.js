@@ -39,6 +39,7 @@ var selected_menu_action = null;  // Selected DataMenu Action
 var selected_control = null;      // Selected form's control
 
 var semaphore_state = null;
+var treeview_state = null;
 
 // ==========================================================================================================
 
@@ -58,6 +59,7 @@ var isSubmitted = false;
 var isKeyboardDisabled = false;
 var isConfirmation = false;
 var isDropdownActive = false;
+var isCallback = false;
 
 var confirm_action = '';
 
@@ -90,15 +92,20 @@ function interrupt(start, mode, timeout, callback, index, type) {
     //  type - тип функции: setTimeout/setInterval
     //
     if (start) {
-        var i = (index != null) ? index : TID.length;
+        var i = !is_null(index) ? index : TID.length;
         //var s = "interrupt(false, "+mode+", 0, "+(callback ? "'"+callback+"'" : 'null')+", "+i+")";
         var delay = timeout ? timeout : default_timeout;
         var func = function() { interrupt(false, mode, 0, callback, i, type); };
         if (i == TID.length) TID.push(null);
-        TID[i] = (type === 1) ? window.setInterval(func, delay) : window.setTimeout(func, delay);
+        //TID[i] = (type === 1) ? window.setInterval(func, delay) : window.setTimeout(func, delay);
+        if (type == 1)
+            TID[i] = window.setInterval(func, delay);
+        else
+            TID[i] = window.setTimeout(func, delay);
 
         if (IsLog)
             console.log('start:'+mode+', index:'+i+', len:'+TID.length);
+
     } else if (mode) {
         if (IsLog)
             console.log('interrupt:'+mode+', TID:'+TID.join('-'));
@@ -109,11 +116,20 @@ function interrupt(start, mode, timeout, callback, index, type) {
         } else if (mode == 1) {
             interrupt(false, 0, 0, null, index);
             $ShowOnStartup();
+        } else if (mode == 2) {
+            interrupt(false, 0, 0, null, index);
+            $ReferenceDialog.submit('refresh');
+        } else if (mode == 3) {
+            interrupt(false, 0, 0, null, index);
+            $LineSelector.onReset();
+        } else if (mode == 4) {
+            interrupt(false, 0, 0, null, index);
+            $onClickTreeView();
         } else if (mode == 9)
             $Semaphore.run(index);
 
     } else if (TID.length > index && TID[index] != null) {
-        if (type === 1)
+        if (type == 1)
             window.clearInterval(TID[index]);
         else 
             window.clearTimeout(TID[index]);
@@ -187,6 +203,11 @@ function $_get_item_id(ob, index) {
     var x = ob.attr('id') || 0;
     var id = (x && x.indexOf(DEFAULT_HTML_SPLITTER) > -1 && x.startswith('row')) ? x.split(DEFAULT_HTML_SPLITTER)[index || 1] : x;
     return id;
+}
+
+function $_maximize() {
+    window.moveTo(0, 0);
+    window.resizeTo($_width('max'), $_height('max'));
 }
 
 function $_set_body_value(id, value) {
@@ -311,6 +332,24 @@ function $ShowLoader(start) {
     }
 }
 
+function $ActivateInfoData(show) {
+    var container = $("#info-data");
+
+    if (show)
+        container.show();
+    else {
+        container.hide();
+        return;
+    }
+
+    $PageScroller.reset(true);
+}
+
+function $RemoveInfoData() {
+    var container = $("#info-data");
+    container.empty().hide();
+}
+
 function $InProgress(ob, mode) {
     if (!is_null(ob) && mode == 1) {
         ob.addClass("inprogress");
@@ -351,17 +390,26 @@ function $ResetSearch(deactivate) {
 
 function $HideLogPage() {
     var ob = SelectedGetItem(SUBLINE, 'ob');
+    
+    if (IsLog)
+        console.log('$HideLogPage:'+is_null(ob));
+    
     if (!is_null(ob))
         $onToggleSelectedClass(SUBLINE, ob, 'remove', null);
 }
 
 function $ShowLogPage() {
-    if (!is_null(current_subline))
-        $onToggleSelectedClass(SUBLINE, current_subline, 'add', null);
+    var ob = SelectedGetItem(SUBLINE, 'ob');
+
+    if (IsLog)
+        console.log('$ShowLogPage:'+is_null(ob));
+    
+    if (!is_null(ob))
+        $onToggleSelectedClass(SUBLINE, ob, 'add', null);
 }
 
 function $ResetLogPage() {
-    current_subline = null;
+    //current_subline = null;
     $("#command").val('');
 }
 
@@ -382,6 +430,8 @@ function $onParentFormSubmit(id) {
     var action = frm.attr('action');
 
     $SidebarControl.onBeforeSubmit();
+
+    //alert('submit');
 
     frm.submit();
 }
@@ -409,52 +459,93 @@ function $onPageLinkSubmit(link) {
 }
 
 function $onToggleSelectedClass(key, ob, action, command, force) {
+    // ---------------------------------------
+    // Set current selected HTML control item.
+    // ---------------------------------------
+    //      key     : type of control: LINE, SUBLINE, TABLINE, REFERENCE
+    //      ob      : selected (a new) item HTML control
+    //      action  : action to perform: submit|clear|add|remove
+    //      command : command to submit
+    //      force   : forced flag
+    //
+    // It used together with db.controller classes: $LineSelector, $SublineSelector.
+    // On run `SelectedGetItem` function keeps current (selected before) item. 
+    // Current item and his children have CSS `selected` class.
+    // Action `submit` valid for LINE key only!
+
     var id = !is_null(ob) ? $_get_item_id(ob) : SelectedGetItem(key, 'id');
     var mask = [LINE, SUBLINE, TABLINE, REFERENCE].indexOf(key) > -1 ? 'td' : 'dd';
     var input = "input[name^='"+default_input_name+"']";
 
-    if (isWebServiceExecute)
+    //alert(key+':'+id+':'+action+':'+mask+':'+input);
+
+    if (is_empty(id))
         return;
 
-    //alert(id+':'+action+':'+mask+':'+input);
+    if (is_null(ob))
+        ob = SelectedGetItem(key, 'ob');
 
     function make(ob, action, mode) {
+        // Toggles `selected` class and updates `default_input_name` inputs 
+        // with the given control `id` for:
+        //      key=LINE and mode=1
+        // If ob == null, current item has not been selected before.
+
+        if (is_null(ob))
+            return;
+
+        if (IsLog)
+            console.log('$onToggleSelectedClass:'+action+':'+id);
+
         $(mask, ob).each(function() {
             if (action == 'add') {
                 $(this).addClass("selected");
                 if (key == LINE && mode == 1)
                     $(input).each(function() { $(this).val(id); });
-                SelectedSetItem(key, 'ob', ob);
             }
             else
                 $(this).removeClass("selected");
         });
+
+        if (action == 'add') {
+            ob.addClass("selected");
+            SelectedSetItem(key, 'ob', ob);
+        }
+        else {
+            ob.removeClass("selected");
+            SelectedSetItem(key, 'ob', null);
+        }
     }
 
     $("#command").val(!is_null(command) ? command : '');
 
-    if (action == 'submit') {
-        $(input).each(function() { $(this).val(id); });
+    switch (action) {
+        case 'submit':
+            if (isWebServiceExecute || key != LINE)
+                return;
 
-        if (force) {
-            $onParentFormSubmit();
-            return;
-        }
+            $(input).each(function() { $(this).val(id); });
 
-        if (default_submit_mode > 0) {
-            make(SelectedGetItem(LINE, 'ob'), 'remove', 0);
-            SelectedReset();
-            make(ob, 'add', 0);
-        }
+            if (force) {
+                $onParentFormSubmit();
+                return;
+            }
 
-        $onLineFormSubmit();
+            if (default_submit_mode > 0) {
+                make(SelectedGetItem(key, 'ob'), 'remove', 0);
+                SelectedReset();
+                make(ob, 'add', 0);
+            }
+
+            $onLineFormSubmit();
+            break;
+        case 'clean':
+            $(input).each(function() { $(this).val(''); });
+            SelectedSetItem(key, 'ob', null);
+            break;
+        default:
+            make(ob, action, 1);
     }
-    else if (action == 'clean') {
-        $(input).each(function() { $(this).val(''); });
-        SelectedSetItem(key, 'ob', null);
-    } 
-    else
-        make(ob, action, 1);
 }
 
 function $setPaginationFormSubmit(page) {
@@ -653,9 +744,8 @@ jQuery(function($)
         if (e.shiftKey && e.keyCode==112)                        // Shift-F1
             exit = $onOpenHelp();
 
-        //alert(e.keyCode);
-
-        if ($LogSearchDialog.is_focused() || $TagSearchDialog.is_focused() || $ConfirmDialog.is_focused() || $NotificationDialog.is_focused() || isKeyboardDisabled)
+        if ($ConfirmDialog.is_focused() || $NotificationDialog.is_focused() || 
+            page_is_focused(e) || isKeyboardDisabled)
             return;
 
         if (e.shiftKey && [67, 79].indexOf(e.keyCode) > -1) {    // Shift-C,Shift-O
@@ -684,6 +774,11 @@ jQuery(function($)
 
             else if (e.keyCode==13)                             // Ctrl-Enter
             */
+
+            // -----------------------
+            // Tabline Selector moving
+            // -----------------------
+
             if (e.keyCode==38)                                  // Ctrl-Up
                 exit = $LineSelector.up();
             else if (e.keyCode==40)                             // Ctrl-Down
@@ -696,7 +791,12 @@ jQuery(function($)
                 exit = $LineSelector.pgdown();
             else if (e.ctrlKey && e.keyCode==35)                // Ctrl-End
                 exit = $LineSelector.end();
-            else if (e.keyCode==9)                              // Ctrl-Tab
+
+            // -------------
+            // Tab Switching
+            // -------------
+
+            else if (e.shiftKey && e.keyCode==9)                // Shift-Tab
                 exit = $TabSelector.tab();
             else if (e.ctrlKey && e.keyCode==37)                // Ctrl-Left
                 exit = $TabSelector.left();
@@ -711,14 +811,35 @@ jQuery(function($)
             if (e.keyCode > 0)
                 alert(e.altKey+':'+e.keyCode);
             */
-            if (e.keyCode==38)                                  // Alt-Up
-                exit = $SublineSelector.up();
-            else if (e.keyCode==40)                             // Alt-Down
-                exit = $SublineSelector.down();
-            else if ([33, 36].indexOf(e.keyCode) > -1)          // Alt-Home:Alt-PgUp
-                exit = $SublineSelector.home();
-            else if ([34, 35].indexOf(e.keyCode) > -1)          // Alt-End:Alt-PgDown
-                exit = $SublineSelector.end();
+
+            var before = true;
+
+            // -------------------
+            // Before move handler
+            // -------------------
+
+            if (typeof keyboard_alt_before === 'function')
+                before = keyboard_alt_before(e.keyCode);
+
+            if (before) {
+                if (e.keyCode==38)                              // Alt-Up
+                    exit = $ActiveSelector.up();
+                else if (e.keyCode==40)                         // Alt-Down
+                    exit = $ActiveSelector.down();
+                else if ([33, 36].indexOf(e.keyCode) > -1)      // Alt-Home:Alt-PgUp
+                    exit = $ActiveSelector.home();
+                else if ([34, 35].indexOf(e.keyCode) > -1)      // Alt-End:Alt-PgDown
+                    exit = $ActiveSelector.end();
+            }
+            else
+                exit = true;
+
+            // ------------------
+            // After move handler
+            // ------------------
+
+            if (typeof keyboard_alt_after === 'function' && before)
+                keyboard_alt_after(e.keyCode);
         }
 
         if (exit) {

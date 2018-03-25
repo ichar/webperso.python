@@ -186,13 +186,13 @@ def setup_console(sys_enc=default_unicode):
     except:
         pass
 
-def print_to(f, v, mode='ab', request=None):
+def print_to(f, v, mode='ab', request=None, encoding=default_encoding):
     items = not isIterable(v) and [v] or v
     if not f:
         f = getErrorlog()
     fo = open(f, mode=mode)
     def _out(s):
-        fo.write(s.encode(default_encoding, 'ignore'))
+        fo.write(s.encode(encoding, 'ignore'))
         fo.write(cr.encode())
     for text in items:
         try:

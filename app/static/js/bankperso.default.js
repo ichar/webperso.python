@@ -8,6 +8,13 @@
 // Component control class
 // =======================
 
+var $ReferenceDialog = {
+
+    is_focused: function() {
+        return false;
+    }
+};
+
 var $PageScroller = {
     page      : { 'base':null, 'top':0, 'height':0 },
     control   : { 'ob':null, 'default_position':0, 'top':0, 'height':0, 'isDefault':0, 'isMoved':0, 'isShouldBeMoved':0 },

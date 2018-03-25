@@ -11,7 +11,7 @@ from config import (
     IsDebug, IsDeepDebug, IsShowLoader, IsFuture, errorlog, print_to, print_exception, getCurrentDate
 )
 
-product_version = '1.75, 2018-02-08'
+product_version = '1.80 (beta), 2018-03-25'
 
 #########################################################################################
 
@@ -144,8 +144,11 @@ def get_request_item(name):
         x = None
     if not x:
         x = request.args.get(name)
-    if x and (x == DEFAULT_UNDEFINED or x.upper() == 'NONE'):
-        x = None
+    if x:
+        if x == DEFAULT_UNDEFINED or x.upper() == 'NONE':
+            x = None
+        elif x.startswith('{') and x.endswith('}'):
+            return eval(re.sub('null', '""', x))
     return x or ''
 
 def has_request_item(name):
@@ -205,7 +208,7 @@ def make_platform(locale, debug=None):
     links = {}
 
     is_default = 1 or os in ('ipad', 'android',) and browser in ('safari', 'chrome',) and 1 or 0 
-    is_frame = 0
+    is_frame = not IsMobile() and 1 or 0
 
     version = agent.version
     css = IsMSIE() and 'ie' or 'web'
@@ -253,14 +256,18 @@ def make_keywords():
         # Buttons
         # -------
         "'Add':'%s'" % gettext('Add'),
+        "'Back':'%s'" % gettext('Back'),
         "'Calculate':'%s'" % gettext('Calculate'),
         "'Cancel':'%s'" % gettext('Cancel'),
         "'Confirm':'%s'" % gettext('Confirm'),
         "'Execute':'%s'" % gettext('Execute'),
+        "'Frozen link':'%s'" % gettext('Frozen link'),
+        "'Link':'%s'" % gettext('Link'),
         "'OK':'%s'" % gettext('OK'),
         "'Reject':'%s'" % gettext('Decline'),
         "'Remove':'%s'" % gettext('Remove'),
         "'Run':'%s'" % gettext('Run'),
+        "'Save':'%s'" % gettext('Save'),
         "'Search':'%s'" % gettext('Search'),
         "'Select':'%s'" % gettext('Select'),
         "'Update':'%s'" % gettext('Update'),
@@ -308,10 +315,14 @@ def make_keywords():
         # -------------
         "'Command:Activate selected batch':'%s'" % gettext('Command: Activate selected batch?'),
         "'Command:Activate selected batches':'%s'" % gettext('Command: Activate selected batches?'),
+        "'Command:Config item removing':'%s'" % gettext('Command: Do you really want to remove the config item?'),
+        "'Command:Item was changed. Continue?':'%s'" % gettext('Command: Item was changed. Continue?'),
+        "'Command:Reference item removing':'%s'" % gettext('Command: Do you really want to remove the reference item?'),
         "'Command:Reject activation':'%s'" % gettext('Command: Do you really want to reject selected batches?'),
         "'Command:Send request to the warehouse':'%s'" % gettext('Command: Send request to the warehouse?'),
         "'Exclamation:exists_inactive':'%s'" % gettext('Exclamation: Exist inactive batches'),
         "'Exclamation:exists_materials':'%s'" % gettext('Exclamation: Exist materials to send in order'),
+        "'Message:Action was done successfully':'%s'" % gettext('Message: Action was done successfully.'),
         "'Message:Request sent successfully':'%s'" % gettext('Message: Request was sent successfully.'),
         "'OK:exists_inactive':'%s'" % gettext('OK: All batches done'),
         "'OK:exists_materials':'%s'" % gettext('OK: Materials OK'),

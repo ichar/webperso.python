@@ -296,8 +296,18 @@ function $updateUserForm(data) {
     $setUserFormSubmit(1);
 }
 
+// -------------------------
+// SubLine Content Generator
+// -------------------------
+
 function $updateLog(data, props) {
     var container = null;
+
+    // ---------------------------
+    // Run Subline/LogPage Handler
+    // ---------------------------
+
+    isCallback = true;
 
     function set_table(container, mode) {
         var no_data = '<tr><td><div class="nodata">'+keywords['No data']+'</div></td></tr>';
@@ -388,7 +398,7 @@ function $updateLog(data, props) {
         return {'image':image, 'info':info};
     }
 
-    if (container != null) {
+    if (!is_null(container)) {
         container.html('');
 
         var content = '';
@@ -449,7 +459,7 @@ function $updateLog(data, props) {
         });
     }
 
-    if (container != null) {
+    if (!is_null(container)) {
         $("#ex_form").html(number);
 
         var enabled = set_table(container, 1) > 0 ? true : false;
@@ -459,16 +469,79 @@ function $updateLog(data, props) {
     }
 
     $ActivateInfoData(1);
-
-    // ----------------
-    // Run Page Handler
-    // ----------------
-
-    if (typeof log_callback === 'function')
-        log_callback(data, props);
 }
 
 function $updateLogPagination(pages, rows, iter_pages, has_next, has_prev, per_page) {
+}
+
+// -------------------------
+// TabLine Content Generator
+// -------------------------
+
+var TEMPLATE_TABLINE_HEADER = '<td class="column header">VALUE</td>';
+var TEMPLATE_TABLINE_ROW = '<tr class="CLASS-LOOP-SELECTED"ID>LINE</tr>';
+var TEMPLATE_TABLINE_COLUMN = '<td class="CLASS-ERROR-READY-SELECTED"EXT>VALUE</td>';
+
+function makeTabLineAttrs(ob, class_name, i) {
+    var id_template = 'row-'+(class_name || 'tabline')+':ID:'+(i+1).toString();
+    if (is_null(ob))
+        return ['selected', id_template.replace(/:ID:/g, '_0_')];
+    var selected = ob['selected'] || '';
+    var id = ('id' in ob && ob['id']) ? id_template.replace(/ID/g, ob['id']) : '';
+    return [selected, id];
+}
+
+function class_even_odd(i) {
+    return i>-1 && i%2==0 ? ' even' : ' odd';
+}
+
+function class_selected(selected) {
+    return selected ? ' selected' : '';
+}
+
+function class_error(error) {
+    return error ? ' error' : '';
+}
+
+function class_ready(ready) {
+    return ready ? ' ready' : '';
+}
+
+function makeTabLineRow(id, class_name, i, selected, line) {
+    return TEMPLATE_TABLINE_ROW
+        .replace(/ID/g, ' id="'+id+'"')
+        .replace(/CLASS/g, class_name || 'tabline')
+        .replace(/-LOOP/g, class_even_odd(i))
+        .replace(/-SELECTED/g, class_selected(selected))
+        .replace(/LINE/g, line);
+}
+
+function makeTabLineColumns(ob, columns, selected) {
+    var column = TEMPLATE_TABLINE_COLUMN;
+    var error = ('Error' in ob && ob['Error']) ? true : false;
+    var ready = ('Ready' in ob && ob['Ready']) ? true : false;
+
+    var line = '';
+
+    for(var j=0; j < columns.length; j++) {
+        var name = columns[j]['name'];
+        var value = (name.length > 0 && (name in ob)) ? ob[name].toString() : '';
+
+        line += column
+            .replace(/CLASS/g, 'column log-'+(name == 'Code' && value.length > 0 ? value.toLowerCase() : name.toLowerCase()))
+            .replace(/-ERROR/g, class_error(error))
+            .replace(/-READY/g, class_ready(ready))
+            .replace(/-SELECTED/g, class_selected(selected))
+            .replace(/EXT/g, '')
+            .replace(/VALUE/g, value);
+    }
+
+    return line;
+}
+
+function makeTabNoData(class_name, class_nodata, msg, colspan) {
+    return ('<tr id="'+class_name+'-no-data"><tdEXT><div class="'+class_nodata+'">'+msg+'</div></td></tr>')
+        .replace(/EXT/g, ' colspan="'+colspan.toString()+'"');
 }
 
 function $updateTabData(action, data, columns, total) {
@@ -489,21 +562,17 @@ function $updateTabData(action, data, columns, total) {
         } else {
             container.text(data);
             container.parent().append(
-                '<div class="row-counting">'+(title || 'Всего записей')+': '+total.toString()+'</div>'
+                '<div class="row-counting">'+(title || 'Всего записей')+': <span id="tab-rows-total">'+total.toString()+
+                '</span></div>'
                 );
             container.removeClass('p50');
         }
     }
 
     function set_table(container, class_name, template) {
-        var header = '<td class="column header">VALUE</td>'; // nowrap
-        var row = '<tr class="CLASS-LOOP-SELECTED"ID>LINE</tr>';
-        var column = '<td class="CLASS-ERROR-READY-SELECTED"EXT>VALUE</td>';
-        var no_data = '<tr><tdEXT><div class="'+
-                (['306','307','308'].indexOf(action) > -1 ? 
-                    'nodataoraccess">'+keywords['No data or access denied'] : 
-                    'nodata">'+keywords['No data'])+
-            '</div></td></tr>';
+        var header = TEMPLATE_TABLINE_HEADER;
+        var row = TEMPLATE_TABLINE_ROW;
+        var column = TEMPLATE_TABLINE_COLUMN;
         var content = '';
         var filename = '';
 
@@ -519,9 +588,21 @@ function $updateTabData(action, data, columns, total) {
         content += '</tr></thead>';
 
         if (data.length == 0) {
-            content += no_data
-                .replace(/EXT/g, ' colspan="'+columns.length.toString()+'"');
-        } else {
+            var no_class_name = '';
+            var msg = '';
+
+            if (['306','307','308'].indexOf(action) > -1) {
+                class_nodata = 'nodataoraccess';
+                msg = keywords['No data or access denied'];
+            }
+            else {
+                class_nodata = 'nodata';
+                msg = keywords['No data'];
+            }
+
+            content += makeTabNoData(class_name, class_nodata, msg, columns.length);
+        } 
+        else {
             for(var i=0; i < data.length; i++) {
                 var line = '';
                 var ob = data[i];
@@ -531,10 +612,7 @@ function $updateTabData(action, data, columns, total) {
                     continue;
                 }
 
-                var error = ('Error' in ob && ob['Error']) ? ' error' : '';
-                var ready = ('Ready' in ob && ob['Ready']) ? ' ready' : '';
-                var selected = ob['selected'] ? ' '+ob['selected'] : '';
-                var id = ('id' in ob && ob['id']) ? ' id="row-'+(class_name || 'tabline')+':'+ob['id']+':'+(i+1).toString()+'"' : '';
+                var [selected, id] = makeTabLineAttrs(ob, class_name, i);
 
                 if ('filename' in ob && filename != ob['filename']) {
                     filename = ob['filename'];
@@ -551,33 +629,14 @@ function $updateTabData(action, data, columns, total) {
                     line = '';
                 }
 
-                for(var j=0; j < columns.length; j++) {
-                    var name = columns[j]['name'];
-                    var value = (name.length > 0 && (name in ob)) ? ob[name].toString() : '';
-
-                    line += column
-                        .replace(/CLASS/g, 'column log-'+(name == 'Code' && value.length > 0 ? value.toLowerCase() : name.toLowerCase()))
-                        .replace(/-ERROR/g, error)
-                        .replace(/-READY/g, ready)
-                        .replace(/-SELECTED/g, selected)
-                        .replace(/EXT/g, '')
-                        .replace(/VALUE/g, value);
-                }
-
-                content += row
-                    .replace(/ID/g, id)
-                    .replace(/CLASS/g, class_name || 'tabline')
-                    .replace(/-LOOP/g, ' '+(i%2==0 ? 'even' : 'odd'))
-                    .replace(/-SELECTED/g, selected)
-                    .replace(/LINE/g, line);
+                line += makeTabLineColumns(ob, columns, selected);
+                content += makeTabLineRow(id, class_name, i, selected, line);
             }
         }
 
         content += '</table>';
 
-        content += '<div class="row-counting">Всего записей: '+data.length.toString()+'</div>';
-
-        //alert(container.attr('id')+':'+content);
+        content += '<div class="row-counting">Всего записей: <span id="tab-rows-total">'+data.length.toString()+'</span></div>';
 
         container.append(content);
     }
@@ -589,12 +648,12 @@ function $updateTabData(action, data, columns, total) {
             break;
         
         case '302':
-            set_table($("#logs-container"));
+            set_table($("#logs-container"), 'tabline');
             mid = 'data-menu-logs';
             break;
         
         case '303':
-            set_table($("#cardholders-container"));
+            set_table($("#cardholders-container"), 'tabline');
             mid = 'data-menu-cardholders';
             break;
         
@@ -609,22 +668,22 @@ function $updateTabData(action, data, columns, total) {
             break;
         
         case '306':
-            set_table($("#persolog-container"));
+            set_table($("#persolog-container"), 'tabline');
             mid = 'data-menu-persolog';
             break;
         
         case '307':
-            set_table($("#sdclog-container"));
+            set_table($("#sdclog-container"), 'tabline');
             mid = 'data-menu-sdclog';
             break;
         
         case '308':
-            set_table($("#exchangelog-container"));
+            set_table($("#exchangelog-container"), 'tabline');
             mid = 'data-menu-exchangelog';
             break;
         
         case '401':
-            set_table($("#preloadlog-container"));
+            set_table($("#preloadlog-container"), 'subline');
             mid = 'data-menu-preloadlog';
             break;
 
@@ -634,27 +693,27 @@ function $updateTabData(action, data, columns, total) {
             break;
         
         case '502':
-            set_table($("#files-container"));
+            set_table($("#files-container"), 'tabline');
             mid = 'data-menu-files';
             break;
         
         case '503':
-            set_table($("#errors-container"));
+            set_table($("#errors-container"), 'tabline');
             mid = 'data-menu-errors';
             break;
         
         case '504':
-            set_table($("#certificates-container"));
+            set_table($("#certificates-container"), 'tabline');
             mid = 'data-menu-certificates';
             break;
         
         case '505':
-            set_table($("#aliases-container"));
+            set_table($("#aliases-container"), 'tabline');
             mid = 'data-menu-aliases';
             break;
         
         case '506':
-            set_table($("#log-container"));
+            set_table($("#log-container"), 'tabline');
             mid = 'data-menu-log';
             break;
 
@@ -664,58 +723,68 @@ function $updateTabData(action, data, columns, total) {
             break;
 
         case '602':
-            set_table($("#processes-container"));
+            set_table($("#processes-container"), 'tabline');
             mid = 'data-menu-processes';
             break;
 
         case '603':
-            set_table($("#opers-container"));
+            set_table($("#opers-container"), 'tabline');
             mid = 'data-menu-opers';
             break;
 
         case '604':
-            set_table($("#operparams-container"));
+            set_table($("#operparams-container"), 'tabline');
             mid = 'data-menu-operparams';
             break;
 
         case '605':
-            set_table($("#filters-container"));
+            set_table($("#filters-container"), 'tabline');
             mid = 'data-menu-filters';
             break;
 
         case '606':
-            set_table($("#tags-container"));
+            set_table($("#tags-container"), 'tabline');
             mid = 'data-menu-tags';
             break;
 
         case '607':
-            set_table($("#tagvalues-container"));
+            set_table($("#tagvalues-container"), 'tabline');
             mid = 'data-menu-tagvalues';
             break;
 
         case '608':
-            set_table($("#tzs-container"));
+            set_table($("#tzs-container"), 'tabline');
             mid = 'data-menu-tzs';
             break;
 
         case '609':
-            set_table($("#erpcodes-container"));
+            set_table($("#erpcodes-container"), 'tabline');
             mid = 'data-menu-erpcodes';
             break;
 
         case '610':
-            set_table($("#materials-container"));
+            set_table($("#materials-container"), 'tabline');
             mid = 'data-menu-materials';
             break;
 
         case '611':
-            set_table($("#posts-container"));
+            set_table($("#posts-container"), 'tabline');
             mid = 'data-menu-posts';
             break;
 
         case '612':
-            set_table($("#processparams-container"));
+            set_table($("#processparams-container"), 'tabline');
             mid = 'data-menu-processparams';
+            break;
+
+        case '613':
+            set_table($("#tagopers-container"), 'tabline');
+            mid = 'data-menu-tagopers';
+            break;
+
+        case '614':
+            set_table($("#tagoperparams-container"), 'tabline');
+            mid = 'data-menu-tagoperparams';
             break;
 
         case '700':
@@ -724,22 +793,22 @@ function $updateTabData(action, data, columns, total) {
             break;
         
         case '702':
-            set_table($("#logs-container"));
+            set_table($("#logs-container"), 'tabline');
             mid = 'data-menu-logs';
             break;
         
         case '703':
-            set_table($("#units-container"));
+            set_table($("#units-container"), 'tabline');
             mid = 'data-menu-units';
             break;
         
         case '704':
-            set_table($("#params-container"));
+            set_table($("#params-container"), 'tabline');
             mid = 'data-menu-params';
             break;
     }
     
-    if (mid.length > 0) 
+    if (!is_empty(mid))
         $ShowMenu(mid);
 
     if (action != default_action)
@@ -756,6 +825,10 @@ function $updateSublineData(action, response, props, total) {
         $(this).html(filename);
     });
 
+    // -------------------------------------------------
+    // Refresh Sublines in order to Init SublineSelector
+    // -------------------------------------------------
+
     if (default_submit_mode != 0)
         $updateTabData(action, sublines, config, total);
 
@@ -765,6 +838,10 @@ function $updateSublineData(action, response, props, total) {
     var columns = response['columns'];
 
     selected_menu_action = response['action'];
+
+    // ---------------------------
+    // Refresh LogPage or Tablines
+    // ---------------------------
 
     if (selected_menu_action == default_log_action)
         $updateLog(data, props);

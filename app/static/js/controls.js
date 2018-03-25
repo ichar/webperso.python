@@ -12,17 +12,10 @@ var screen_size = [$_width('screen-max'), $_height('screen-max')];
 // Common Page Controls declarations
 // =================================
 
-/*
-function reference_handler(x) {
-    $ReferenceDialog.open(x)
-}
-*/
-
 var $Semaphore = {
     container    : null,
 
-    IsTrace      : 0,
-    IsLog        : 0,
+    IsTrace : 0, IsLog : 0,
 
     settings     : {
         'colors' : ['#0000ff', '#ff00ff', '#ffff00', '#ffa800', '#00ffff', '#00ff00', '#ff0000'],
@@ -243,8 +236,7 @@ var $Semaphore = {
 var $SidebarControl = {
     container     : {'sidebar' : null, 'data' : null, 'panel' : null, 'navigator' : null, 'semaphore' : null},
 
-    IsTrace       : 0,
-    IsLog         : 0,
+    IsTrace : 0, IsLog : 0,
 
     timeout       : 600,
     timer         : null,
@@ -369,6 +361,8 @@ var $SidebarControl = {
 
         if (this.IsLog)
             console.log('sidebar toggle frame:', this.animated, this.state, !this.is_shown);
+
+        this.onToggle();
     },
 
     onBeforeStart: function() {
@@ -415,6 +409,11 @@ var $SidebarControl = {
         }, this.timeout);
     },
 
+    hide: function() {
+        if (this.state == 1)
+            this.onNavigatorClick(false);
+    },
+
     onFrameMouseOut: function() {
         if (this.IsTrace)
             alert('out:'+this.state+':'+this.is_shown+':'+this.animated);
@@ -430,6 +429,11 @@ var $SidebarControl = {
         this.is_out = false;
 
         this.container.sidebar.removeClass("sidebar-shadow");
+    },
+
+    onToggle: function() {
+        if (typeof sidebar_toggle === 'function')
+            sidebar_toggle();
     },
 
     onNavigatorClick: function(force) {
@@ -469,379 +473,6 @@ var $SidebarControl = {
 // ===========================
 // Dialog windows declarations
 // ===========================
-
-var $ReferenceDialog = {
-    default_size : {'clients'      : [500, 604],
-                    'file-status'  : [760, 618],
-                    'batch-status' : [520, 480],
-                    'oper-list'    : [550, 618],
-                    'tag-params'   : [940, 635],
-                    'default'      : [500, 400]
-                    },
-
-    actions      : {'query':620},
-
-    container    : null,
-    box          : null,
-    search       : null,
-    actual_size  : new Object(),
-    state        : new Object(),
-    last         : null,
-    resizable    : null,
-
-    IsTrace      : 0,
-
-    min_width    : 400,
-    min_height   : 260,
-
-    offset_height_init   : 260,
-    offset_height_resize : 176,
-    offset_width_init    : 44,
-    offset_width_resize  : 0,
-
-    search_width : 300,
-
-    is_open      : false,
-
-    init: function() {
-        this.container = $("#reference-container");
-        this.box = $("#reference-box");
-        this.search = $("#reference-search");
-        this.state = new Object();
-        this.resizable = null;
-        this.last = null;
-
-        this.is_open = false;
-    },
-
-    get_id: function() {
-        return this.container.attr('id');
-    },
-
-    get_mode: function() {
-        return this.container.attr('mode');
-    },
-
-    set_mode: function(mode) {
-        this.container.attr('mode', mode);
-    },
-
-    set_size: function(mode, width, height, force) {
-        var size = this.actual_size[mode];
-
-        if (force && is_null(size))
-            return;
-
-        if (this.IsTrace)
-            alert(mode+':'+width+':'+height+', size:'+size);
-
-        var w = force ? size[0] : width;
-        var h = force ? size[1] : height;
-
-        switch(mode) {
-            case 'resizable':
-                if (!is_null(w))
-                    this.resizable.css("width", w.toString()+"px");
-                break;
-            case 'search':
-                if (!is_null(w))
-                    this.search.css("width", w.toString()+"px");
-                break;
-            case 'box':
-                if (!is_null(w))
-                    this.box.css("width", w.toString()+"px");
-                if (!is_null(h))
-                    this.box.css("height", h.toString()+"px");
-                break;
-        }
-
-        this.actual_size[mode] = [w, h];
-    },
-
-    get_size: function(mode, size) {
-        return this.actual_size[mode][size == 'w' ? 0 : 1];
-    },
-
-    toggle: function(ob) {
-        var oid = !is_null(ob) && ob.attr('id');
-
-        if (this.last != null)
-            $onToggleSelectedClass(REFERENCE, this.last, 'remove', null);
-
-        if (this.IsTrace)
-            alert('toggle:'+this.last+':'+oid);
-
-        $onToggleSelectedClass(REFERENCE, ob, 'add', null);
-
-        this.state['mode'] = this.get_mode();
-        this.state['value'] = getsplitteditem(oid, ':', 1, '');
-
-        this.last = ob;
-    },
-
-    setBody: function(id, data, config) {
-        var mode = this.get_mode();
-        
-        var columns = config['columns'];
-        var headers = config['headers'];
-
-        var head = '';
-        var item = '';
-
-        columns.forEach(function(name, index) {
-            var header = headers[name];
-            head += '<th class="reference-head" id="reference-head-KEY">TITLE</td>'
-                .replace(/TITLE/g, header.title)
-                .replace(/KEY/g, header.key);
-            item += '<td class="reference-KEY" id="reference-KEY:RID" title="TITLE">VALUE:NAME</td>'
-                .replace(/:RID/g, name == id ? ':ID' : '')
-                .replace(/NAME/g, name)
-                .replace(/STYLE/g, header.style)
-                .replace(/TITLE/g, header.title)
-                .replace(/KEY/g, header.key);
-        });
-
-        head = '<tr class="reference-item">'+head+'</tr>';
-        item = '<tr class="reference-item" id="reference:ID">'+item+'</tr>';
-
-        var content = '';
-
-        data.forEach(function(row, index) {
-            var line = item;
-            for (i=0; i<columns.length; i++) {
-                var name = columns[i];
-                var value_regexp = new RegExp('VALUE:'+name, 'ig');
-                line = line
-                    .replace(value_regexp, row[name]);
-            }
-            content += line
-                .replace(/ID/g, row[id]);
-        });
-
-        content = '<table class="reference-'+mode+'" id="reference-items">'+head+content+'</table>';
-
-        this.box.html(content);
-
-        this.resizable = $("#reference-head-name");
-
-        this.set_size('box', null, null, 1);
-    },
-
-    setContent: function(title) {
-        var src = $SCRIPT_ROOT+'static/img/';
-
-        //alert(id+':'+value+':'+data.length.toString()+':columns:'+columns.length.toString());
-
-        $("#reference-title").html(
-            title
-            );
-        $("#reference-confirmation").remove();
-
-        var html = 
-            '<div class="common-confirmation" id="reference-confirmation">'+
-            '<h4>'+keywords['select referenced item']+'</h4>'+
-            //'<img src="'+src+'point.png" width="800px" height="1px" style="height:1px;margin:0;padding:0;">'+
-            '<div class="common-box"><div id="reference-box">'+
-            '</div></div>'+
-            '<div class="common-box"><div id="reference-panel">'+
-            '<table border="0"><tr>'+
-            '<td class="icon"><img class="reference-icon" id="reference-icon:add" src="'+src+'add-40.png" title="'+keywords['Add']+'" alt=""></td>'+
-            '<td class="icon"><img class="reference-icon" id="reference-icon:update" src="'+src+'update-40.png" title="'+keywords['Update']+'" alt=""></td>'+
-            '<td class="icon"><img class="reference-icon" id="reference-icon:remove" src="'+src+'remove-40.png" title="'+keywords['Remove']+'" alt=""></td>'+
-            '<td class="search"><input id="reference-search" type="text"></td>'+
-            '<td class="icon"><img class="reference-icon" id="reference-icon:search" src="'+src+'search-40.png" title="'+keywords['Search']+'" alt=""></td>'+
-            '</tr></table>'+
-            '</div></div>'+
-            '</div>';
-
-        this.container.append(html);
-
-        this.box = $("#reference-box");
-        this.search = $("#reference-search");
-    },
-
-    setDefaultSize: function(force) {
-        //alert('>>> setDefaultSize');
-
-        var mode = this.get_mode();
-
-        if (!(mode in this.actual_size) || force)
-            this.actual_size[mode] = mode in this.default_size ? this.default_size[mode] : this.default_size['default'];
-
-        var size = this.actual_size[mode];
-
-        //alert(size);
-
-        this.set_size('resizable', size[0], null);
-        this.set_size('search', size[0] - this.search_width, null);
-
-        if (this.IsTrace)
-            alert('setDefaultSize:'+mode+':'+this.container.width()+':'+this.container.height()+':'+size+':'+force);
-
-        this.container.dialog("option", "width", size[0]);
-        this.container.dialog("option", "height", size[1]);
-
-        // --------------------------------
-        // Set default float content height
-        // --------------------------------
-
-        if (force)
-            this.set_size('box', null, size[1] - this.offset_height_init);
-    },
-
-    _round: function(value) {
-        return Math.round(value);
-    },
-
-    onResize: function(force) {
-        var mode = this.get_mode();
-
-        if (!(mode in this.actual_size))
-            return false;
-
-        if (this.IsTrace)
-            alert('resize:'+mode+':'+this.container.width()+':'+this.container.height()+':'+force);
-
-        if (this.container.width() < this.min_width || this.container.height() < this.min_height) {
-            this.setDefaultSize(true);
-            return false;
-        }
-
-        var size = this.actual_size[mode];
-
-        // ------------------
-        // New container size
-        // ------------------
-        
-        var width = this._round(this.container.width());
-        var height = this._round(this.container.height());
-
-        // -------------
-        // Resize offset
-        // -------------
-
-        var w = width - size[0];
-        var h = height - size[1];
-
-        // -----------------------
-        // Adjust float box height
-        // -----------------------
-
-        var offset = this.offset_height_resize;
-        var new_height = height - offset;
-
-        // ----------------------------
-        // Adjust float dialog controls
-        // ----------------------------
-
-        this.set_size('resizable', this.get_size('resizable', 'w') + w, null);
-        this.set_size('search', this.get_size('search', 'w') + w, null);
-        this.set_size('box', null, new_height);
-
-        // -------------
-        // Save new size
-        // -------------
-
-        if (force)
-            this.actual_size[mode] = [
-                width, 
-                height + 90 // + offset + 5 // ???
-            ];
-
-        return true;
-    },
-
-    onOpen: function() {
-        this.onResize(false);
-        this.box.scrollTop(0);
-
-        this.is_open = true;
-    },
-
-    onClose: function() {
-        //var mode = this.get_mode();
-        //this.actual_size[mode] = [this.container.width(), this.container.height()];
-
-        //alert(this.actual_size[mode]);
-
-        this.is_open = false;
-    },
-
-    onIconClick: function(ob) {
-        var command = ob.attr('id').split(':')[1];
-
-        switch(command) {
-            case 'search':
-                this.submit(command);
-                break;
-            default:
-                $ShowError('Command is not responsable:'+this.get_mode()+':'+command, true, true, false);
-        }
-    },
-
-    confirmation: function(command) {
-        this.init();
-
-        var action = this.actions['query'];
-        var params = command;
-
-        if (this.IsTrace)
-            alert('confirmation:'+action+', params['+params+']');
-
-        $web_logging(action, function(x) { $ReferenceDialog.open(x); }, params);
-    },
-
-    submit: function(command) {
-        var mode = this.get_mode();
-        var action = this.actions['query'];
-        var params = command+':'+mode+':'+this.search.val();
-
-        if (this.IsTrace)
-            alert('confirmation:'+action+', params['+params+']');
-
-        $web_logging(action, function(x) { $ReferenceDialog.open(x); }, params);
-    },
-
-    open: function(x) {
-        var action = x['action'];
-        var data = x['data'];
-        var props = x['props'];
-        var id = props['id'];
-        //var value = props['value'];
-        var title = props['title'];
-        var mode = props['mode'];
-        var table = props['table'];
-        var config = x['config'];
-
-        //alert(id+':'+mode+':'+table);
-
-        this.set_mode(mode);
-
-        //alert(this.actual_size[mode]);
-
-        if (!this.is_open)
-            this.setContent(title);
-
-        this.setBody(id, data, config);
-
-        this.container.dialog("option", "title", keywords['Status confirmation form']);
-
-        this.setDefaultSize(false);
-
-        if (this.is_open)
-            return;
-
-        this.container.dialog("open");
-    },
-
-    confirmed: function() {
-        this.close();
-    },
-
-    close: function() {
-        this.container.dialog("close");
-    }
-};
 
 var $StatusChangeDialog = {
     default_size : {'file'  : [710, screen_size[1]-140-(30*2)], /* 145 */
@@ -1348,6 +979,7 @@ var $ConfirmDialog = {
 
 var $NotificationDialog = {
     container : null,
+
     opened    : false,
     focused   : false,
 
@@ -1475,9 +1107,21 @@ var $HelpDialog = {
 
             s +=
                 '<div><dt class="keycode">Shift-R</dt><dd class="spliter">:</dd><p class="text">'+'Сбросить фильтр'+'</p></div>'+
-                '<div><dt class="keycode">Shift-S</dt><dd class="spliter">:</dd><p class="text">'+'Контекстный поиск'+'</p></div>'+
+                '<div><dt class="keycode">Shift-S</dt><dd class="spliter">:</dd><p class="text">'+'Контекстный поиск'+'</p></div>';
+
+        if (['bankperso','cards'].indexOf(this.context) > -1) {
+            s +=
                 '<div><dt class="keycode">Shift-T</dt><dd class="spliter">:</dd><p class="text">'+'Фильтр текущего дня'+'</p></div>'+
                 '';
+        }
+
+        if (['configurator'].indexOf(this.context) > -1) {
+            s +=
+                '<div><dt class="keycode">Shift-I</dt><dd class="spliter">:</dd><p class="text">'+'Добавить параметр'+'</p></div>'+
+                '<div><dt class="keycode">Shift-U</dt><dd class="spliter">:</dd><p class="text">'+'Редактировать параметр'+'</p></div>'+
+                '<div><dt class="keycode">Shift-D</dt><dd class="spliter">:</dd><p class="text">'+'Удалить параметр'+'</p></div>'+
+                '';
+        }
 
         box.html(s);
     },
@@ -1511,6 +1155,10 @@ jQuery(function($)
         modal: true,
         draggable: true,
         resizable: true,
+        position: {my: "center center", at: "center center", of: window, collision: "none"},
+        create: function (event, ui) {
+            $(event.target).parent().css("position", "fixed");
+        },
         open: function() {
             $StatusChangeDialog.onOpen();
         },
@@ -1537,7 +1185,11 @@ jQuery(function($)
         ],
         modal: true,
         draggable: true,
-        resizable: false
+        resizable: false,
+        position: {my: "center center", at: "center center", of: window, collision: "none"},
+        create: function (event, ui) {
+            $(event.target).parent().css("position", "fixed");
+        },
     });
 
     // -----------------
@@ -1556,6 +1208,10 @@ jQuery(function($)
         modal: true,
         draggable: true,
         resizable: false,
+        position: {my: "center center", at: "center center", of: window, collision: "none"},
+        create: function (event, ui) {
+            $(event.target).parent().css("position", "fixed");
+        },
         close: function() {
             $LogSearchDialog.onClose();
         }
@@ -1577,6 +1233,10 @@ jQuery(function($)
         modal: true,
         draggable: true,
         resizable: false,
+        position: {my: "center center", at: "center center", of: window, collision: "none"},
+        create: function (event, ui) {
+            $(event.target).parent().css("position", "fixed");
+        },
         close: function() {
             $TagSearchDialog.onClose();
         }
@@ -1589,14 +1249,18 @@ jQuery(function($)
     $("#help-container").dialog({
         autoOpen: false,
         width:560,
-        height:640, /* 720 = 25 for one line */
-        position:0,
+        height:642, /* 720 = 25 for one line */
+        //position:0,
         buttons: [
             {text: keywords['OK'], click: function() { $HelpDialog.cancel(); }}
         ],
         modal: true,
         draggable: true,
         resizable: false,
+        position: {my: "center center", at: "center center", of: window, collision: "none"},
+        create: function (event, ui) {
+            $(event.target).parent().css("position", "fixed");
+        },
         close: function() {
             $HelpDialog.onClose();
         }
@@ -1618,6 +1282,10 @@ jQuery(function($)
         modal: true,
         draggable: true,
         resizable: false,
+        position: {my: "center center", at: "center center", of: window, collision: "none"},
+        create: function (event, ui) {
+            $(event.target).parent().css("position", "fixed");
+        },
         close: function() {
             $ConfirmDialog.onClose();
         }
@@ -1638,32 +1306,12 @@ jQuery(function($)
         modal: true,
         draggable: true,
         resizable: false,
+        position: {my: "center center", at: "center center", of: window, collision: "none"},
+        create: function (event, ui) {
+            $(event.target).parent().css("position", "fixed");
+        },
         close: function() {
             $NotificationDialog.onClose();
-        }
-    });
-
-    // --------------------
-    // Reference Dialog
-    // --------------------
-
-    $("#reference-container").dialog({
-        autoOpen: false,
-        buttons: [
-            {text: keywords['OK'], click: function() { $ReferenceDialog.confirmed(); }},
-            {text: keywords['Cancel'],  click: function() { $ReferenceDialog.close(); }}
-        ],
-        modal: true,
-        draggable: true,
-        resizable: true,
-        open: function() {
-            $ReferenceDialog.onOpen();
-        },
-        close: function() {
-            $ReferenceDialog.onClose();
-        },
-        resize: function() {
-            $ReferenceDialog.onResize(true);
         }
     });
 });

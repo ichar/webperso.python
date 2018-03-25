@@ -4,7 +4,9 @@ import re
 import random
 
 from config import (
-     CONNECTION, IsDebug, IsDeepDebug, IsTrace, IsForceRefresh, errorlog, print_to, print_exception,
+     CONNECTION, 
+     IsDebug, IsDeepDebug, IsTrace, IsForceRefresh, LocalDebug, 
+     errorlog, print_to, print_exception,
      default_unicode, default_encoding, default_iso
      )
 
@@ -13,8 +15,9 @@ from . import configurator
 from ..settings import *
 from ..database import database_config, BankPersoEngine
 from ..utils import (
-     getToday, getDate, checkDate, indentXMLTree, isIterable, makeXLSContent, 
-     getWhereFilter, checkPaginationRange
+     getToday, getDate, checkDate, indentXMLTree, isIterable, makeXLSContent,
+     getWhereFilter, checkPaginationRange,
+     sortedDict, reprSortedDict, makeSqlWhere
      )
 
 from ..semaphore.views import initDefaultSemaphore
@@ -27,7 +30,17 @@ from .references import *
 
 default_page = 'configurator'
 default_action = '600'
+default_template = 'configurator-files'
 engine = None
+
+IsLocalDebug = LocalDebug[default_page]
+
+_views = {
+    'files'     : 'configurator-files',
+    'batches'   : 'configurator-batches',
+}
+
+requested_object = {}
 
 def before(f):
     def wrapper(**kw):
@@ -38,7 +51,10 @@ def before(f):
 
 @before
 def refresh(**kw):
-    return
+    global requested_object
+
+    if 'file_id' in kw and kw.get('file_id'):
+        requested_object = _get_file(kw['file_id']).copy()
 
 def _get_columns(name):
     return ','.join(database_config[name]['columns'])
@@ -48,7 +64,7 @@ def _get_view_columns(view):
     for name in view['columns']:
         columns.append({
             'name'   : name,
-            'header' : view['headers'].get(name)
+            'header' : view['headers'].get(name) or '',
         })
     return columns
 
@@ -75,46 +91,94 @@ def _get_page_args():
 
     return args
 
+def _load_params(params):
+    command, mode, query, items, id = '', '', '', {}, None
+
+    if isinstance(params, dict):
+        command = params.get('command')
+        mode = params.get('mode')
+        query = params.get('query')
+        items = params.get('items')
+        id = params.get('id') or None
+    else:
+        x = params.split(DEFAULT_HTML_SPLITTER)
+        command = x[0]
+        mode = x[1]
+        query = len(x) > 2 and x[2] or None
+        items = len(x) > 3 and x[3] or None
+        id = len(x) > 4 and x[4] or None
+
+    return command, mode, query, items, id
+
+def _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected):
+    rows = []
+
+    cursor = engine.runQuery(view, columns=columns, where=where, order=order, 
+                             encode_columns=encode_columns,
+                             as_dict=True,
+                             )
+    if cursor:
+        selected_id = None
+
+        for n, row in enumerate(cursor):
+            if 'TID' in row:
+                row['id'] = row['TID']
+
+            if with_selected:
+                if (tid and tid == row['TID']):
+                    row['selected'] = 'selected'
+                    selected_id = tid
+                else:
+                    row['selected'] = ''
+
+            rows.append(row)
+
+        if with_selected and not selected_id:
+            #selected_id = rows[0]['id']
+            rows[0]['selected'] = 'selected'
+
+    return rows
+
 def _get_file(file_id):
-    default_config_item = 'configurator-files'
-    default_view = database_config[default_config_item]
-
+    columns = database_config[default_template]['export']
     where = 'TID=%s' % file_id
-    
-    cursor = engine.runQuery(default_config_item, columns=default_view['export'], top=1, where=where, as_dict=True)
-    
-    return cursor and cursor[0]
+    cursor = engine.runQuery(default_template, columns=columns, top=1, where=where, as_dict=True)
+    return cursor and cursor[0] or {}
 
-def _get_batches(file_id, batch_id=None):
+def _get_batches(file_id, batch_id=None, **kw):
     batches = []
     selected_id = None
 
-    where = 'FileTypeID=%s%s' % (
-        file_id, 
-        batch_id and (' and BatchTypeID=%s' % batch_id) or '')
+    tid = kw.get('tid')
+    no_selected = kw.get('no_selected') or False
 
-    cursor = engine.runQuery('configurator-batches', where=where, order='SortIndex', as_dict=True)
+    where = 'FileTypeID=%s%s%s' % (
+        file_id, 
+        batch_id and (' and BatchTypeID=%s' % batch_id) or '',
+        tid and (' and TID=%s ' % tid) or '',
+        )
+
+    cursor = engine.runQuery('configurator-batches', columns=kw.get('columns'), where=where, order='CreateBatchSortIndex',
+                             encode_columns=('BatchType','BatchCreateType','BatchResultType'),
+                             as_dict=True,
+                             )
     if cursor:
         IsSelected = False
         
         for n, row in enumerate(cursor):
-            row['BatchType'] = row['BatchType'].encode(default_iso).decode(default_encoding)
-            if 'CreateType' in row:
-                row['CreateType'] = row['CreateType'].encode(default_iso).decode(default_encoding)
-            if 'ResultType' in row:
-                row['ResultType'] = row['ResultType'].encode(default_iso).decode(default_encoding)
-
             row['id'] = row['TID']
 
-            if (batch_id and batch_id == row['TID']):
-                row['selected'] = 'selected'
-                IsSelected = True
-            else:
-                row['selected'] = ''
+            if not no_selected:
+                if (tid and tid == row['TID']):
+                    row['selected'] = 'selected'
+                    selected_id = tid
+                    IsSelected = True
+                else:
+                    row['selected'] = ''
 
             batches.append(row)
 
-        if not IsSelected:
+        if not (no_selected or IsSelected):
             row = batches[0]
             selected_id = row['id']
             row['selected'] = 'selected'
@@ -122,221 +186,286 @@ def _get_batches(file_id, batch_id=None):
     return batches, selected_id
 
 def _get_processes(file_id, **kw):
-    processes = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    BatchTypeID = kw.get('filter')[0] or None
-    where = 'FileTypeID=%s%s' % (
+    tid = kw.get('tid')
+    BatchTypeID = attrs.get('BatchTypeID') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s' % (
         file_id, 
-        BatchTypeID and (' and BatchTypeID=%s' % BatchTypeID) or ''
+        BatchTypeID and (' and BatchTypeID=%s' % BatchTypeID) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-processes', where=where, order='BatchTypeID', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('BatchType', 'CurrFileStatus', 'NextFileStatus', 'CloseFileStatus', 'ActivateBatchStatus', 'ARMBatchStatus', 'Memo',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            processes.append(row)
+    columns = kw.get('columns')
+    order = 'BatchTypeID'
+    encode_columns = ('BatchType', 'CurrFileStatus', 'NextFileStatus', 'CloseFileStatus', 'ActivateBatchStatus_', 'ARMBatchStatus_', 'Memo',)
 
-    return processes
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_opers(file_id, **kw):
-    opers = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    BatchTypeID = kw.get('filter')[0] or None
-    where = 'FileTypeID=%s%s' % (
+    tid = kw.get('tid')
+    BatchTypeID = attrs.get('BatchTypeID') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s' % (
         file_id, 
-        BatchTypeID and (' and BatchTypeID=%s' % BatchTypeID) or ''
+        BatchTypeID and (' and BatchTypeID=%s' % BatchTypeID) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-opers', where=where, order='BatchTypeID', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('BatchType', 'OperTypeName', 'OperType',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            opers.append(row)
+    columns = kw.get('columns')
+    order = 'OperSortIndex, BatchTypeID'
+    encode_columns = ('BatchType', 'OperTypeName', 'OperType',)
 
-    return opers
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_operparams(file_id, **kw):
-    operparams = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    BatchTypeID = kw.get('filter')[0] or None
-    where = 'FileTypeID=%s%s' % (
+    tid = kw.get('tid')
+    BatchTypeID = attrs.get('BatchTypeID') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s' % (
         file_id, 
-        BatchTypeID and (' and BatchTypeID=%s' % BatchTypeID) or ''
+        BatchTypeID and (' and BatchTypeID=%s' % BatchTypeID) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-operparams', where=where, order='BatchTypeID', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('BatchType', 'OperTypeName', 'OperType', 'PName', 'PValue', 'Comment',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            operparams.append(row)
+    columns = kw.get('columns')
+    order = 'BatchTypeID'
+    encode_columns = ('BatchType', 'OperTypeName', 'OperType', 'PName', 'PValue', 'Comment',)
 
-    return operparams
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_filters(file_id, **kw):
-    filters = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    BatchTypeID = kw.get('filter')[0] or None
-    tag = kw.get('filter')[1] or None
-    where = 'FileTypeID=%s%s%s' % (
+    tid = kw.get('tid')
+    BatchTypeID = attrs.get('BatchTypeID') or None
+    tag = attrs.get('Tag') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s%s' % (
         file_id, 
         BatchTypeID and (' and BatchTypeID=%s' % BatchTypeID) or '',
         tag and (" and TName='%s'" % tag) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-filters', where=where, order='BatchTypeID, TName', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('BatchType', 'TName', 'CriticalValues',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            filters.append(row)
+    columns = kw.get('columns')
+    order = 'BatchTypeID, TName'
+    encode_columns = ('BatchType', 'TName', 'CriticalValues',)
 
-    return filters
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_tags(file_id, **kw):
-    tags = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    tag = kw.get('filter')[1] or None
-    where = 'FileTypeID=%s%s' % (
-        file_id,
+    tid = kw.get('tid')
+    tag = attrs.get('Tag') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s' % (
+        file_id, 
         tag and (" and TName='%s'" % tag) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-tags', where=where, order='TName', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('TName', 'TMemo',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            tags.append(row)
+    columns = kw.get('columns')
+    order = 'TName'
+    encode_columns = ('TName', 'TMemo',)
 
-    return tags
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_tagvalues(file_id, **kw):
-    tagvalues = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    tag = kw.get('filter')[1] or None
-    tagvalue = kw.get('filter')[2] or None
-    where = 'FileTypeID=%s%s%s' % (
-        file_id,
+    tid = kw.get('tid')
+    tag = attrs.get('Tag') or None
+    tagvalue = attrs.get('TagValue') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s%s' % (
+        file_id, 
         tag and (" and TName='%s'" % tag) or '',
         tagvalue and (" and TValue='%s'" % tagvalue) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-tagvalues', where=where, order='TName, TValue', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('TName', 'TValue',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            tagvalues.append(row)
+    columns = kw.get('columns')
+    order = 'TName'
+    encode_columns = ('TName', 'TValue', 'TMemo',)
 
-    return tagvalues
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_tzs(file_id, **kw):
-    tzs = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    tag = kw.get('filter')[1] or None
-    tagvalue = kw.get('filter')[2] or None
-    where = 'FileTypeID=%s%s%s' % (
-        file_id,
+    tid = kw.get('tid')
+    tag = attrs.get('Tag') or None
+    tagvalue = attrs.get('TagValue') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s%s' % (
+        file_id, 
         tag and (" and TName='%s'" % tag) or '',
         tagvalue and (" and TValue='%s'" % tagvalue) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-tzs', where=where, order='TName, TValue, PSortIndex', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('TName', 'TValue', 'PName', 'PValue', 'Comment',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            tzs.append(row)
+    columns = kw.get('columns')
+    order = 'TName, TValue, PSortIndex'
+    encode_columns = ('TName', 'TValue', 'TagValue', 'PName', 'PValue', 'Comment',)
 
-    return tzs
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_erpcodes(file_id, **kw):
-    erpcodes = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    BatchTypeID = kw.get('filter')[0] or None
-    tag = kw.get('filter')[1] or None
-    tagvalue = kw.get('filter')[2] or None
-    where = 'FileTypeID=%s%s%s%s' % (
-        file_id,
+    tid = kw.get('tid')
+    BatchTypeID = attrs.get('BatchTypeID') or None
+    tag = attrs.get('Tag') or None
+    tagvalue = attrs.get('TagValue') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s%s%s' % (
+        file_id, 
         BatchTypeID and (' and BatchTypeID=%s' % BatchTypeID) or '',
         tag and (" and TName='%s'" % tag) or '',
         tagvalue and (" and TValue='%s'" % tagvalue) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-erpcodes', where=where, order='BatchTypeID, TName, TValue', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('TName', 'TValue',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            erpcodes.append(row)
+    columns = kw.get('columns')
+    order = 'BatchTypeID, TName, TValue'
+    encode_columns = ('BatchType', 'TName', 'TValue', 'TagValue',)
 
-    return erpcodes
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_materials(file_id, **kw):
-    materials = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    BatchTypeID = kw.get('filter')[0] or None
-    tag = kw.get('filter')[1] or None
-    tagvalue = kw.get('filter')[2] or None
-    where = 'FileTypeID=%s%s%s%s' % (
-        file_id,
+    tid = kw.get('tid')
+    BatchTypeID = attrs.get('BatchTypeID') or None
+    tag = attrs.get('Tag') or None
+    tagvalue = attrs.get('TagValue') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s%s%s' % (
+        file_id, 
         BatchTypeID and (' and BatchTypeID=%s' % BatchTypeID) or '',
         tag and (" and TName='%s'" % tag) or '',
         tagvalue and (" and TValue='%s'" % tagvalue) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-materials', where=where, order='BatchTypeID, TName, TValue, PName', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('BatchType', 'TName', 'TValue', 'PName',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            materials.append(row)
+    columns = kw.get('columns')
+    order = 'BatchTypeID, TName, TValue, PName'
+    encode_columns = ('BatchType', 'TName', 'TValue', 'TagValue', 'PName',)
 
-    return materials
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_posts(file_id, **kw):
-    posts = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    tag = kw.get('filter')[1] or None
-    tagvalue = kw.get('filter')[2] or None
-    where = 'FileTypeID=%s%s%s' % (
-        file_id,
+    tid = kw.get('tid')
+    tag = attrs.get('Tag') or None
+    tagvalue = attrs.get('TagValue') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s%s' % (
+        file_id, 
         tag and (" and TName='%s'" % tag) or '',
         tagvalue and (" and TValue='%s'" % tagvalue) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-posts', where=where, order='TName, TValue, PName', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('TName', 'TValue', 'PName', 'PValue', 'Comment',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            posts.append(row)
+    columns = kw.get('columns')
+    order = 'TName, TValue, PName'
+    encode_columns = ('TName', 'TValue', 'TagValue', 'PName', 'PValue', 'Comment',)
 
-    return posts
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
+
+def _get_tagopers(file_id, **kw):
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
+
+    tid = kw.get('tid')
+    tag = attrs.get('Tag') or None
+    tagvalue = attrs.get('TagValue') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s%s' % (
+        file_id, 
+        tag and (" and TName='%s'" % tag) or '',
+        tagvalue and (" and TValue='%s'" % tagvalue) or '',
+        tid and (' and TID=%s ' % tid) or '',
+        )
+
+    columns = kw.get('columns')
+    order = 'TName, TValue, PName, OperSortIndex'
+    encode_columns = ('TName', 'TValue', 'TagValue', 'PName', 'PValue', 'Oper', 'Comment',)
+
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
+
+def _get_tagoperparams(file_id, **kw):
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
+
+    tid = kw.get('tid')
+    tag = attrs.get('Tag') or None
+    tagvalue = attrs.get('TagValue') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s%s' % (
+        file_id, 
+        tag and (" and TName='%s'" % tag) or '',
+        tagvalue and (" and TValue='%s'" % tagvalue) or '',
+        tid and (' and TID=%s ' % tid) or '',
+        )
+
+    columns = kw.get('columns')
+    order = 'TName, TValue, Oper, PName, PValue'
+    encode_columns = ('TName', 'TValue', 'TagValue', 'Oper', 'OperTypeValue', 'OperValue', 'PName', 'PValue',)
+
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 def _get_processparams(file_id, **kw):
-    params = []
+    view = kw.get('view')
+    attrs = kw.get('attrs') or {}
 
-    tag = kw.get('filter')[1] or None
-    tagvalue = kw.get('filter')[2] or None
-    where = 'FileTypeID=%s%s%s' % (
-        file_id,
+    tid = kw.get('tid')
+    tag = attrs.get('Tag') or None
+    tagvalue = attrs.get('TagValue') or None
+    with_selected = kw.get('with_selected') or False
+
+    where = 'FileTypeID=%s%s%s%s' % (
+        file_id, 
         tag and (" and TName='%s'" % tag) or '',
         tagvalue and (" and TValue='%s'" % tagvalue) or '',
+        tid and (' and TID=%s ' % tid) or '',
         )
 
-    cursor = engine.runQuery('configurator-processparams', where=where, order='TName, TValue, PName', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            for key in ('TName', 'TValue', 'PName', 'PValue', 'Comment',):
-                row[key] = row[key] and row[key].encode(default_iso).decode(default_encoding) or ''
-            #row['PSortIndex'] = str(row['PSortIndex'] not is None and row['PSortIndex']) or ''
-            params.append(row)
+    columns = kw.get('columns')
+    order = 'TName, TValue, PName, PSortIndex'
+    encode_columns = ('TName', 'TValue', 'TagValue', 'PName', 'PValue', 'Comment',)
 
-    return params
+    return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
 ## ==================================================== ##
 
@@ -348,6 +477,7 @@ def getTabBatchInfo(batch_id):
         if batch_id:
             params = "%s, 1, ''" % (batch_id)
             cursor = engine.runQuery('configurator-batchinfo', as_dict=True, params=params)
+
             for n, row in enumerate(cursor):
                 row['PName'] = row['PName'].encode(default_iso).decode(default_encoding)
                 row['PValue'] = row['PValue'].encode(default_iso).decode(default_encoding)
@@ -360,9 +490,9 @@ def getTabBatchInfo(batch_id):
     except:
         print_exception()
 
-    batch = {'id':batch_id, 'number':number}
+    props = {'id' : batch_id, 'number' : number}
 
-    return number and data or [], batch
+    return number and data or [], props
 
 def getTabProcesses(file_id, **kw):
     return _get_processes(file_id, **kw)
@@ -394,19 +524,279 @@ def getTabMaterials(file_id, **kw):
 def getTabPosts(file_id, **kw):
     return _get_posts(file_id, **kw)
 
+def getTabTagOpers(file_id, **kw):
+    return _get_tagopers(file_id, **kw)
+
+def getTabTagOperParams(file_id, **kw):
+    return _get_tagoperparams(file_id, **kw)
+
 def getTabProcessParams(file_id, **kw):
     return _get_processparams(file_id, **kw)
 
 ## ==================================================== ##
 
-def getReference(mode, query=None):
+def runReference(attrs, params):
+    """
+        Reference class adapter.
+        
+        Arguments:
+            attrs   -- Dict, query attributes
+            params  -- Dict or String, with the keys:
+            
+                command    : String, valid is {add|update|remove}
+                mode       : String, name of the reference class
+                query      : String, search string like: '(bank || client) && citi'
+                items      : Dict, field values: {key : value, ...}
+                id         : String or Int, reference item Primary Key value
+
+            filter  -- List, loader filter items
+
+        Returns (look at `reference.AbstractReference`):
+            data    -- List, searched items
+            props   -- Dict, properties
+
+                id         : String, PK field name
+                value      : String, value field name
+                mode       : String, name of the reference class
+                query      : String, original search string
+                table      : String, the table name (reference.view)
+                title      : String, title of the reference
+                errors     : List, list of errors
+
+            config  -- Dict, config object
+            columns -- List, editable columns list
+
+        Test:
+            ob = DicClients(engine)
+            errors = ob.addItem([('value', 'xxx'),])
+            errors = ob.updateItem(388, [('value', 'x1'),])
+            errors = ob.removeItem(388)
+            clients = ob.getItems()
+    """
+    command, mode, query, items, id = _load_params(params)
+    
     reference = reference_factory.get(mode)
     if reference is None:
         return [], None, None, None
+
     ob = reference(engine)
-    data = ob.getItems(query)
-    props = {'id' : ob.id, 'value' : ob.value, 'mode' : mode, 'table' : ob.table, 'title' : ob.title}
-    return data, props, ob.columns, ob.config
+
+    errors = []
+    data = []
+
+    if items is not None:
+        if command == 'add':
+            id, errors = ob.addItem(items)
+        elif command == 'update' and id is not None:
+            errors = ob.updateItem(id, items)
+
+    elif command == 'remove' and id is not None:
+        errors = ob.removeItem(id)
+
+    elif command == 'link' and ob.has_links:
+        data = ob.getLinks(query, attrs, id)
+
+    else:
+        data = ob.getItems(query, id)
+
+    props = {'id' : ob.id, 'value' : ob.value, 'mode' : mode, 'query' : query, 'table' : ob.table, 'title' : ob.title, 'errors' : errors}
+
+    return data, props, ob.config, ob.editable_columns
+
+def runConfigItem(file_id, attrs, params):
+    """
+        Configurator class adapter.
+        
+        Arguments:
+            file_id -- Int, file type id
+            attrs   -- Dict, query attributes
+            params  -- Dict or String, with the keys:
+            
+                command    : String, valid is {add|update|remove}
+                mode       : String, name of the reference class (Config-object)
+                query      : String, search string like: '(bank || client) && citi'
+                items      : Dict, field values: {key : value, ...}
+                id         : String or Int, reference item Primary Key value
+
+        Returns (look at `reference.AbstractReference`):
+            data    -- List, searched items
+            props   -- Dict, properties:
+            
+                id         : Int, selected item 
+                class_name : String, HTML object class name
+                columns    : Mapped list, list of columns to show on screen
+                total      : Int, total items in the table with query
+                errors     : List, list of errors
+            
+            config  -- Dict, config object
+            columns -- List, editable columns list
+    """
+    command, mode, query, items, id = _load_params(params)
+    
+    reference = reference_factory.get(mode)
+    if reference is None:
+        return [], None, None, None
+
+    ob = reference(engine)
+
+    columns = []
+    errors = []
+    data = []
+
+    class_name = ''
+    no_selected = False
+    total = 0
+
+    if items is not None:
+        if command == 'save':
+            if id is None:
+                id, errors = ob.addItem(items)
+            else:
+                errors = ob.updateItem(id, items)
+
+    elif command == 'remove' and id is not None:
+        errors = ob.removeItem(id)
+
+    elif command == 'blank':
+        data = ob.getBlank(attrs, default=requested_object)
+        
+        data['FileTypeID'] = requested_object.get('TID')
+        data['FileType'] = requested_object.get('FileType')
+
+        if (':%s:' % mode.strip()) in ':tzs:erpcodes:materials:posts:processparams:':
+            data['TagValue'] = ''
+
+        data = [data]
+
+        no_selected = True
+        id = None
+
+    # -----------------------------------------------
+    # Select data from the given Config-object (mode)
+    # -----------------------------------------------
+
+    view = ob.configurator
+    columns = database_config[view]['export']
+    with_selected = True
+    tid = id
+
+    if mode == 'batches':
+        if id:
+            data, selected_id = _get_batches(file_id, tid=tid, columns=columns, no_selected=no_selected)
+
+        class_name = 'subline'
+        where = makeSqlWhere({'FileTypeID' : file_id})
+        total = ob.count(where)
+
+    elif mode == 'processes':
+        if id:
+            data = _get_processes(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'LinkID' : file_id})
+        total = ob.count(where)
+
+    elif mode == 'opers':
+        if id:
+            data = _get_opers(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FBLinkID' : attrs.get('FBLinkID')})
+        total = ob.count(where)
+
+    elif mode == 'operparams':
+        if id:
+            data = _get_operparams(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FBOLinkID' : attrs.get('FBOLinkID')})
+        total = ob.count(where)
+
+    elif mode == 'tags':
+        if id:
+            data = _get_tags(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FileTypeID' : file_id})
+        total = ob.count(where)
+
+    elif mode == 'tagvalues':
+        if id:
+            data = _get_tagvalues(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FTLinkID' : attrs.get('FTLinkID')})
+        total = ob.count(where)
+
+    elif mode == 'filters':
+        if id:
+            data = _get_filters(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FBLinkID' : attrs.get('FBLinkID'), 'FTLinkID' : attrs.get('FTLinkID')})
+        total = ob.count(where)
+
+    elif mode == 'tzs':
+        if id:
+            data = _get_tzs(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FTVLinkID' : attrs.get('FTVLinkID'), 'TagParamID' : attrs.get('TagParamID')})
+        total = ob.count(where)
+
+    elif mode == 'erpcodes':
+        if id:
+            data = _get_erpcodes(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FTVLinkID' : attrs.get('FTVLinkID'), 'BatchTypeID' : attrs.get('BatchTypeID')})
+        total = ob.count(where)
+
+    elif mode == 'materials':
+        if id:
+            data = _get_materials(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FTVLinkID' : attrs.get('FTVLinkID'), 'BatchTypeID' : attrs.get('BatchTypeID'), 'TagParamID' : attrs.get('TagParamID')})
+        total = ob.count(where)
+
+    elif mode == 'posts':
+        if id:
+            data = _get_posts(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FTVLinkID' : attrs.get('FTVLinkID'), 'TagParamID' : attrs.get('TagParamID')})
+        total = ob.count(where)
+
+    elif mode == 'tagopers':
+        if id:
+            data = _get_tagopers(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FTVLinkID' : attrs.get('FTVLinkID'), 'TagParamID' : attrs.get('TagParamID')})
+        total = ob.count(where)
+
+    elif mode == 'tagoperparams':
+        if id:
+            data = _get_tagoperparams(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FTV_OPER_ID' : attrs.get('FTVLinkID')})
+        total = ob.count(where)
+
+    elif mode == 'processparams':
+        if id:
+            data = _get_processparams(file_id, tid=tid, columns=columns, view=view, attrs=attrs, with_selected=with_selected)
+
+        class_name = 'tabline'
+        where = makeSqlWhere({'FTVLinkID' : attrs.get('FTVLinkID'), 'TagParamID' : attrs.get('TagParamID')})
+        total = ob.count(where)
+
+    columns = _get_view_columns(database_config[view])
+
+    props = {'id' : id, 'class_name' : class_name, 'columns' : columns, 'total' : total, 'errors' : errors}
+
+    return data, props, ob.config, ob.sorted_columns
 
 ## ==================================================== ##
 
@@ -426,7 +816,7 @@ def _make_page_default(kw):
     # Представление БД (default_view)
     # -------------------------------
 
-    default_view = database_config['configurator-files']
+    default_view = database_config[default_template]
 
     # --------------------------------------------
     # Позиционирование строки в журнале (position)
@@ -472,7 +862,7 @@ def _make_page_default(kw):
             elif name == 'BatchTypeID':
                 id = BatchTypeID = value or None
                 
-            if id and name in ('ClientID', 'FileTypeID',):
+            if id and name in ('ClientID', 'FileTypeID',): #, 'BatchTypeID'
                 items.append("%s=%s" % (name, id))
             
             if value:
@@ -519,7 +909,7 @@ def _make_page_default(kw):
         # Кол-во записей по запросу в журнале (total_files)
         # -------------------------------------------------
 
-        cursor = engine.runQuery('configurator-files', columns=('count(*)',), where=where)
+        cursor = engine.runQuery(default_template, columns=('count(*)',), where=where)
         if cursor:
             total_files = cursor[0][0]
 
@@ -527,7 +917,7 @@ def _make_page_default(kw):
         # Типы файлов (files)
         # ===================
 
-        cursor = engine.runQuery('configurator-files', columns=database_config['configurator-files']['columns'], 
+        cursor = engine.runQuery(default_template, columns=database_config[default_template]['columns'], 
                                  top=top, where=where, order=order, as_dict=True,
                                  )
         if cursor:
@@ -613,11 +1003,25 @@ def _make_page_default(kw):
         batchtypes += [(x[0], x[1].encode(default_iso).decode(default_encoding)) for x in cursor]
 
         tags.append(DEFAULT_UNDEFINED)
-        cursor = engine.runQuery('configurator-tags', columns=('TName',), order='TName', distinct=True)
+        """
+        where = ' AND '.join([x for x in [
+            ClientID and ('ClientID=%s' % ClientID),
+            FileTypeID and ('FileTypeID=%s' % FileTypeID),
+        ] if x])
+        """
+        where = makeSqlWhere({'ClientID' : ClientID, 'FileTypeID' : FileTypeID})
+        cursor = engine.runQuery('configurator-tags', columns=('TName',), where=where, order='TName', distinct=True)
         tags += [x[0].encode(default_iso).decode(default_encoding) for x in cursor]
 
         tagvalues.append(DEFAULT_UNDEFINED)
-        where = file_id and ('FileTypeID=%s%s' % (file_id, TagName and (' and TName=\'%s\'' % TagName) or '')) or ''
+        """
+        where = ' AND '.join([x for x in [
+            ClientID and ('ClientID=%s' % ClientID),
+            FileTypeID and ('FileTypeID=%s' % FileTypeID),
+            TagName and ('TName=\'%s\'' % TagName),
+        ] if x])
+        """
+        where = makeSqlWhere({'ClientID' : ClientID, 'FileTypeID' : FileTypeID, 'TName' : TagName})
         cursor = engine.runQuery('configurator-tagvalues', columns=('TValue',), where=where, order='TValue', distinct=True)
         tagvalues += [x[0].encode(default_iso).decode(default_encoding) for x in cursor]
 
@@ -780,22 +1184,37 @@ def loader():
     file_id = int(get_request_item('file_id') or '0')
     batch_id = int(get_request_item('batch_id') or '0')
 
-    filter = (int(get_request_item('filter-batchtype') or '0'),
-              get_request_item('filter-tag'),
-              get_request_item('filter-tagvalue'),
-              )
+    refresh(file_id=file_id)
+
+    active_links = get_request_item('active_links') or {}
+
+    attrs = {
+        'FileTypeID'            : file_id,
+        'FileTypeBatchTypeID'   : batch_id,
+        'FBLinkID'              : batch_id or active_links.get('FBLinkID') or 0,
+        'FBOLinkID'             : active_links.get('FBOLinkID') or 0,
+        'FTLinkID'              : active_links.get('FTLinkID') or 0,
+        'FTVLinkID'             : active_links.get('FTVLinkID') or 0,
+        'TagParamID'            : active_links.get('TagParamID') or 0,
+        'BatchTypeID'           : active_links.get('BatchTypeID') or int(get_request_item('filter-batchtype') or 0),
+        'Tag'                   : get_request_item('filter-tag'),
+        'TagValue'              : get_request_item('filter-tagvalue'),
+    }
+    attrs = sortedDict(attrs)
 
     params = get_request_item('params') or ''
 
     if IsDebug:
-        print('--> action:%s file_id:%s batch_id:%s filter:%s:%s:%s params:[%s]' % (
-            action, file_id, batch_id, filter[0], filter[1], filter[2], params,
+        print('--> action:%s file_id:%s batch_id:%s attr:%s params:%s' % (
+            action, file_id, batch_id, attrs, params,
         ))
 
     if IsTrace:
-        print_to(errorlog, '--> loader:%s %s [%s:%s:%s] params:%s' % ( 
-            action, current_user.login, file_id, batch_id, selected_menu_action, params
-            ))
+        print_to(errorlog, '--> loader:%s %s [%s:%s:%s] attrs:%s%s' % ( 
+            action, current_user.login, file_id, batch_id, selected_menu_action, 
+            reprSortedDict(attrs),
+            params and (' params:%s' % reprSortedDict(params, is_sort=True)) or ''
+            ), encoding=default_unicode)
 
     currentfile = None
     batches = []
@@ -807,19 +1226,13 @@ def loader():
 
     props = None
 
-    #ob = DicClients(engine)
-    #errors = ob.addItem([('value', 'xxx'),])
-    #errors = ob.updateItem(388, [('value', 'x1'),])
-    #errors = ob.removeItem(388)
-    #clients = ob.getItems()
-
     try:
         if action == default_action:
-            file = _get_file(file_id)
-            batches, batch_id = _get_batches(file_id)
-            currentfile = [file['TID'], file['FileType'], batch_id]
+            batches, selected_id = _get_batches(file_id, batch_id=attrs['BatchTypeID'])
+            currentfile = [requested_object.get('TID'), requested_object.get('FileType'), selected_id]
             config = _get_view_columns(database_config['configurator-batches'])
             action = selected_menu_action
+            batch_id = selected_id
 
         if not action:
             pass
@@ -828,55 +1241,75 @@ def loader():
             data, props = getTabBatchInfo(batch_id)
 
         elif action == '602':
-            columns = _get_view_columns(database_config['configurator-processes'])
-            data = getTabProcesses(file_id, filter=filter)
+            view = 'configurator-processes'
+            columns = _get_view_columns(database_config[view])
+            data = getTabProcesses(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '603':
-            columns = _get_view_columns(database_config['configurator-opers'])
-            data = getTabOpers(file_id, filter=filter)
+            view = 'configurator-opers'
+            columns = _get_view_columns(database_config[view])
+            data = getTabOpers(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '604':
-            columns = _get_view_columns(database_config['configurator-operparams'])
-            data = getTabOperParams(file_id, filter=filter)
+            view = 'configurator-operparams'
+            columns = _get_view_columns(database_config[view])
+            data = getTabOperParams(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '605':
-            columns = _get_view_columns(database_config['configurator-filters'])
-            data = getTabFilters(file_id, filter=filter)
+            view = 'configurator-filters'
+            columns = _get_view_columns(database_config[view])
+            data = getTabFilters(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '606':
-            columns = _get_view_columns(database_config['configurator-tags'])
-            data = getTabTags(file_id, filter=filter)
+            view = 'configurator-tags'
+            columns = _get_view_columns(database_config[view])
+            data = getTabTags(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '607':
-            columns = _get_view_columns(database_config['configurator-tagvalues'])
-            data = getTabTagValues(file_id, filter=filter)
+            view = 'configurator-tagvalues'
+            columns = _get_view_columns(database_config[view])
+            data = getTabTagValues(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '608':
-            columns = _get_view_columns(database_config['configurator-tzs'])
-            data = getTabTZs(file_id, filter=filter)
+            view = 'configurator-tzs'
+            columns = _get_view_columns(database_config[view])
+            data = getTabTZs(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '609':
-            columns = _get_view_columns(database_config['configurator-erpcodes'])
-            data = getTabERPCodes(file_id, filter=filter)
+            view = 'configurator-erpcodes'
+            columns = _get_view_columns(database_config[view])
+            data = getTabERPCodes(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '610':
-            columns = _get_view_columns(database_config['configurator-materials'])
-            data = getTabMaterials(file_id, filter=filter)
+            view = 'configurator-materials'
+            columns = _get_view_columns(database_config[view])
+            data = getTabMaterials(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '611':
-            columns = _get_view_columns(database_config['configurator-posts'])
-            data = getTabPosts(file_id, filter=filter)
+            view = 'configurator-posts'
+            columns = _get_view_columns(database_config[view])
+            data = getTabPosts(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '612':
-            columns = _get_view_columns(database_config['configurator-processparams'])
-            data = getTabProcessParams(file_id, filter=filter)
+            view = 'configurator-processparams'
+            columns = _get_view_columns(database_config[view])
+            data = getTabProcessParams(file_id, attrs=attrs, view=view, with_selected=True)
+
+        elif action == '613':
+            view = 'configurator-tagopers'
+            columns = _get_view_columns(database_config[view])
+            data = getTabTagOpers(file_id, attrs=attrs, view=view, with_selected=True)
+
+        elif action == '614':
+            view = 'configurator-tagoperparams'
+            columns = _get_view_columns(database_config[view])
+            data = getTabTagOperParams(file_id, attrs=attrs, view=view, with_selected=True)
 
         elif action == '620':
-            x = params.split(DEFAULT_HTML_SPLITTER)
-            command = x[0]
-            mode = x[1]
-            query = len(x) > 2 and x[2] or None
-            data, props, columns, config = getReference(mode, query)
+            data, props, config, columns = runReference(attrs, params)
+
+        elif action == '621':
+            data, props, config, columns = runConfigItem(file_id, attrs, params)
 
     except:
         print_exception()
@@ -909,4 +1342,3 @@ def loader():
     })
 
     return jsonify(response)
-

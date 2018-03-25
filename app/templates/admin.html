@@ -12,7 +12,7 @@
 
 <script src="{{ url_for('static', filename='js/db.controller.min.js') }}{{ vsc }}"></script>
 <script src="{{ url_for('static', filename='js/log.default.min.js') }}{{ vsc }}"></script>
-<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin.min.js') }}{{ vsc }}"></script>
 
 {% endblock %}
 
@@ -26,6 +26,7 @@
     <form action="{{ base }}" id="command-form" method="post">
       <input type="hidden" id="user_id" name="user_id" value="{{ user[0] }}" />
       <input type="hidden" id="command" name="command" value="" />
+      <input type="hidden" name="sidebar" value="" />
     </form>
     <button class="btn btn-info" id="add">Добавить</button>
     <button class="btn btn-info" id="delete">Удалить</button>

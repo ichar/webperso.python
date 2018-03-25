@@ -9,7 +9,7 @@
 
     {%- if current_user.is_authenticated %}
       <div class="visitor"><span class="hello">Здравствуйте,</span><span class="username"> {{ current_user.full_name() }}!</span></div>
-      <div class="menu">
+      <div class="mainmenu">
 
       {{ Forms.form('navigation', 'home', navigation) }}
 

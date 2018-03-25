@@ -8,6 +8,7 @@ import re
 from collections import Iterable
 import io
 import xlwt
+from sortedcontainers import SortedDict
 
 from config import (
      IsDebug, IsDeepDebug, default_print_encoding, default_unicode, default_encoding, default_iso,
@@ -75,10 +76,6 @@ def cdate(date, fmt=LOCAL_FULL_TIMESTAMP):
     return empty_value
 
 def clean(value):
-    #print isinstance(value, unicode)
-    #return value and re.sub(r'[\n\'\"\;\%\*]', '', value.encode(default_unicode, 'ignore')).strip() or ''
-    #if not isinstance(value, unicode):
-    #    value = value.decode(default_unicode, 'ignore')
     return value and re.sub(r'[\n\'\"\;\%\*]', '', value).strip() or ''
 
 def cleanHtml(value):
@@ -183,7 +180,7 @@ def makeXLSContent(rows, title, IsHeaders):
     style2.font = font1
     style2.alignment = alignment
 
-    ws = wb.add_sheet(title)
+    ws = wb.add_sheet(title[:31])
     for i, row in enumerate(rows):
         for j, column in enumerate(row):
             style = i == 0 and style0 or style1
@@ -213,7 +210,7 @@ def makeIDList(ids):
 def checkPaginationRange(n, page, pages):
     return n < 3 or (n > page-3 and n < page+3) or n > pages-1
 
-def decoder(data, encodings, info='', is_trace=False):
+def decoder(data, encodings, info='', is_trace=False, limit=None):
     image = ''
     encoding = None
 
@@ -222,6 +219,9 @@ def decoder(data, encodings, info='', is_trace=False):
         is_error = False
 
         while len(data) > 0:
+            if limit and len(image) > limit:
+                break
+
             n = n < len(encodings) - 1 and n + 1 or 0
             encoding = encodings[n]
             errors = encoding == default_iso and 'surrogateescape' or 'strict'
@@ -248,10 +248,10 @@ def decoder(data, encodings, info='', is_trace=False):
         if is_trace:
             print_to(None, '>>> decoder done %serrors: [%s]' % (is_error and 'with ' or 'without ', encoding))
 
-    image = image.strip()
+    data = None
 
-    if is_trace and IsDeepDebug:
-        print_to(None, '>>> decoder image:%s' % image)
+    if is_trace:
+        print_to(None, '>>> decoder image:%s' % len(image))
 
     return image, encoding
 
@@ -280,3 +280,26 @@ def Capitalize(s):
 
 def unCapitalize(s):
     return (s and len(s) > 1 and s[0].lower() + s[1:]) or (len(s) == 1 and s.lower()) or ''
+
+def sortedDict(dic):
+    return SortedDict(dic)
+
+def reprSortedDict(dic, is_sort=False):
+    items = []
+    for key in (is_sort and sorted(dic) or dic):
+        if dic[key]:
+            items.append('%s=%s' % (key, dic[key]))
+    return '{%s}' % ','.join(items)
+
+def makeSqlWhere(query):
+    """
+        Makes SQL Query `WHERE` string.
+        
+        Attributes:
+            query   -- Dict, {'name' : 'value', ...}
+        
+        Returns:
+            where   -- String, such as: LinkID=10 AND CName='XXX' ...
+    """
+    where = ['%s=%s' % (name, isinstance(value, str) and ('\'%s\'' % value) or str(value)) for name, value in query.items() if value]
+    return ' AND '.join(where)

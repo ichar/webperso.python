@@ -16,35 +16,6 @@ SUBLINE = 'event';
 // Dialog Action Handlers
 // ----------------------
 
-function $_reset_current_sort() {
-    current_page = 1;
-}
-
-function $_next_current_sort() {
-    current_sort = current_sort == LOG_SORT.length-1 ? 0 : current_sort + 1;
-    $_reset_current_sort();
-}
-
-function $_deactivate_search() {
-    is_search_activated = false;
-    search_context = '';
-    current_page = 1;
-}
-
-function $_reset_item() {
-    refresh_current_state = true;
-    SelectedReset();
-}
-
-function $_reset_page() {
-    SelectedReset();
-    current_row_id = null;
-}
-
-function $_calculating_disabled() {
-    return false;
-}
-
 // --------------
 // Page Functions
 // --------------
@@ -81,15 +52,6 @@ function $Init() {
     // ------------------------
 
     interrupt(true, 1);
-}
-
-function $ActivateInfoData(show) {
-    var container = $("#info-data");
-
-    if (show)
-        container.show();
-    else
-        container.hide();
 }
 
 function $ShowMenu(id) {
@@ -347,5 +309,7 @@ $(function()
 
     $_init();
 });
+
+
 
 

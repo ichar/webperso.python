@@ -55,7 +55,8 @@ perso_log_config = { \
     ),
     'ignore'  : ( \
         'не может быть номером задания (PersID)',
-        'Не найдено ни одного файла соответствующего файлу'
+        'Не найдено ни одного файла соответствующего файлу',
+        'не найден входной каталог',
     ),
 }
 
@@ -470,8 +471,11 @@ def checkfile(filename, mode, encoding, logs, keys, getter, msg, **kw):
                 #
                 # Search keys and add a new item to the logs-collection
                 #
-                num_logged += checkline(line, logs, keys, getter, 
+                x = checkline(line, logs, keys, getter, 
                     token=token, unique=unique, with_count=with_count, case_insensitive=case_insensitive, no_span=no_span)
+
+                if x > 0:
+                    num_logged += x
 
             except (ValueError, UnicodeError):
                 if IsLogTrace:
@@ -857,11 +861,12 @@ def check_perso_log(logs, filename, encoding=default_encoding, **kw):
         i = 0
         while lines and i < len(lines):
             filename, line = lines[i]
-            if checkline(line, logs, keys, getter=_get_log_item, 
-                         token=None, unique=False, with_count=False,
-                         case_insensitive=case_insensitive,
-                         no_span=no_span,
-                         ):
+            x = checkline(line, logs, keys, getter=_get_log_item, 
+                          token=None, unique=False, with_count=False,
+                          case_insensitive=case_insensitive,
+                          no_span=no_span,
+                          )
+            if x != 0:
                 lines.pop(i)
             else:
                 i += 1
@@ -1136,11 +1141,12 @@ def check_sdc_log(logs, filename, encoding=default_encoding, **kw):
         i = 0
         while lines and i < len(lines):
             filename, line = lines[i]
-            if checkline(line, logs, keys, getter=_get_log_item, 
-                         token=None, unique=False, with_count=False,
-                         case_insensitive=case_insensitive,
-                         no_span=no_span,
-                         ):
+            x = checkline(line, logs, keys, getter=_get_log_item, 
+                          token=None, unique=False, with_count=False,
+                          case_insensitive=case_insensitive,
+                          no_span=no_span,
+                          )
+            if x != 0:
                 lines.pop(i)
             else:
                 i += 1
@@ -1288,11 +1294,12 @@ def check_exchange_log(logs, filename, encoding=default_encoding, **kw):
         i = 0
         while lines and i < len(lines):
             filename, line = lines[i]
-            if checkline(line, logs, keys, getter=_get_log_item, 
-                         token=None, unique='unique' in options, with_count='count' in options,
-                         case_insensitive=case_insensitive,
-                         no_span=no_span,
-                         ):
+            x = checkline(line, logs, keys, getter=_get_log_item, 
+                          token=None, unique='unique' in options, with_count='count' in options,
+                          case_insensitive=case_insensitive,
+                          no_span=no_span,
+                          )
+            if x != 0:
                 lines.pop(i)
             else:
                 i += 1

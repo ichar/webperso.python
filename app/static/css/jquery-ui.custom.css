@@ -189,7 +189,7 @@ button.ui-button-icons-only {
 
 /* button text element */
 .ui-button .ui-button-text {
-	display: block;
+	display: block; /* */
 	line-height: normal;
 }
 .ui-button-text-only .ui-button-text {
@@ -199,6 +199,7 @@ button.ui-button-icons-only {
 .ui-button-icons-only .ui-button-text {
 	padding: .4em;
 	text-indent: -9999999px;
+        display: none;
 }
 .ui-button-text-icon-primary .ui-button-text,
 .ui-button-text-icons .ui-button-text {
@@ -288,8 +289,7 @@ button.ui-button::-moz-focus-inner {
 }
 .ui-dialog .ui-dialog-content {
 	position: relative;
-	border: 0;
-	padding: .5em 1em;
+	padding: 0; /* border: 0;  .5em 1em */
 	background: none;
 	overflow: auto;
 }

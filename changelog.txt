@@ -4,6 +4,27 @@ WebPerso change log
 ВАЖНЫЕ ИЗМЕНЕНИЯ И ИСПРАВЛЕНИЯ
 ------------------------------
 
+20180325:
+
+  - 1.80 (beta)
+
+20180220:
+
+  - обработка контента файлов > 10Mb, закладки Персонализация, IBODY
+
+    Memory Error, Нет данных
+
+    > utils.decoder
+    > bankperso._get_body, _image_fromstring
+
+20180212:
+
+  - контроль доступа к log-файлам (в связи с установкой Касперского на серверах, касается 11.21!)
+
+    PermissionError: [WinError 19] Носитель защищен от записи: '//172.19.11.21/#logs/ipnplant/ftp_logfile_31.08.2017.txt'
+
+    > worker.mdate, check exception
+
 20180207:
 
   - исправлена последовательность статусов при печати контента файла (IBODY), ранее выгрузка выполнялась по ключу FileStatusID,
@@ -19,6 +40,20 @@ WebPerso change log
 
 ВЕРСИИ
 ------
+
+# 1.80: 
+
+  - конфигуратор БанкПерсо (ручной редактор, аналог BPConfig.exe)
+
+  > configurator.references
+  > js\references.js
+  > 20180201.bankdb.full-setup.sql
+
+  - множественная оптимизация javascript ($SublineSelector, $TablineSelector, common/db.controller/log.defaults ...)
+
+# 1.75: 
+
+  - рабочая версия с исправленными недостатками
 
 # 1.74: 
 

@@ -2,7 +2,7 @@
 //  Core javascript helper functions
 // ==================================
 
-function is_null(x) { return (typeof(x)=='undefined' || x === null) ? true : false; }
+function is_null(x) { return (typeof(x)=='undefined' || x === null || x === undefined) ? true : false; }
 
 function int(x) { return parseInt(x); }
 
@@ -20,7 +20,7 @@ function setattr(ob, id, value) { if (typeof(ob)=='object' && !is_null(ob) && id
 
 function getsplitteditem(value, by_key, item, default_value)
 {
-    var x = value.split(by_key.length > 0 ? by_key : ':');
+    var x = !is_empty(value) ? value.split(by_key.length > 0 ? by_key : ':') : '';
     return x.length > 1 ? x[1] : (default_value.length > 0 ? default_value : '');
 }
 
@@ -533,6 +533,48 @@ Array.prototype.remove = function(value) {
     }
 };
 
+// ------------------------
+//  Functions under Objects
+// ------------------------
+
+function setObjectByValue(key, value) {
+    var x = new Object();
+    x[key] = value;
+    return x;
+}
+
+function objectKeys(ob) {
+    return ob ? Object.keys(ob) : [];
+}
+
+function reprObject(ob) {
+    var s = is_null(ob) ? 'null' : '{'+Object.keys(ob).map(function (key) { 
+        return key+':'+(typeof ob[key] === 'object' ? reprObject(ob[key]) : ob[key]); 
+    })+'}';
+    return s;
+}
+
+function reprObjectsList(obs) {
+    var s = '';
+    obs.forEach(function(item, index) {
+        var x = '{'+Object.keys(item).map(function (key) { return key+':'+item[key]; })+'}';
+        s += x.join(',');
+    });
+    return s;
+}
+
+function jsonify(ob) {
+    if (typeof(ob) === 'object') {
+        Object.keys(ob).map(function(key, index) {
+            if (is_null(ob[key]))
+                ob[key] = '';
+        });
+        return JSON.stringify(ob);
+    }
+    else
+        return ob;
+}
+
 // ---------------------
 //  Functions under DOM
 // ---------------------
@@ -583,6 +625,10 @@ function printDiv(divName, mode) {
             w.print();
             w.close();
     }
+}
+
+function xround(value) {
+    return Math.round(value);
 }
 
 // ----------------

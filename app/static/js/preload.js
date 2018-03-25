@@ -11,35 +11,6 @@ SUBLINE = 'article';
 // Dialog Action Handlers
 // ----------------------
 
-function $_reset_current_sort() {
-    current_page = 1;
-}
-
-function $_next_current_sort() {
-    current_sort = current_sort == LOG_SORT.length-1 ? 0 : current_sort + 1;
-    $_reset_current_sort();
-}
-
-function $_deactivate_search() {
-    is_search_activated = false;
-    search_context = '';
-    current_page = 1;
-}
-
-function $_reset_item() {
-    refresh_current_state = true;
-    SelectedReset();
-}
-
-function $_reset_page() {
-    SelectedReset();
-    current_row_id = null;
-}
-
-function $_calculating_disabled() {
-    return false;
-}
-
 // --------------
 // Page Functions
 // --------------
@@ -58,25 +29,6 @@ function $Init() {
     $ShowMenu('data-menu-articles');
 
     interrupt(true, 1);
-}
-
-function $Go(action) {
-    $web_logging(action);
-}
-
-function $ShowOnStartup() {
-    //$Go('401');
-}
-
-function $ActivateInfoData(show) {
-    var container = $("#info-data");
-
-    //alert('$ActivateInfoData:'+show);
-
-    if (show)
-        container.show();
-    else
-        container.hide();
 }
 
 function $ShowMenu(id) {
@@ -109,25 +61,6 @@ function $ShowMenu(id) {
     selected_data_menu_id = id;
 }
 
-function $HideLogPage() {
-    if (current_subline) {
-        var selected_item = SelectedGetItem(SUBLINE, 'ob');
-        if (selected_item != null)
-            $onToggleSelectedClass(SUBLINE, selected_item, 'remove', null);
-    }
-}
-/*
-function $ShowLogPage() {
-    if (current_subline) {
-        $onToggleSelectedClass(SUBLINE, current_subline, 'add', null);
-    }
-}
-*/
-function $ResetLogPage() {
-    current_subline = null;
-    $("#command").val('');
-}
-
 function $onPaginationFormSubmit(frm) {
     return true;
 }
@@ -136,38 +69,8 @@ function $onFilterFormSubmit(frm) {
     return true;
 }
 
-function $onParentFormSubmit(id) {
-    var frm = $("#"+id);
-    var action = frm.attr('action');
-
-    //alert(frm.attr('id'));
-
-    frm.submit();
-}
-
-function $onToggleSelectedClass(key, ob, action, command) {
-    var id = ob != null ? ob.attr('id') : SelectedGetItem(key, 'id');
-    var mask = [LINE, SUBLINE].indexOf(key) > -1 ? 'td' : 'dd';
-
-    //alert(id+':'+action);
-
-    $("#command").val(command != null ? command : '');
-
-    if (action == 'submit') {
-        $("input[name^='preload_id']").each(function() { $(this).val(id); });
-        $onParentFormSubmit('filter-form');
-    } else {
-        $(mask, ob).each(function() {
-            if (action == 'add') {
-                $(this).addClass("selected");
-                if (key == LINE)
-                    $("input[name^='preload_id']").each(function() { $(this).val(id); });
-                SelectedSetItem(key, 'ob', ob);
-            }
-            else
-                $(this).removeClass("selected");
-        });
-    }
+function $onInfoContainerChanged() {
+    //alert($_width('screen-min')-$("#sidebarFrame").width()+':'+$("#line-table").width());
 }
 
 // ===========================
@@ -249,17 +152,17 @@ jQuery(function($)
     });    
 
     $(".line").click(function(e) {
-        var ob = $(this);
-        $onToggleSelectedClass(LINE, ob, 'submit', null);
+        if (is_show_error)
+            return;
+
+        $LineSelector.onRefresh($(this));
     });
 
     $(".subline").click(function(e) {
-        current_subline = $(this);
+        if (is_show_error)
+            return;
 
-        $HideLogPage();
-        SelectedSetItem(SUBLINE, 'ob', current_subline);
-
-        //$Go('401');
+        $SublineSelector.onRefresh($(this));
     });
 
     // -------------------------
@@ -354,5 +257,7 @@ $(function()
 
     $_init();
 });
+
+
 
 

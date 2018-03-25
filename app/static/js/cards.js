@@ -8,6 +8,7 @@ default_submit_mode = 2;
 default_action      = '700';
 default_log_action  = '701';
 default_input_name  = 'pers_id';
+default_menu_item   = 'data-menu-opers';
 
 LINE    = 'pers';
 SUBLINE = 'oper';
@@ -20,42 +21,13 @@ var selected_report_id = '';
 // Dialog Action Handlers
 // ----------------------
 
-function $_reset_current_sort() {
-    current_page = 1;
-}
-
-function $_next_current_sort() {
-    current_sort = current_sort == LOG_SORT.length-1 ? 0 : current_sort + 1;
-    $_reset_current_sort();
-}
-
-function $_deactivate_search() {
-    is_search_activated = false;
-    search_context = '';
-    current_page = 1;
-}
-
-function $_reset_item() {
-    refresh_current_state = true;
-    SelectedReset();
-}
-
-function $_reset_page() {
-    SelectedReset();
-    current_row_id = null;
-}
-
-function $_calculating_disabled() {
-    return false;
+function sidebar_callback() {
+    $onInfoContainerChanged();
 }
 
 // --------------
 // Page Functions
 // --------------
-
-function sidebar_callback() {
-    $onInfoContainerChanged();
-}
 
 function $Init() {
     $SidebarControl.init(sidebar_callback);
@@ -65,21 +37,21 @@ function $Init() {
     SelectedReset();
 
     $LineSelector.init();
-
+    /*
     var parent = $("#line-content");
     var ob = $("tr[class~='selected']", parent);
     $onToggleSelectedClass(LINE, ob, 'add', null);
 
     $LineSelector.set_current(ob);
-
+    */
     $SublineSelector.init();
-
+    /*
     var parent = $("#subline-content");
     var ob = $("tr[class~='selected']", parent);
     $onToggleSelectedClass(SUBLINE, ob, 'add', null);
 
     $SublineSelector.set_current(ob);
-
+    */
     $ShowMenu('data-menu-opers');
 
     $TabSelector.init();
@@ -89,20 +61,6 @@ function $Init() {
     // ------------------------
 
     interrupt(true, 1);
-}
-
-function $ActivateInfoData(show) {
-    var container = $("#info-data");
-
-    if (show)
-        container
-            .show();
-    else {
-        container.hide();
-        return;
-    }
-
-    $PageScroller.reset(true);
 }
 
 function $Confirm(mode, ob) {
@@ -137,10 +95,12 @@ function $ShowMenu(id) {
     var units = $("#units-content");
     var params = $("#params-content");
 
+    var tab = $("#"+id);
+
     if (selected_data_menu)
         selected_data_menu.removeClass('selected');
 
-    selected_data_menu = $("#"+id);
+    selected_data_menu = tab;
 
     opers.hide();
     logs.hide();
@@ -156,7 +116,12 @@ function $ShowMenu(id) {
     else if (id == 'data-menu-params')
         params.show();
 
-    if (id == 'data-menu-opers' && SelectedGetItem(SUBLINE, 'id'))
+    if (id == default_menu_item)
+        $SublineSelector.init();
+    else
+        $TablineSelector.init(tab);
+
+    if (id == default_menu_item && SelectedGetItem(SUBLINE, 'id'))
         $ActivateInfoData(1);
     else
         $ActivateInfoData(0);
@@ -227,7 +192,7 @@ function $addSelection(ob) {
 
     var options = container.prop("options");
     var option = new Option(oid, oid, false, false);
-    //alert('add:'+ob.attr('id')+':'+oid+':'+container.length);
+
     options[options.length] = option;
 }
 
@@ -244,7 +209,6 @@ function $setSelection(focused, forced) {
     var options = container.options;
 
     if (!is_null(container) && options.length > 0 && (focused != sid || forced)) {
-        //alert(options.selectedIndex);
         if (options.selectedIndex == -1)
             options.selectedIndex = 0;
         container.focus();
@@ -422,8 +386,9 @@ jQuery(function($)
         $DblClickAction.click(
             function(ob) {
                 is_noprogress = false;
-                $LineSelector.set_current(ob);
-                $onToggleSelectedClass(LINE, ob, 'submit', null);
+                //$LineSelector.set_current(ob);
+                //$onToggleSelectedClass(LINE, ob, 'submit', null);
+                $LineSelector.onRefresh(ob);
             },
             function(ob) {
                 $addSelection(ob);
@@ -457,8 +422,7 @@ jQuery(function($)
         if (is_show_error)
             return;
 
-        var ob = $(this);
-        $SublineSelector.onRefresh(ob);
+        $SublineSelector.onRefresh($(this));
     });
 
     // ---------------------
@@ -509,11 +473,12 @@ jQuery(function($)
         }
     });
 
-    // ------------------------------
-    // Tab table lines data selection
-    // ------------------------------
+    // -----------------
+    // Tabline selection
+    // -----------------
 
     $(".view-lines").on('click', '.tabline', function(e) {
+        /*
         var ob = $(this);
 
         if (!is_null(current_tabline))
@@ -523,6 +488,8 @@ jQuery(function($)
         SelectedSetItem(TABLINE, 'ob', current_tabline);
 
         $onToggleSelectedClass(TABLINE, current_tabline, 'add', null);
+        */
+        $TablineSelector.onRefresh($(this));
     });
 
     // ------------------------
@@ -640,6 +607,10 @@ jQuery(function($)
     });
 });
 
+function page_is_focused(e) {
+    return false;
+}
+
 // =======
 // STARTER
 // =======
@@ -655,5 +626,7 @@ $(function()
 
     $_init();
 });
+
+
 
 

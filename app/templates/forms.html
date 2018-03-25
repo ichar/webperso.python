@@ -4,7 +4,7 @@
 
 {%- if name=='register' -%}
 
-<form action="register" id="register-form" method="POST" onSubmit="return $onSubmitForm(this);">
+<form action="register" id="register-form" method="POST" onSubmit="return $onRegisterFormSubmit(this);">
 
   <dl>
     {{ render_field(data.username) }}
@@ -37,7 +37,8 @@
 
   <input type="hidden" id="user_id" name="user_id" value="" />
   <input type="hidden" id="profile_clients" name="profile_clients" value="" />
-  <input type="submit" id="save" name="save" value="Save" disabled />
+  <input type="hidden" name="sidebar" value="" />
+  <input class="btn btn-danger" type="submit" id="save" name="save" value="{{ _('Save') }}" disabled />
 
 </form>
 
@@ -95,7 +96,7 @@
 {% macro lines(group, data, config) -%}
 
   <div class="view-container" id="line-content">
-    <table class="view-data {{ group }}" id="line-table" border="1">
+    <table class="view-data boxShadow1 {{ group }}" id="line-table" border="1">
     <thead>
     <tr>
     {%- for column in config[group]['columns'] -%}
@@ -105,7 +106,7 @@
     </thead>
 
     {% for row in data -%}
-    <tr class="line {{ row['selected'] }} {{ loop.cycle('odd', 'even') }}" id="row-line:{{ row['id'] }}:{{ loop.index }}">
+    <tr class="line {{ loop.cycle('odd', 'even') }} {{ row['selected'] }}" id="row-line:{{ row['id'] }}:{{ loop.index }}">
       {%- for column in config[group]['columns'] -%}
         {% if row['Error'] %}
       <td class="column error">{{ row[column]|safe }}</td>
@@ -118,9 +119,7 @@
     </tr>
     {%- endfor %}
     {%- if not data -%}
-    <tr>
-      <td colspan="{{ config[group]['columns']|length }}"><div class="nodata">{{ _('No data') }}</div></td>
-    </tr>
+    <tr><td colspan="{{ config[group]['columns']|length }}"><div class="nodata">{{ _('No data') }}</div></td></tr>
     {%- endif -%}
     </table>
   </div>
@@ -140,7 +139,7 @@
     </thead>
 
     {% for row in data -%}
-    <tr class="subline {{ row['selected'] }} {{ loop.cycle('odd', 'even') }}" id="row-subline:{{ row['id'] }}:{{ loop.index }}">
+    <tr class="subline {{ loop.cycle('odd', 'even') }} {{ row['selected'] }}" id="row-subline:{{ row['id'] }}:{{ loop.index }}">
       {%- for column in config[group]['columns'] -%}
         {% if row['Found'] and column in ('TZ',) %}
       <td class="column found">{{ row[column]|safe }}</td>
@@ -153,12 +152,12 @@
     </tr>
     {%- endfor %}
     {%- if not data -%}
-    <tr><td colspan="{{ config[group]['columns']|length }}"><div class="nodata">{{ _('No data') }}</div></td></tr>
+    <tr id="subline-no-data"><td colspan="{{ config[group]['columns']|length }}"><div class="nodata">{{ _('No data') }}</div></td></tr>
     {%- endif -%}
     </table>
-    {%- if data -%}
-    <div class="row-counting">Всего записей: {{ data|length }}</div>
-    {%- endif -%}
+    {# if data #}
+    <div class="row-counting">Всего записей: <span id="tab-rows-total">{{ data|length }}</span></div>
+    {# endif #}
   </div>
 
 {%- endmacro %}

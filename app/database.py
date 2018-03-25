@@ -26,7 +26,7 @@ database_config = { \
             'FileID'       : ('ID файла',                   '',),
             'FName'        : ('ФАЙЛ',                       'nowrap',),
             'FQty'         : ('Кол-во',                     '',),
-            'BankName'     : ('КЛИЕНТ',                     '',),
+            'BankName'     : ('КЛИЕНТ',                     'nowrap',),
             'FileType'     : ('Тип файла',                  '',),
             'StatusDate'   : ('Дата статуса',               '',),
             'FileStatus'   : ('СТАТУС',                     'breakable',),
@@ -737,40 +737,52 @@ database_config = { \
             'ReportPrefix' : ('Префикс отчета', '',),
         },
         'clients' : 'ClientID',
-        'export'  : ('TID', 'Client', 'FileType', 'ReportPrefix', 'ClientID', 'FileTypeID',),
+        'export'  : (
+            'TID', 
+            'Client', 'FileType', 'ReportPrefix', 
+            'ClientID', 'FileTypeID',
+            ),
     },
     'configurator-batches' : { \
-        'columns' : ('TID', 'BatchTypeID', 'BatchType', 'MaxQty', 'IsErp', 'SortIndex', 'GroupIndex',), #, 'CreateType', 'ResultType'
-        'view'    : '[BankDB].[dbo].[WEB_BatchTypes_vw]',
-        'headers' : { \
-            'TID'          : 'ID партии',
-            'BatchTypeID'  : 'ID типа партии',
-            'FileType'     : 'Тип файла',
-            'BatchType'    : 'ТИП ПАРТИИ',
-            'CreateType'   : 'Тип создания',
-            'ResultType'   : 'Тип результата',
-            'MaxQty'       : 'Максимальное количество карт',
-            'IsErp'        : 'Флаг ERP', 
-            'SortIndex'    : 'Индекс сортировки', 
-            'GroupIndex'   : 'Индекс группировки', 
+        'columns'   : ('TID', 'BatchTypeID', 'BatchType', 'BatchMaxQty', 'IsErpBatch', 'CreateBatchSortIndex', 'CreateBatchGroupIndex',), #, 'BatchCreateType', 'BatchResultType'
+        'view'      : '[BankDB].[dbo].[WEB_BatchTypes_vw]',
+        'headers'   : { \
+            'TID'                   : 'ID партии',
+            'BatchTypeID'           : 'ID типа партии',
+            'FileType'              : 'Тип файла',
+            'BatchType'             : 'ТИП ПАРТИИ',
+            'CreateType'            : 'Тип создания',
+            'ResultType'            : 'Тип результата',
+            'BatchMaxQty'           : 'Максимальное количество карт',
+            'IsErpBatch'            : 'Флаг ERP', 
+            'CreateBatchSortIndex'  : 'Индекс сортировки', 
+            'CreateBatchGroupIndex' : 'Индекс группировки', 
         },
-        'export'  : ('TID', 'FileType', 'BatchType', 'CreateType', 'ResultType', 'MaxQty', 'IsErp', 'SortIndex', 'GroupIndex', 'FileTypeID', 'BatchTypeID', 'BatchCreateTypeID', 'BatchResultTypeID',),
+        'export'    : (
+            'TID', 
+            'FileType', 'BatchType', 'BatchCreateType', 'BatchResultType', 'BatchMaxQty', 'IsErpBatch', 'CreateBatchSortIndex', 'CreateBatchGroupIndex', 
+            'FileTypeID', 'BatchTypeID', 'BatchCreateTypeID', 'BatchResultTypeID',
+        ),
     },
     'configurator-processes' : { \
-        'columns' : ('TID', 'FileType', 'BatchType', 'CurrFileStatus', 'NextFileStatus', 'CloseFileStatus', 'ActivateBatchStatus', 'ARMBatchStatus', 'Memo'),
+        'columns' : ('TID', 'FileType', 'BatchType', 'CurrFileStatus', 'NextFileStatus', 'CloseFileStatus', 'ActivateBatchStatus_', 'ARMBatchStatus_', 'Memo'),
         'view'    : '[BankDB].[dbo].[WEB_FileProcesses_vw]',
         'headers' : { \
             'TID'                 : 'ID сценария',
             'FileType'            : 'Тип файла', 
-            'BatchType'           : 'ПАРТИЯ',
+            'BatchType'           : 'Тип партии',
             'CurrFileStatus'      : 'Текущий статус партии', 
             'NextFileStatus'      : 'Следующий статус партии', 
             'CloseFileStatus'     : 'Конечный статус партии', 
-            'ActivateBatchStatus' : 'Статус активации партии', 
-            'ARMBatchStatus'      : 'Статус партии в АРМ', 
+            'ActivateBatchStatus_': 'Статус активации партии', 
+            'ARMBatchStatus_'     : 'Статус партии в АРМ', 
             'Memo'                : 'Примечания',
         },
-        'export'  : ('TID', 'FileType', 'BatchType', 'CurrFileStatus', 'NextFileStatus', 'CloseFileStatus', 'ActivateBatchStatus', 'ARMBatchStatus', 'Memo', 'CurrFileStatusID', 'NextFileStatusID', 'CloseFileStatusID', 'ActivateBatchStatusID', 'ARMBatchStatusID', 'FileTypeID', 'BatchTypeID', 'BatchCreateTypeID', 'BatchResultTypeID'),
+        'export'  : (
+            'TID', 
+            'FileType', 'BatchType', 'CurrFileStatus', 'NextFileStatus', 'CloseFileStatus', 'ActivateBatchStatus_', 'ARMBatchStatus_', 'Memo', 
+            'ActivateBatchStatus', 'ARMBatchStatus', 'CurrFileStatusID', 'NextFileStatusID', 'CloseFileStatusID', 'LinkID', 'FileTypeID', 'BatchTypeID', 'BatchCreateTypeID', 'BatchResultTypeID',
+            ),
     },
     'configurator-opers' : { \
         'columns' : ('TID', 'FileType', 'BatchType', 'OperTypeName', 'OperType', 'OperSortIndex',),
@@ -778,27 +790,35 @@ database_config = { \
         'headers' : { \
             'TID'                 : 'ID операции',
             'FileType'            : 'Тип файла', 
-            'BatchType'           : 'ПАРТИЯ',
-            'OperTypeName'        : 'ОПЕРАЦИЯ',
-            'OperType'            : 'Тип операции',
+            'BatchType'           : 'Тип партии',
+            'OperTypeName'        : 'Тип операции',
+            'OperType'            : 'ОПЕРАЦИЯ',
             'OperSortIndex'       : 'Индекс сортировки',
         },
-        'export'  : ('TID', 'FileType', 'BatchType', 'OperTypeName', 'OperType', 'OperSortIndex', 'FBLinkID', 'OperID', 'BatchTypeID', 'FileTypeID'),
+        'export'  : (
+            'TID', 
+            'FileType', 'BatchType', 'OperTypeName', 'OperType', 'OperSortIndex', 
+            'FBLinkID', 'OperID', 'BatchTypeID', 'FileTypeID'
+            ),
     },
     'configurator-operparams' : { \
         'columns' : ('TID', 'FileType', 'BatchType', 'OperTypeName', 'OperType', 'PName', 'PValue', 'Comment',),
         'view'    : '[BankDB].[dbo].[WEB_FileOperParams_vw]',
         'headers' : { \
-            'TID'                 : 'ID параметра операции',
+            'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
-            'BatchType'           : 'ПАРТИЯ',
-            'OperTypeName'        : 'Операция',
-            'OperType'            : 'Тип операции',
+            'BatchType'           : 'Тип партии',
+            'OperTypeName'        : 'Тип операции',
+            'OperType'            : 'Операция',
             'PName'               : 'ПАРАМЕТР',
             'PValue'              : 'Значение параметра',
             'Comment'             : 'Примечания',
         },
-        'export'  : ('TID', 'FileType', 'BatchType', 'OperTypeName', 'OperType', 'PName', 'PValue', 'Comment', 'FBOLinkID', 'FileTypeID', 'BatchTypeID', 'FBLinkID', 'OperID',),
+        'export'  : (
+            'TID', 
+            'FileType', 'BatchType', 'OperTypeName', 'OperType', 'PName', 'PValue', 'Comment', 
+            'FBOLinkID', 'FileTypeID', 'BatchTypeID', 'FBLinkID', 'OperID',
+            ),
     },
     'configurator-filters' : { \
         'columns' : ('TID', 'FileType', 'BatchType', 'TName', 'CriticalValues',),
@@ -806,107 +826,181 @@ database_config = { \
         'headers' : { \
             'TID'                 : 'ID фильтра',
             'FileType'            : 'Тип файла', 
-            'BatchType'           : 'ПАРТИЯ',
-            'TName'               : 'Параметр',
+            'BatchType'           : 'Тип партии',
+            'TName'               : 'Тег',
             'CriticalValues'      : 'КРИТИЧЕСКОЕ ЗНАЧЕНИЕ',
         },
-        'export'  : ('TID', 'FileType', 'BatchType', 'TName', 'CriticalValues', 'FileTypeID', 'BatchTypeID', 'FBLinkID', 'FTLinkID',),
+        'export'  : (
+            'TID', 
+            'FileType', 'BatchType', 'TName', 'CriticalValues', 
+            'FileTypeID', 'BatchTypeID', 'FBLinkID', 'FTLinkID',
+            ),
     },
     'configurator-tags' : { \
         'columns' : ('TID', 'FileType', 'TName', 'TMemo',),
         'view'    : '[BankDB].[dbo].[WEB_FileTags_vw]',
         'headers' : { \
-            'TID'                 : 'ID переменной',
+            'TID'                 : 'ID тега',
             'FileType'            : 'Тип файла', 
-            'TName'               : 'ПЕРЕМЕННАЯ',
+            'TName'               : 'ТЕГ',
             'TMemo'               : 'Примечания',
         },
-        'export'  : ('TID', 'FileType', 'TName', 'TMemo', 'FileTypeID',),
+        'export'  : (
+            'TID', 
+            'FileType', 'TName', 'TMemo', 
+            'FileTypeID', 'ClientID',
+            ),
     },
     'configurator-tagvalues' : { \
         'columns' : ('TID', 'FileType', 'TName', 'TValue',),
         'view'    : '[BankDB].[dbo].[WEB_FileTagValues_vw]',
         'headers' : { \
-            'TID'                 : 'ID переменной',
+            'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
-            'TName'               : 'Переменная',
+            'TName'               : 'Тег',
             'TValue'              : 'ЗНАЧЕНИЕ',
+            'TagValue'            : 'Тег ТЗ'
         },
-        'export'  : ('TID', 'FileType', 'TName', 'TValue', 'FTLinkID', 'FileTypeID',),
+        'export'  : (
+            'TID', 
+            'FileType', 'TName', 'TValue', 'TagValue',
+            'FTLinkID', 'FileTypeID', 'ClientID',
+            ),
     },
     'configurator-tzs' : { \
         'columns' : ('TID', 'FileType', 'TName', 'TValue', 'PName', 'PValue', 'PSortIndex', 'Comment',),
         'view'    : '[BankDB].[dbo].[WEB_FileTZs_vw]',
         'headers' : { \
-            'TID'                 : 'ID переменной',
+            'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
-            'TName'               : 'Переменная',
-            'TValue'              : 'Значение',
-            'PName'               : 'ПАРАМЕТР',
+            'TName'               : 'Тег',
+            'TValue'              : 'Значение тега',
+            'PName'               : 'ПАРАМЕТР ТЗ',
             'PValue'              : 'ЗНАЧЕНИЕ', 
             'PSortIndex'          : 'Индекс сортировки',
             'Comment'             : 'Примечания',
         },
-        'export'  : ('TID', 'FileType', 'TName', 'TValue', 'PName', 'PValue', 'Comment', 'PSortIndex', 'FileTypeID', 'FTVLinkID', 'TagParamID',),
+        'export'  : (
+            'TID', 
+            'FileType', 'TName', 'TValue', 'TagValue', 'PName', 'PValue', 'Comment', 'PSortIndex', 
+            'FileTypeID', 'FTVLinkID', 'TagParamID',
+            ),
     },
     'configurator-erpcodes' : { \
-        'columns' : ('TID', 'FileType', 'TName', 'TValue', 'ERP_CODE', 'AdditionalInfo',),
+        'columns' : ('TID', 'FileType', 'BatchType', 'TName', 'TValue', 'ERP_CODE', 'AdditionalInfo',),
         'view'    : '[BankDB].[dbo].[WEB_FileERPCodes_vw]',
         'headers' : { \
-            'TID'                 : 'ID переменной',
+            'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
-            'BatchType'           : 'ПАРТИЯ',
-            'TName'               : 'Переменная',
-            'TValue'              : 'Значение',
-            'ERP_CODE'            : 'Код ЕРП', 
+            'BatchType'           : 'Тип партии',
+            'TName'               : 'Тег',
+            'TValue'              : 'Значение тега',
+            'ERP_CODE'            : 'КОД ЕРП', 
             'AdditionalInfo'      : 'Дополнительная информация',
         },
-        'export'  : ('TID', 'FileType', 'BatchType', 'TName', 'TValue', 'ERP_CODE', 'AdditionalInfo', 'FileTypeID', 'BatchTypeID', 'FTVLinkID',),
+        'export'  : (
+            'TID', 
+            'FileType', 'BatchType', 'TName', 'TValue', 'TagValue', 'ERP_CODE', 'AdditionalInfo', 
+            'FileTypeID', 'BatchTypeID', 'FTVLinkID',
+            ),
     },
     'configurator-materials' : { \
         'columns' : ('TID', 'FileType', 'BatchType', 'TName', 'TValue', 'PName', 'QtyMode', 'MMin', 'MBadPercent',),
         'view'    : '[BankDB].[dbo].[WEB_FileMaterials_vw]',
         'headers' : { \
-            'TID'                 : 'ID переменной',
+            'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
-            'BatchType'           : 'ПАРТИЯ',
-            'TName'               : 'Переменная',
+            'BatchType'           : 'Тип партии',
+            'TName'               : 'Тег',
             'TValue'              : 'Значение',
             'PName'               : 'МАТЕРИАЛ', 
             'QtyMode'             : 'Кол-во', 
             'MMin'                : 'Мин', 
             'MBadPercent'         : 'Брак, %',
         },
-        'export'  : ('TID', 'FileType', 'BatchType', 'TName', 'TValue', 'CName', 'PName', 'QtyMode', 'MMin', 'MBadPercent', 'FileTypeID', 'BatchTypeID', 'FTVLinkID', 'TagParamID',),
+        'export'  : (
+            'TID', 
+            'FileType', 'BatchType', 'TName', 'TValue', 'TagValue', 'PName', 'QtyMode', 'MMin', 'MBadPercent', 
+            'FileTypeID', 'BatchTypeID', 'FTVLinkID', 'TagParamID',
+            ),
     },
     'configurator-posts' : { \
         'columns' : ('TID', 'FileType', 'TName', 'TValue', 'PName', 'PValue', 'Comment',),
         'view'    : '[BankDB].[dbo].[WEB_FilePosts_vw]',
         'headers' : { \
-            'TID'                 : 'ID переменной',
+            'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
-            'TName'               : 'Переменная',
+            'TName'               : 'Тег',
             'TValue'              : 'Значение',
             'PName'               : 'ПАРАМЕТР ПОЧТЫ', 
             'PValue'              : 'Значение', 
             'Comment'             : 'Примечания',
         },
-        'export'  : ('TID', 'FileType', 'TName', 'TValue', 'PName', 'PValue', 'Comment', 'FileTypeID', 'FTVLinkID', 'TagParamID',),
+        'export'  : (
+            'TID', 
+            'FileType', 'TName', 'TValue', 'TagValue', 'PName', 'PValue', 'Comment', 
+            'FileTypeID', 'FTVLinkID', 'TagParamID',
+            ),
+    },
+    'configurator-tagopers' : { \
+        'columns' : ('TID', 'FileType', 'TName', 'TValue', 'OperType', 'Oper', 'PName', 'PValue', 'OperSortIndex', 'Comment',),
+        'view'    : '[BankDB].[dbo].[WEB_FileTagOpers_vw]',
+        'headers' : { \
+            'TID'                 : 'ID параметра',
+            'FileType'            : 'Тип файла', 
+            'TName'               : 'Тег',
+            'TValue'              : 'Значение тега',
+            'PName'               : 'Параметр тега', 
+            'OperType'            : 'Тип операции', 
+            'Oper'                : 'ОПЕРАЦИЯ', 
+            'PValue'              : 'ЗНАЧЕНИЕ', 
+            'OperSortIndex'       : 'Индекс сортировки',
+            'Comment'             : 'Примечания',
+        },
+        'export'  : (
+            'TID', 
+            'FileType', 'TName', 'TValue', 'TagValue', 'PName', 'PValue', 'OperType', 'Oper', 'OperSortIndex', 'Comment', 
+            'FileTypeID', 'FTVLinkID', 'TagParamID', 'OperTypeID'
+            ),
+    },
+    'configurator-tagoperparams' : { \
+        'columns' : ('TID', 'FileType', 'TName', 'TValue', 'OperTypeValue', 'OperValue', 'PName', 'PValue',),
+        'view'    : '[BankDB].[dbo].[WEB_FileTagOperParams_vw]',
+        'headers' : { \
+            'TID'                 : 'ID параметра',
+            'FileType'            : 'Тип файла', 
+            'TName'               : 'Тег',
+            'TValue'              : 'Значение тега',
+            'OperTypeValue'       : 'Тип операции', 
+            'Oper'                : 'Операция',
+            'PName'               : 'ПАРАМЕТР ОПЕРАЦИИ', 
+            'OperValue'           : 'Операция', 
+            'PValue'              : 'ЗНАЧЕНИЕ', 
+        },
+        'export'  : (
+            'TID', 
+            'FileType', 'TName', 'TValue', 'TagValue', 'OperType', 'Oper', 'OperTypeValue', 'OperValue', 'PName', 'PValue', 
+            'FileTypeID', 'FTV_OPER_ID', 'TagParamID',
+            ),
     },
     'configurator-processparams' : { \
         'columns' : ('TID', 'FileType', 'TName', 'TValue', 'PName', 'PValue', 'Comment', 'PSortIndex',),
         'view'    : '[BankDB].[dbo].[WEB_FileProcessParams_vw]',
         'headers' : { \
-            'TID'                 : 'ID переменной',
+            'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
-            'TName'               : 'Переменная',
+            'TName'               : 'Тег',
             'TValue'              : 'Значение',
             'PName'               : 'ПАРАМЕТР ПРОЦЕССА', 
-            'PValue'              : 'Значение', 
+            'PValue'              : 'ЗНАЧЕНИЕ', 
             'Comment'             : 'Примечания',
             'PSortIndex'          : 'Индекс сортировки',
         },
-        'export'  : ('TID', 'FileType', 'TName', 'TValue', 'PName', 'PValue', 'Comment', 'PSortIndex', 'FileTypeID', 'FTVLinkID', 'TagParamID',),
+        'export'  : (
+            'TID', 
+            'FileType', 'TName', 'TValue', 'TagValue', 'PName', 'PValue', 'Comment', 'PSortIndex', 
+            'FileTypeID', 'FTVLinkID', 'TagParamID',
+            ),
     },
     # --------------------
     # Фильтр конфигуратора
@@ -1010,94 +1104,678 @@ for item in database_config:
 ## References
 ## ----------
 
-def _reference_header(title, style, key=None):
+def _reference_header(show, title, style, key=None, link=None, reference=None, alias=None, value=None, tag=None):
+    """
+        Header attributes:
+            show      -- Bool, flag show on the screen: 1|0
+            title     -- String, column title
+            style     -- String, css style name
+            key       -- String, field key
+            link      -- Int, FK type [{1|2}]: 1-editable, 2-frozen
+            reference -- String, FK reference view name
+            alias     -- String, view field name
+            value     -- String, table field name (as selected value)
+            tag       -- String, HTML-tag template
+    """
     return {
-        'title'   : title,
-        'style'   : style,
-        'key'     : key or key.lower(),
+        'show'      : show and show.isdigit() and int(show) and True or False,
+        'title'     : title,
+        'style'     : style,
+        'key'       : key or key.lower(),
+        'link'      : link,
+        'reference' : reference,
+        'alias'     : alias,
+        'value'     : value,
+        'tag'       : tag or 'input',
     }
 
-def _reference_field(stype, selector, order=None, encoding=None):
+def _reference_field(stype, selector=None, order=None, encoding=None):
+    """
+        Field attributes:
+            type      -- String, field SQL-type
+            selector  -- String, SQL search query operator
+            order     -- String, order type [{asc|desc}]
+            encoding  -- Int, encoding flag [1]
+    """
     return {
-        'type'    : stype,
-        'selector': selector,
-        'order'   : order,
-        'encoding': encoding and True or False,
+        'type'      : stype,
+        'selector'  : selector,
+        'order'     : order,
+        'encoding'  : encoding and True or False,
     }
 
 _references = {
     'reference.clients' : {
-        'columns' : ('TID', 'CName'),
+        'columns' : ('TID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_Clients_tb]',
         'headers' : {
-            'TID'          : 'PK::id',
-            'CName'        : 'Наименование::name',
+            'TID'               : '1:PK::id',
+            'CName'             : '1:Наименование::name',
         },
         'fields'  : {
-            'TID'          : 'int:TID=%s',
-            'CName'        : "varchar:CName like '%%%s%%':asc:1",
+            'TID'               : 'int:TID=%s',
+            'CName'             : "varchar:CName like '%%%s%%':asc:1",
         },
     },
     'reference.file-status' : {
-        'columns' : ('TID', 'StatusTypeID', 'CName'),
+        'columns' : ('TID', 'StatusTypeID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_FileStatus_tb]',
         'headers' : {
-            'TID'          : 'PK::id',
-            'StatusTypeID' : 'Тип статуса::fk',
-            'CName'        : 'Наименование::name',
+            'TID'               : '1:PK::id',
+            'StatusTypeID'      : '1:Тип статуса::fk',
+            'CName'             : '1:Наименование::name',
         },
         'fields'  : {
-            'TID'          : 'int:TID=%s',
-            'StatusTypeID' : 'int:StatusTypeID=%s',
-            'CName'        : "varchar:CName like '%%%s%%':asc:1",
+            'TID'               : 'int:TID=%s',
+            'StatusTypeID'      : 'int:StatusTypeID=%s',
+            'CName'             : "varchar:CName like '%%%s%%':asc:1",
+        },
+    },
+    'reference.file-type' : {
+        'columns' : ('TID', 'ClientID', 'CName', 'ReportPrefix',),
+        'view'    : '[BankDB].[dbo].[DIC_FileType_tb]',
+        'headers' : {
+            'TID'               : '1:PK::id',
+            'ClientID'          : '1:Клиент::fk',
+            'CName'             : '1:Наименование::name',
+            'ReportPrefix'      : '1:Признак отчета::report',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'ClientID'          : 'int:ClientID=%s',
+            'CName'             : "varchar:CName like '%%%s%%':asc:1",
+            'ReportPrefix'      : "varchar:ReportPrefix like '%%%s%%'::1",
+        },
+    },
+    'reference.batch-create-type' : {
+        'columns' : ('TID', 'CName',),
+        'view'    : '[BankDB].[dbo].[DIC_BatchCreateType_tb]',
+        'headers' : {
+            'TID'               : '1:PK::id',
+            'CName'             : '1:Наименование::name',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'CName'             : "varchar:CName like '%%%s%%':asc:1",
+        },
+    },
+    'reference.batch-result-type' : {
+        'columns' : ('TID', 'CName',),
+        'view'    : '[BankDB].[dbo].[DIC_BatchResultType_tb]',
+        'headers' : {
+            'TID'               : '1:PK::id',
+            'CName'             : '1:Наименование::name',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'CName'             : "varchar:CName like '%%%s%%':asc:1",
         },
     },
     'reference.batch-status' : {
         'columns' : ('TID', 'CName'),
         'view'    : '[BankDB].[dbo].[DIC_BatchStatus_tb]',
         'headers' : {
-            'TID'          : 'PK::id',
-            'CName'        : 'Наименование::name',
+            'TID'               : '1:PK::id',
+            'CName'             : '1:Наименование::name',
         },
         'fields'  : {
-            'TID'          : 'int:TID=%s',
-            'CName'        : "varchar:CName like '%%%s%%':asc:1",
+            'TID'               : 'int:TID=%s',
+            'CName'             : "varchar:CName like '%%%s%%':asc:1",
+        },
+    },
+    'reference.batch-type' : {
+        'columns' : ('TID', 'CName',),
+        'view'    : '[BankDB].[dbo].[DIC_BatchType_tb]',
+        'headers' : {
+            'TID'               : '1:PK::id',
+            'CName'             : '1:Наименование::name',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'CName'             : "varchar:CName like '%%%s%%':asc:1",
         },
     },
     'reference.oper-list' : {
-        'columns' : ('TID', 'TypeID', 'CName'),
+        'columns' : ('TID', 'TypeID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_OperList_tb]',
         'headers' : {
-            'TID'          : 'PK::id',
-            'TypeID'       : 'Тип операции::fk',
-            'CName'        : 'Наименование::name',
+            'TID'               : '1:PK::id',
+            'TypeID'            : '1:Тип операции::fk',
+            'CName'             : '1:Наименование::name',
         },
         'fields'  : {
-            'TID'          : 'int:TID=%s',
-            'TypeID'       : 'int:TypeID=%s',
-            'CName'        : "varchar:CName like '%%%s%%':asc:1",
+            'TID'               : 'int:TID=%s',
+            'TypeID'            : 'int:TypeID=%s',
+            'CName'             : "varchar:CName like '%%%s%%':asc:1",
+        },
+    },
+    'reference.oper-type' : {
+        'columns' : ('TID', 'CName', 'SName',),
+        'view'    : '[BankDB].[dbo].[DIC_OperType_tb]',
+        'headers' : {
+            'TID'               : '1:PK::id',
+            'CName'             : '1:Тип операции::type',
+            'SName'             : '1:Наименование::name',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'CName'             : "varchar:CName like '%%%s%%'::",
+            'SName'             : "varchar:SName like '%%%s%%':asc:1",
         },
     },
     'reference.tag-params' : {
-        'columns' : ('TID', 'PName', 'Comment'),
+        'columns' : ('TID', 'PName', 'Comment',),
         'view'    : '[BankDB].[dbo].[DIC_TagParams_tb]',
         'headers' : {
-            'TID'          : 'PK::id',
-            'PName'        : 'Наименование::name',
-            'Comment'      : 'Примечание::comment',
+            'TID'               : '1:PK::id',
+            'PName'             : '1:Наименование::name',
+            'Comment'           : '1:Примечание::comment',
         },
         'fields'  : {
-            'TID'          : 'int:TID=%s',
-            'PName'        : "varchar:PName like '%%%s%%':asc:1",
-            'Comment'      : "varchar:Comment like '%%%s%%'::1",
+            'TID'               : 'int:TID=%s',
+            'PName'             : "varchar:PName like '%%%s%%':asc:1",
+            'Comment'           : "varchar:Comment like '%%%s%%'::1",
+        },
+    },
+    'reference.ftb-post' : {
+        'columns' : ('TID', 'FBLinkID', 'TagParamID', 'PValue', 'PSortIndex', 'Comment',),
+        'view'    : '[BankDB].[dbo].[DIC_FTB_POST_tb]',
+        'headers' : {
+            'TID'               : '1:PK::id',
+            'FBLinkID'          : '1:Тип партии::batch',
+            'TagParamID'        : '1:Параметр::tag',
+            'PValue'            : '1:Значение параметра::value',
+            'PSortIndex'        : '1:Индекс сортировки::sort',
+            'Comment'           : '1:Примечание::comment',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'FBLinkID'          : 'int:FBLinkID=%s',
+            'TagParamID'        : 'int:TagParamID=%s',
+            'PValue'            : "varchar:PValue like '%%%s%%':asc:1",
+            'PSortIndex'        : 'int:PSortIndex=%s:asc:',
+            'Comment'           : "varchar:Comment like '%%%s%%'::1",
+        },
+    },
+    'reference.ftv-oper-params' : {
+        'columns' : ('TID', 'FTV_OPER_ID', 'PName', 'PValue',),
+        'view'    : '[BankDB].[dbo].[DIC_FTV_OPER_PARAMS_tb]',
+        'headers' : {
+            'TID'               : '1:PK::id',
+            'FTV_OPER_ID'       : '1:Тип операции::fk',
+            'PName'             : '1:Наименование::name',
+            'PValue'            : '1:Значение::value',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'FTV_OPER_ID'       : 'int:FTV_OPER_ID=%s',
+            'PName'             : "varchar:PName like '%%%s%%':asc:1",
+            'PValue'            : "varchar:PValue like '%%%s%%'",
+        },
+    },
+    # ----------------
+    # LINKED REFERENCE
+    # ----------------
+    'reference.linked-batches' : {
+        'columns' : ('TID', 'FileTypeID', 'BatchTypeID', 'FileType', 'BatchType',),
+        'view'    : '[BankDB].[dbo].[WEB_BatchTypes_vw]',
+        'headers' : {
+            'TID'               : '1:ID партии::id',
+            'FileTypeID'        : '0:ID типа файла::fk1',
+            'BatchTypeID'       : '0:ID типа партии::fk2',
+            'FileType'          : '1:Тип файла::filetype',
+            'BatchType'         : '1:Тип партии::name',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'FileTypeID'        : 'int:FileTypeID=%s',
+            'BatchTypeID'       : 'int:BatchTypeID=%s',
+            'FileType'          : "varchar:FileType like '%%%s%%':asc:",
+            'BatchType'         : "varchar:BatchType like '%%%s%%':asc:1",
+        },
+    },
+    'reference.linked-opers' : {
+        'columns' : ('TID', 'FBLinkID', 'FileTypeID', 'BatchTypeID', 'OperID', 'FileType', 'BatchType', 'OperTypeName', 'OperType', 'OperSortIndex',),
+        'view'    : '[BankDB].[dbo].[WEB_FileOpers_vw]',
+        'headers' : {
+            'TID'               : '1:ID операции::id',
+            'FBLinkID'          : '0:Тип партии::batch',
+            'FileTypeID'        : '0:ID типа файла::fk1',
+            'BatchTypeID'       : '0:ID типа партии::fk2',
+            'OperID'            : '0:ID типа операции::fk3',
+            'FileType'          : '0:Тип файла::filetype',
+            'BatchType'         : '0:Тип партии::batchtype',
+            'OperTypeName'      : '1:Тип операции::opertype',
+            'OperType'          : '1:Операция::name',
+            'OperSortIndex'     : '1:Индекс сортировки::sort',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'FBLinkID'          : 'int:FBLinkID=%s',
+            'FileTypeID'        : 'int:FileTypeID=%s',
+            'BatchTypeID'       : 'int:BatchTypeID=%s',
+            'FileType'          : "varchar:FileType like '%%%s%%'::",
+            'BatchType'         : "varchar:BatchType like '%%%s%%':2-asc:1",
+            'OperTypeName'      : "varchar:OperTypeName like '%%%s%%'::",
+            'OperType'          : "varchar:OperType like '%%%s%%'::1",
+            'OperSortIndex'     : 'int:OperSortIndex=%s:1-asc:',
+        },
+    },
+    'reference.linked-tags' : {
+        'columns' : ('TID', 'FileTypeID', 'FileType', 'TName', 'TMemo',),
+        'view'    : '[BankDB].[dbo].[WEB_FileTags_vw]',
+        'headers' : {
+            'TID'               : '1:ID тега::id',
+            'FileTypeID'        : '0:ID типа файла::fk1',
+            'FileType'          : '1:Тип файла::filetype',
+            'TName'             : '1:Тег::name',
+            'TMemo'             : '1:Примечание:text:memo:::::textarea',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'FileTypeID'        : 'int:FileTypeID=%s',
+            'FileType'          : "varchar:FileType like '%%%s%%'::",
+            'TName'             : "varchar:TName like '%%%s%%':asc:1",
+            'TMemo'             : "varchar:TMemo like '%%%s%%'::1",
+        },
+    },
+    'reference.linked-tagvalues' : {
+        'columns' : ('TID', 'FTLinkID', 'FileTypeID', 'FileType', 'TName', 'TValue', 'TagValue',),
+        'view'    : '[BankDB].[dbo].[WEB_FileTagValues_vw]',
+        'headers' : {
+            'TID'               : '1:ID значения::id',
+            'FTLinkID'          : '0:ID тега::tag',
+            'FileTypeID'        : '0:ID типа файла::fk1',
+            'FileType'          : '0:Тип файла::filetype',
+            'TName'             : '1:Тег::name',
+            'TValue'            : '1:Значение::v1',
+            'TagValue'          : '0:Значение параметра::value',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'FTLinkID'          : 'int:FTLinkID=%s',
+            'FileTypeID'        : 'int:FileTypeID=%s',
+            'FileType'          : "varchar:FileType like '%%%s%%'::",
+            'TName'             : "varchar:TName like '%%%s%%':asc:1",
+            'TValue'            : "varchar:TValue like '%%%s%%'::1",
+            'TagValue'          : 'varchar:::1',
+        },
+    },
+    'reference.linked-tagopers' : {
+        'columns' : ('TID', 'FTVLinkID', 'FileTypeID', 'TagParamID', 'OperTypeID', 'FileType', 'TName', 'TValue', 'TagValue', 'OperType', 'Oper', 'PName', 'PValue', 'Comment', 'OperSortIndex',),
+        'view'    : '[BankDB].[dbo].[WEB_FileTagOpers_vw]',
+        'headers' : {
+            'TID'               : '1:ID параметра::id',
+            'FTVLinkID'         : '0:ID тега::tag',
+            'FileTypeID'        : '0:ID типа файла::fk1',
+            'TagParamID'        : '0:ID типа файла::fk2',
+            'OperTypeID'        : '0:ID типа операции::fk3',
+            'FileType'          : '0:Тип файла::filetype',
+            'TName'             : '0:Тег::v1',
+            'TValue'            : '0:Значение::v2',
+            'TagValue'          : '1:Тег::tagvalue',
+            'OperType'          : '0:Тип операции::v3',
+            'Oper'              : '0:Операция::v4',
+            'PName'             : '1:Параметр::name',
+            'PValue'            : '1:Операция::value',
+            'Comment'           : '1:Примечание::comment',
+            'OperSortIndex'     : '0:Индекс сортировки::sort',
+        },
+        'fields'  : {
+            'TID'               : 'int:TID=%s',
+            'FTVLinkID'         : 'int:FTVLinkID=%s',
+            'FileTypeID'        : 'int:FileTypeID=%s',
+            'TagParamID'        : 'int:TagParamID=%s',
+            'OperTypeID'        : 'int:OperTypeID=%s',
+            'FileType'          : "varchar:FileType like '%%%s%%'::",
+            'TName'             : "varchar:TName like '%%%s%%':asc:1",
+            'TValue'            : "varchar:TValue like '%%%s%%':asc:1",
+            'TagValue'          : 'varchar:#',
+            'OperType'          : "varchar:OperType like '%%%s%%'::",
+            'Oper'              : "varchar:Oper like '%%%s%%'::1",
+            'OperTypeValue'     : "varchar:OperTypeValue like '%%%s%%'::1",
+            'PName'             : "varchar:PName like '%%%s%%':asc:1",
+            'PValue'            : "varchar:PValue like '%%%s%%':asc:1",
+            'Comment'           : "varchar:Comment like '%%%s%%'::1",
+            'OperSortIndex'     : 'int:#'
+        },
+    },
+    # -------------------------
+    # BANKPERSO CONFIG SETTINGS
+    # -------------------------
+    'reference.file-type-batch-type' : {
+        'columns' : ('TID', 'FileTypeID', 'BatchTypeID', 'BatchCreateTypeID', 'BatchResultTypeID', 'BatchMaxQty', 'IsErpBatch', 'CreateBatchSortIndex', 'CreateBatchGroupIndex',),
+        'view'    : '[BankDB].[dbo].[DIC_FileType_BatchType_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FileTypeID'              : '1:Тип файла::fk1:2:reference.file-type:FileType:CName',
+            'BatchTypeID'             : '1:Тип партии::fk2:1:reference.batch-type:BatchType:CName',
+            'BatchCreateTypeID'       : '1:Признак создания партии::fk3:1:reference.batch-create-type:BatchCreateType:CName',
+            'BatchResultTypeID'       : '1:Признак создания файла результата партии::fk4:1:reference.batch-result-type:BatchResultType:CName',
+            'BatchMaxQty'             : '1:Предельное число карт партии::maxqty',
+            'IsErpBatch'              : '1:Признак использования ERP::iserp',
+            'CreateBatchSortIndex'    : '1:Индекс сортировки::sort',
+            'CreateBatchGroupIndex'   : '1:Индекс группировки::group',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FileTypeID'              : 'int:FileTypeID=%s',
+            'BatchTypeID'             : 'int:BatchTypeID=%s',
+            'BatchCreateTypeID'       : 'int:BatchCreateTypeID=%s',
+            'BatchResultTypeID'       : 'int:BatchResultTypeID=%s',
+            'BatchMaxQty'             : 'int:BatchMaxQty=%s',
+            'IsErpBatch'              : 'int:IsErpBatch=%s',
+            'CreateBatchSortIndex'    : 'int:CreateBatchSortIndex=%s',
+            'CreateBatchGroupIndex'   : 'int:CreateBatchGroupIndex=%s',
+            'FileType'                : 'varchar:#',
+            'BatchType'               : 'varchar:#',
+            'BatchCreateType'         : 'varchar:#',
+            'BatchResultType'         : 'varchar:#',
+        },
+    },
+    'reference.order-file-process' : {
+        'columns' : ('TID', 'LinkID', 'CurrFileStatusID', 'NextFileStatusID', 'CloseFileStatusID', 'Memo', 'ActivateBatchStatus', 'ARMBatchStatus',),
+        'view'    : '[BankDB].[dbo].[DIC_OrderFileProcess_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'LinkID'                  : '1:Тип партии::fk1:1:reference.linked-batches:BatchType:BatchType',
+            'CurrFileStatusID'        : '1:Текущий статус файла::fk2:1:reference.file-status:CurrFileStatus:CName',
+            'NextFileStatusID'        : '1:Следующий статус файла::fk3:1:reference.file-status:NextFileStatus:CName',
+            'CloseFileStatusID'       : '1:Конечный статус файла::fk4:1:reference.file-status:CloseFileStatus:CName',
+            'Memo'                    : '1:Примечание:text:memo:::::textarea',
+            'ActivateBatchStatus'     : '1:Статус активации партии:varchar:fk5:1:reference.batch-status:ActivateBatchStatus_:CName',
+            'ARMBatchStatus'          : '1:Статус партии в АРМ:varchar:fk6:1:reference.batch-status:ARMBatchStatus_:CName',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'LinkID'                  : 'int:LinkID=%s',
+            'CurrFileStatusID'        : 'int:CurrFileStatusID=%s',
+            'NextFileStatusID'        : 'int:NextFileStatusID=%s',
+            'CloseFileStatusID'       : 'int:CloseFileStatusID=%s',
+            'Memo'                    : "varchar:Memo like '%%%s%%'::1",
+            'ActivateBatchStatus'     : 'int:ActivateBatchStatus=%s',
+            'ARMBatchStatus'          : 'int:ARMBatchStatus=%s',
+            'BatchType'               : 'varchar:#',
+            'CurrFileStatus'          : 'varchar:#',
+            'NextFileStatus'          : 'varchar:#',
+            'CloseFileStatus'         : 'varchar:#',
+            'ActivateBatchStatus_'    : 'varchar:#',
+            'ARMBatchStatus_'         : 'varchar:#',
+        },
+    },
+    'reference.file-type-batch-type-opers' : {
+        'columns' : ('TID', 'FBLinkID', 'OperID', 'OperSortIndex',),
+        'view'    : '[BankDB].[dbo].[DIC_FileType_BatchType_OperList_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FBLinkID'                : '1:Тип партии::fk1:1:reference.linked-batches:BatchType:BatchType',
+            'OperID'                  : '1:Операция::fk2:1:reference.oper-list:OperType:OperType',
+            'OperSortIndex'           : '1:Индекс сортировки::sort',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FBLinkID'                : 'int:FBLinkID=%s',
+            'OperID'                  : 'int:OperID=%s',
+            'OperSortIndex'           : 'int:OperSortIndex=%s',
+            'BatchType'               : 'varchar:#',
+            'OperType'                : 'varchar:#',
+        },
+    },
+    'reference.file-type-batch-type-operparams' : {
+        'columns' : ('TID', 'FBLinkID', 'FBOLinkID', 'PName', 'PValue', 'Comment',),
+        'view'    : '[BankDB].[dbo].[DIC_FileType_BatchType_OperList_Params_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FBLinkID'                : '1:Тип партии::fk1:1:reference.linked-batches:BatchType:BatchType',
+            'FBOLinkID'               : '1:Операция::fk2:1:reference.linked-opers:OperType:OperType',
+            'PName'                   : '1:Параметр::name',
+            'PValue'                  : '1:Значение параметра::value', #longvarchar
+            'Comment'                 : '1:Примечание:text:memo:::::textarea',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FBLinkID'                : 'int:FBLinkID=%s',
+            'FBOLinkID'               : 'int:FBOLinkID=%s',
+            'PName'                   : "varchar:PName like '%%%s%%':asc:1",
+            'PValue'                  : "varchar:PValue like '%%%s%%'",
+            'Comment'                 : "varchar:Comment like '%%%s%%'::1",
+            'BatchType'               : 'varchar:#',
+            'OperType'                : 'varchar:#',
+        },
+    },
+    'reference.file-type-tags' : {
+        'columns' : ('TID', 'FileTypeID', 'TName', 'TMemo',),
+        'view'    : '[BankDB].[dbo].[DIC_FileType_TagList_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FileTypeID'              : '1:Тип файла::fk1:2:reference.file-type:FileType:CName',
+            'TName'                   : '1:Тег::name',
+            'TMemo'                   : '1:Примечание:text:memo:::::textarea',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FileTypeID'              : 'int:FileTypeID=%s',
+            'TName'                   : "varchar:TName like '%%%s%%':asc:1",
+            'TMemo'                   : "varchar:TMemo like '%%%s%%'::1",
+            'FileType'                : 'varchar:#',
+        },
+    },
+    'reference.file-type-tagvalues' : {
+        'columns' : ('TID', 'FTLinkID', 'TValue',),
+        'view'    : '[BankDB].[dbo].[DIC_FileType_TagList_TagValues_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FTLinkID'                : '1:Тег::fk1:1:reference.linked-tags:TName:TName',
+            'TValue'                  : '1:Значение::value',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FTLinkID'                : 'int:FTLinkID=%s',
+            'TName'                   : "varchar:TName like '%%%s%%':asc:1",
+            'TValue'                  : "varchar:TValue like '%%%s%%'::1",
+        },
+    },
+    'reference.file-type-batch-type-filters' : {
+        'columns' : ('FileTypeID', 'FBLinkID', 'FTLinkID', 'CriticalValues', 'TID',),
+        'view'    : '[BankDB].[dbo].[DIC_FileType_BatchType_FilterShema_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FileTypeID'              : '1:Тип файла::fk1:2:reference.file-type:FileType:CName',
+            'FBLinkID'                : '1:Тип партии::fk2:1:reference.linked-batches:BatchType:BatchType',
+            'FTLinkID'                : '1:Тег::fk3:1:reference.linked-tags:TName:TName',
+            'CriticalValues'          : '1:Критическое значение::value',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FileTypeID'              : 'int:FileTypeID=%s',
+            'BatchTypeID'             : 'int:BatchTypeID=%s',
+            'FBLinkID'                : 'int:FBLinkID=%s',
+            'FTLinkID'                : 'int:FTLinkID=%s',
+            'CriticalValues'          : "varchar:CriticalValues like '%%%s%%'::1",
+            'TName'                   : "varchar:#",
+            'FileType'                : 'varchar:#',
+            'BatchType'               : 'varchar:#',
+        },
+    },
+    'reference.file-type-tzs' : {
+        'columns' : ('TID', 'FTVLinkID', 'TagParamID', 'PValue', 'Comment', 'PSortIndex',),
+        'view'    : '[BankDB].[dbo].[DIC_FTV_TZ_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FileTypeID'              : '0:Тип файла::fk1:2:reference.file-type:FileType:CName',
+            'FTVLinkID'               : '1:Тег::fk2:1:reference.linked-tagvalues:TagValue:TagValue',
+            'TagParamID'              : '1:Параметр ТЗ::fk3:1:reference.tag-params:PName:PName',
+            'PValue'                  : '1:Значение параметра ТЗ::value',
+            'Comment'                 : '1:Примечание:text:memo:::::textarea',
+            'PSortIndex'              : '1:Индекс сортировки::sort',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FileTypeID'              : 'int:FileTypeID=%s',
+            'FTVLinkID'               : 'int:FTVLinkID=%s',
+            'TagParamID'              : 'int:TagParamID=%s',
+            'PValue'                  : "varchar:PValue like '%%%s%%':2-asc:1",
+            'Comment'                 : "varchar:Comment like '%%%s%%'::1",
+            'PSortIndex'              : 'int:PSortIndex=%s:1-asc:',
+            'FileType'                : 'varchar:#',
+            'TagValue'                : 'varchar:#',
+            'PName'                   : "varchar:#",
+        },
+    },
+    'reference.file-type-erpcodes' : {
+        'columns' : ('FTVLinkID', 'ERP_CODE', 'BatchTypeID', 'AdditionalInfo', 'TID',),
+        'view'    : '[BankDB].[dbo].[DIC_FTV_ERPCODE_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FileTypeID'              : '0:Тип файла::fk1:2:reference.file-type:FileType:CName',
+            #'BatchTypeID'             : '1:Тип партии::fk2:1:reference.linked-batches:BatchType:BatchType',
+            'BatchTypeID'             : '1:Тип партии::fk2:1:reference.batch-type:BatchType:CName',
+            'FTVLinkID'               : '1:Тег::fk3:1:reference.linked-tagvalues:TagValue:TagValue',
+            'ERP_CODE'                : '1:Код ЕРП::value',
+            'AdditionalInfo'          : '1:Дополнительная информация::info',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FileTypeID'              : 'int:FileTypeID=%s',
+            'BatchTypeID'             : 'int:BatchTypeID=%s',
+            'FTVLinkID'               : 'int:FTVLinkID=%s',
+            'ERP_CODE'                : "varchar:ERP_CODE like '%%%s%%'::",
+            'AdditionalInfo'          : "varchar:AdditionalInfo like '%%%s%%'::1",
+            'FileType'                : 'varchar:#',
+            'BatchType'               : 'varchar:#',
+            'TagValue'                : 'varchar:#:1-asc:',
+            'PName'                   : "varchar:#",
+        },
+    },
+    'reference.file-type-materials' : {
+        'columns' : ('TID', 'FTVLinkID', 'TagParamID', 'BatchTypeID', 'MMin', 'MBadPercent', 'QtyMode',),
+        'view'    : '[BankDB].[dbo].[DIC_FTV_MATERIAL_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FileTypeID'              : '0:Тип файла::fk1:2:reference.file-type:FileType:CName',
+            'BatchTypeID'             : '1:Тип партии::fk2:1:reference.batch-type:BatchType:CName',
+            'FTVLinkID'               : '1:Тег::fk3:1:reference.linked-tagvalues:TagValue:TagValue',
+            'TagParamID'              : '1:Параметр ТЗ::fk4:1:reference.tag-params:PName:PName',
+            'MMin'                    : '1:Минимум::min',
+            'MBadPercent'             : '1:Брак, %::bad:',
+            'QtyMode'                 : '1:Количество::qty:',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FileTypeID'              : 'int:FileTypeID=%s',
+            'BatchTypeID'             : 'int:BatchTypeID=%s',
+            'FTVLinkID'               : 'int:FTVLinkID=%s',
+            'TagParamID'              : 'int:TagParamID=%s',
+            'MMin'                    : "int:MMin=%s",
+            'MBadPercent'             : "int:MBadPercent=%s",
+            'QtyMode'                 : "int:QtyMode=%s'",
+            'FileType'                : 'varchar:#',
+            'BatchType'               : 'varchar:#',
+            'TagValue'                : 'varchar:#:1-asc:',
+            'PName'                   : "varchar:#",
+        },
+    },
+    'reference.file-type-posts' : {
+        'columns' : ('TID', 'FTVLinkID', 'TagParamID', 'PValue', 'Comment',),
+        'view'    : '[BankDB].[dbo].[DIC_FTV_POST_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FileTypeID'              : '0:Тип файла::fk1:2:reference.file-type:FileType:CName',
+            'FTVLinkID'               : '1:Тег::fk2:1:reference.linked-tagvalues:TagValue:TagValue',
+            'TagParamID'              : '1:Параметр ТЗ::fk3:1:reference.tag-params:PName:PName',
+            'PValue'                  : '1:Значение параметра::value',
+            'Comment'                 : '1:Примечание:text:memo:::::textarea',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FileTypeID'              : 'int:FileTypeID=%s',
+            'FTVLinkID'               : 'int:FTVLinkID=%s',
+            'TagParamID'              : 'int:TagParamID=%s',
+            'PValue'                  : "varchar:PValue like '%%%s%%'",
+            'Comment'                 : "varchar:Comment like '%%%s%%'::1",
+            'FileType'                : 'varchar:#',
+            'TagValue'                : 'varchar:#:1-asc:',
+            'PName'                   : "varchar:#",
+        },
+    },
+    'reference.file-type-tagopers' : {
+        'columns' : ('TID', 'FTVLinkID', 'TagParamID', 'OperTypeID', 'PValue', 'Comment', 'OperSortIndex',),
+        'view'    : '[BankDB].[dbo].[DIC_FTV_OPER_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FileTypeID'              : '0:Тип файла::fk1:2:reference.file-type:FileType:CName',
+            'FTVLinkID'               : '1:Тег::fk2:1:reference.linked-tagvalues:TagValue:TagValue',
+            'TagParamID'              : '1:Параметр тега::fk3:1:reference.tag-params:PName:PName',
+            'OperTypeID'              : '1:Операция::fk4:1:reference.oper-type:Oper:CName',
+            'PValue'                  : '1:Значение::value',
+            'Comment'                 : '1:Примечание:text:memo:::::textarea',
+            'OperSortIndex'           : '1:Индекс сортировки::sort',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FileTypeID'              : 'int:FileTypeID=%s',
+            'FTVLinkID'               : 'int:FTVLinkID=%s',
+            'TagParamID'              : 'int:TagParamID=%s',
+            'OperTypeID'              : 'int:OperTypeID=%s',
+            'PValue'                  : "varchar:PValue like '%%%s%%'::1",
+            'Comment'                 : "varchar:Comment like '%%%s%%'::1",
+            'OperSortIndex'           : 'int:OperSortIndex=%s:1-asc:',
+            'FileType'                : 'varchar:#',
+            'TagValue'                : 'varchar:#',
+            'OperType'                : 'varchar:#',
+            'Oper'                    : 'varchar:#',
+            'PName'                   : "varchar:#",
+        },
+    },
+    'reference.file-type-tagoperparams' : {
+        'columns' : ('TID', 'FTV_OPER_ID', 'PName', 'PValue',),
+        'view'    : '[BankDB].[dbo].[DIC_FTV_OPER_PARAMS_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FTV_OPER_ID'             : '1:Операция::fk1:1:reference.linked-tagopers:OperValue:PValue',
+            'PName'                   : '1:Параметр операции::name',
+            'PValue'                  : '1:Значение::value',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FTV_OPER_ID'             : 'int:FTV_OPER_ID=%s',
+            'PName'                   : "varchar:PName like '%%%s%%':asc:1",
+            'PValue'                  : "varchar:PValue like '%%%s%%'::1",
+            'OperValue'               : 'varchar:#',
+        },
+    },
+    'reference.file-type-processparams' : {
+        'columns' : ('TID', 'FTVLinkID', 'TagParamID', 'PValue', 'Comment', 'PSortIndex',),
+        'view'    : '[BankDB].[dbo].[DIC_FTV_PROCESS_tb]',
+        'headers' : {
+            'TID'                     : '1:PK::id:2',
+            'FileTypeID'              : '0:Тип файла::fk1:2:reference.file-type:FileType:CName',
+            'FTVLinkID'               : '1:Тег::fk2:1:reference.linked-tagvalues:TagValue:TagValue',
+            'TagParamID'              : '1:Параметр ТЗ::fk3:1:reference.tag-params:PName:PName',
+            'PValue'                  : '1:Значение параметра::value',
+            'Comment'                 : '1:Примечание:text:memo:::::textarea',
+            'PSortIndex'              : '1:Индекс сортировки::sort',
+        },
+        'fields'  : {
+            'TID'                     : 'int:TID=%s',
+            'FileTypeID'              : 'int:FileTypeID=%s',
+            'FTVLinkID'               : 'int:FTVLinkID=%s',
+            'TagParamID'              : 'int:TagParamID=%s',
+            'PValue'                  : "varchar:PValue like '%%%s%%'::1",
+            'Comment'                 : "varchar:Comment like '%%%s%%'::1",
+            'PSortIndex'              : 'int:PSortIndex=%s:1-asc',
+            'FileType'                : 'varchar:#',
+            'TagValue'                : 'varchar:#',
+            'PName'                   : "varchar:#",
         },
     },
 }
 
-def getReferenceConfig(name):
-    item = deepcopy(_references.get(name))
-    for key in item['columns']:
+def getReferenceConfig(view):
+    item = deepcopy(_references.get(view))
+    for key in item['headers']:
         item['headers'][key] = _reference_header(*(item['headers'][key].split(':')))
+    for key in item['fields']:
         item['fields'][key] = _reference_field(*(item['fields'][key].split(':')))
     return item
 
@@ -1224,10 +1902,11 @@ class BankPersoEngine():
                     row = dict(zip(query_columns, line))
                 else:
                     row = [x for x in line]
-                for col in encode_columns:
-                    row[col] = row[col] and row[col].encode(default_iso).decode(default_encoding) or ''
-                for col in worder_columns:
-                    row[col] = splitter(row[col], length=None, comma=':')
+                for column in encode_columns:
+                    if column in row or isinstance(column, int):
+                        row[column] = row[column] and row[column].encode(default_iso).decode(default_encoding) or ''
+                for column in worder_columns:
+                    row[column] = splitter(row[column], length=None, comma=':')
                 if mapping:
                     row = dict([(key, row.get(name)) for key, name in mapping])
                 rows.append(row)
@@ -1239,7 +1918,7 @@ class BankPersoEngine():
     def runCommand(self, sql, **kw):
         """
             Run sql-command with transaction.
-            No returned cursor.
+            Could be returned cursor.
         """
         if self.engine_error:
             return
@@ -1247,9 +1926,14 @@ class BankPersoEngine():
         if IsDeepDebug:
             print('>>> runCommand: %s' % sql)
 
+        if kw.get('no_cursor') is None:
+            no_cursor = True
+        else:
+            no_cursor = kw['no_cursor'] and True or False
+
         with_error = kw.get('with_error') and True or False
 
-        return self.run(sql, no_cursor=True, with_error=with_error)
+        return self.run(sql, no_cursor=no_cursor, with_error=with_error)
 
     def run(self, sql, args=None, no_cursor=False, with_error=False):
         if self.conn is None or self.conn.closed:
@@ -1267,13 +1951,23 @@ class BankPersoEngine():
                     cursor = self.conn.execute(sql, args)
                 else:
                     cursor = self.conn.execute(sql)
+
+                if IsDeepDebug:
+                    print('--> in_transaction:%s' % cursor.connection.in_transaction())
+
                 if not no_cursor:
                     rows = [row for row in cursor if cursor]
+
                 trans.commit()
+
             except Exception as err:
                 trans.rollback()
 
-                if err is not None and hasattr(err, 'orig') and isinstance(err.orig, pymssql.OperationalError):
+                if err is not None and hasattr(err, 'orig') and (
+                        isinstance(err.orig, pymssql.OperationalError) or 
+                        isinstance(err.orig, pymssql.IntegrityError) or
+                        isinstance(err.orig, pymssql.ProgrammingError)
+                    ):
                     msg = len(err.orig.args) > 1 and err.orig.args[1] or ''
                     error_msg = msg and msg.decode().split('\n')[0] or 'unexpected error'
                     

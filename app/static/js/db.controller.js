@@ -15,13 +15,12 @@ var page_sort_title = '';               // Sorting title tag value
 var current_line = null;                // Current (selected on Data section) line row
 var current_subline = null;             // Current (selected on LogData section) subline row
 var current_tabline = null;             // Current (selected on TabData section) line row
+
 var current_row_id = null;              // ID of current (selected on Data section) row
 
 var selected_data_menu_id = '';         // Selected Data menu item (Parameters/Products)
 var selected_data_menu = null;          // Selected Data menu Object
 var selected_dropdown = null;           // Selected Dropdown menu Object
-
-var IsGoPagination = false;             // Reset Log page screen flag
 
 var is_search_activated = false;        // Search is active
 var is_search_focused = false;          // Search input in focus
@@ -29,29 +28,129 @@ var is_search_focused = false;          // Search input in focus
 var search_context = '';                // Current search context value
 
 // Is obsolete !!! ------------------------------------------------------------------------------
+/*
+var IsGoPagination = false;             // Reset Log page screen flag
 
 var page_total_rows = 0;                // Total rows on the current page
 var screen_rows = 5;                    // Rows on a screen
 var current_page = 0;                   // Current page number
 var per_page = 10;                      // Total rows on a page by default or by custom selection
 var pages = 0;                          // Total pages
+*/
+// ****************************************************
 
-var refresh_current_state = false;
+var default_row_item = {'num':0, 'id':null, 'ob':null};
+var selected_row = 
+{
+    'admin'         : new Object(),
+    'article'       : new Object(),
+    'batch'         : new Object(),
+    'change-status' : new Object(),
+    'reference'     : new Object(),
+    'event'         : new Object(),
+    'file'          : new Object(),
+    'order'         : new Object(),
+    'preload'       : new Object(),
+    'pers'          : new Object(),
+    'oper'          : new Object(),
 
-var is_statistics_activated = false;    // Statistics is active
+//  ---  Default Tab Line ---
+
+    'tabline'       : new Object(),
+};
+
+function SelectedReset() {
+    for(var key in selected_row) {
+        selected_row[key] = new Object();
+        for(var item in default_row_item)
+            selected_row[key][item] = default_row_item[item];
+    }
+}
+
+function SelectedSetItem(key, item, ob) {
+    selected_row[key][item] = ob;
+    if (item == 'ob')
+        selected_row[key]['id'] = !is_null(ob) ? $_get_item_id(ob) : null;
+
+    if (IsLog)
+        console.log('SelectedSetItem... '+key+':'+item+', id:['+(ob && ob.attr('id'))+']');
+}
+
+function SelectedGetItem(key, item) {
+    return !is_null(selected_row[key]) && (item in selected_row[key]) ? selected_row[key][item] : null;
+}
 
 // =======================
 // Selected Items Handlers
 // =======================
 
+var $ActiveSelector = {
+    
+    selector : null,
+
+    release: function() {
+        if (is_null(this.selector))
+            return;
+
+        this.selector.release();
+    },
+
+    reset: function(ob) {
+        this.selector = ob;
+
+        if (IsLog)
+            console.log('$ActiveSelector.reset:'+this.selector.alias);
+    },
+
+    is_movable: function() {
+        return this.selector.is_movable();
+    },
+
+    get_current: function() {
+        return this.selector.get_current();
+    },
+
+    onRefresh: function(ob) {
+        return this.selector.onRefresh(ob);
+    },
+
+    onProgress: function(ob) {
+        return this.selector.onProgress(ob);
+    },
+
+    up: function() {
+        return this.selector.up();
+    },
+    
+    down: function() {
+        return this.selector.down();
+    },
+
+    home: function() {
+        return this.selector.home();
+    },
+    
+    pgup: function() {
+        return this.selector.pgup();
+    },
+    
+    pgdown: function() {
+        return this.selector.pgdown();
+    },
+    
+    end: function() {
+        return this.selector.end();
+    }
+};
+
 var $LineSelector = {
     container : null,
 
-    // -------------------
+    // ===================
     // Line Selector Class
-    // -------------------
+    // ===================
 
-    IsTrace   : 0,
+    IsDebug : 0, IsTrace : 0, IsLog : 0,
 
     // ----------------------------------------------------------
     // Current page (position): [0]:page, [1]:pages, [2]:per_page
@@ -59,8 +158,8 @@ var $LineSelector = {
 
     position  : new Array(),
     current   : null,
-    number    : 0,
     oid       : '',
+    number    : 0,
 
     page      : 0,
     pages     : 0,
@@ -84,6 +183,15 @@ var $LineSelector = {
         if (this.IsTrace)
             alert(this.position);
 
+        this.current = null;
+        this.oid = '';
+        this.number = 0;
+
+        var ob = $("tr[class~='selected']", this.container);
+        $onToggleSelectedClass(LINE, ob, 'add', null);
+
+        this.set_current(ob);
+
         this.reset();
     },
 
@@ -100,6 +208,9 @@ var $LineSelector = {
     },
 
     set_current: function(ob) {
+        if (is_null(ob))
+            return;
+
         this.current = ob;
         this.oid = ob.attr('id');
         this.number = parseInt($_get_item_id(ob, 2));
@@ -112,6 +223,16 @@ var $LineSelector = {
         $("#position").val(page+':::'+line);
     },
 
+    onReset: function() {
+        this.reset();
+        return this._refresh(0);
+    },
+
+    onRefresh: function(ob) {
+        this.set_current(ob);
+        return this._refresh(0);
+    },
+
     onFormSubmit: function() {
         this.set_position(1, 1);
     },
@@ -122,6 +243,7 @@ var $LineSelector = {
         this.container.find(".line").each(function(index, x) {
             if (this.IsTrace)
                 alert($(x).attr('id')+':'+parseInt($_get_item_id($(x), 2)));
+
             items.push(parseInt($_get_item_id($(x), position)));
         });
 
@@ -148,8 +270,8 @@ var $LineSelector = {
         var exit = false;
         var page, line;
 
-        if (this.IsTrace)
-            alert('refresh:'+this.number+':'+this.is_top+':'+this.is_bottom+':'+new_page);
+        if (this.IsLog)
+            console.log('$LineSelector._refresh:'+this.number+':'+this.is_top+':'+this.is_bottom+':'+new_page);
 
         // --------------------
         // Refresh current page
@@ -186,6 +308,7 @@ var $LineSelector = {
 
             this.set_position(page, line);
             MakeFilterSubmit(9, page);
+
             exit = true;
         }
 
@@ -257,19 +380,22 @@ var $LineSelector = {
 var $SublineSelector = {
     container : null,
 
-    // ----------------------
+    // ======================
     // Subline Selector Class
-    // ----------------------
+    // ======================
 
-    IsTrace   : 0,
-    
-    // ------------------------------------------------
-    // Current page: page=pages=1, per_page:rows number
-    // ------------------------------------------------
+    IsDebug : 0, IsTrace : 0, IsLog : 1,
+
+    // ----------------
+    // Config Object ID
+    // ----------------
+
+    alias     : '',         // Subline Object name
+    mode      : '',
 
     current   : null,
-    number    : 0,
     oid       : '',
+    number    : 0,
 
     page      : 0,
     pages     : 0,
@@ -284,30 +410,49 @@ var $SublineSelector = {
     init: function() {
         this.container = $("#subline-content");
 
-        var size = this.container.find(".subline").length || 0;
+        if (this.IsLog)
+            console.log('$SublineSelector.init');
+
+        this.alias = SUBLINE;
 
         this.page = 1;
         this.pages = 1;
-        this.per_page = size;
         this.line = 1;
 
-        current_subline = $("tr[class~='selected']", $("#subline-content"));
-        SelectedSetItem(SUBLINE, 'ob', current_subline);
+        this.release();
 
-        this.set_current(current_subline);
+        var ob = $("tr[class~='selected']", this.container);
+        SelectedSetItem(this.alias, 'ob', ob, null);
 
-        if (this.IsTrace)
-            alert(this.per_page+':'+this.current.attr('id')+':'+this.number);
+        this.set_current(ob);
 
         this.reset();
     },
 
+    release: function() {
+        this.current = null;
+        this.oid = '';
+        this.number = 0;
+
+        SelectedSetItem(this.alias, 'ob', null);
+    },
+
     reset: function() {
         this.is_top = this.is_bottom = this.is_end_of_data = false;
+
+        var size = this.container.find(".subline").length || 0;
+        this.per_page = size;
+
+        if (this.number > this.per_page)
+            this.number = this.per_page;
     },
 
     get_id: function() {
         return $_get_item_id(this.current);
+    },
+
+    get_current: function() {
+        return this.current;
     },
 
     set_current: function(ob) {
@@ -318,17 +463,33 @@ var $SublineSelector = {
         this.oid = ob.attr('id');
         this.number = parseInt($_get_item_id(ob, 2));
 
-        if (this.IsTrace)
-            alert('number:'+this.number);
+        if (this.IsLog)
+            console.log('$SublineSelector.set_current:'+is_null(this.current)+':'+this.oid+':'+this.number);
+
+        $ActiveSelector.reset(this);
     },
 
     onRefresh: function(ob) {
+        if (ob === null) {
+            SelectedSetItem(this.alias, 'ob', null);
+            this.is_end_of_data = true;
+
+            $ActivateInfoData(0);
+        }
+
         this.set_current(ob);
         return this._refresh(0);
     },
 
+    onProgress: function(ob) {
+        return isWebServiceExecute;
+    },
+
     _find: function(num) {
         var ob = null;
+
+        if (is_null(num) || num <= 0)
+            return null;
 
         this.container.find(".subline").each(function(index, x) {
             if (this.IsTrace)
@@ -347,8 +508,8 @@ var $SublineSelector = {
         var exit = true;
         var line;
 
-        if (this.IsTrace)
-            alert('refresh:'+this.number+':'+this.is_top+':'+this.is_bottom);
+        if (this.IsLog)
+            console.log('$SublineSelector._refresh:'+new_page+':'+this.is_top+':'+this.is_bottom+':'+this.is_end_of_data);
 
         // --------------------
         // Refresh current page
@@ -357,8 +518,8 @@ var $SublineSelector = {
         if (new_page == 0 && !(this.is_top || this.is_bottom || this.is_end_of_data)) {
             $HideLogPage();
 
-            current_subline = this.current;
-            SelectedSetItem(SUBLINE, 'ob', current_subline);
+            SelectedSetItem(this.alias, 'ob', this.current);
+            //$onToggleSelectedClass(SUBLINE, this.current, 'submit', null);
 
             $ShowOnStartup();
         } 
@@ -369,9 +530,8 @@ var $SublineSelector = {
     },
 
     _move: function(direction, number) {
-        var ob = null;
         var is_found = false;
-        var num;
+        var num = 0;
 
         // ------------------------
         // Move inside current page
@@ -382,11 +542,10 @@ var $SublineSelector = {
         else if (direction == 0 && !is_null(number))
             num = number;
         
-        ob = this._find(num);
+        var ob = this._find(num);
 
         if (!is_null(ob)) {
-            this.current = ob;
-            this.number = num;
+            this.set_current(ob);
             is_found = true;
         }
 
@@ -403,9 +562,240 @@ var $SublineSelector = {
         }
 
         if (this.IsTrace)
-            alert('move:'+this.number+':'+this.is_top+':'+this.is_bottom);
+            alert('move:'+this.number+':'+this.is_top+':'+this.is_bottom+':'+this.is_end_of_data);
 
         return is_found || this.is_top || this.is_bottom;
+    },
+
+    is_movable: function() {
+        return !this.is_end_of_data && this.per_page > 0 ? true : false;
+    },
+
+    home: function() {
+        return this._move(0, 1) === true ? this._refresh(0) : false;
+    },
+
+    up: function() {
+        return this._move(-1) === true ? this._refresh(0) : false;
+    },
+
+    down: function() {
+        return this._move(1) === true ? this._refresh(0) : false;
+    },
+
+    end: function() {
+        return this._move(0, this.per_page) === true ? this._refresh(0) : false;
+    }
+};
+
+var $TablineSelector = {
+    container : null,
+
+    // ======================
+    // Tabline Selector Class
+    // ======================
+
+    IsDebug : 0, IsTrace : 0, IsLog : 1,
+
+    // ----------------
+    // Config Object ID
+    // ----------------
+
+    alias     : '',         // Tabline Object name
+    mode      : '',
+    
+    // ------------------------------------------------
+    // Current page: page=pages=1, per_page:rows number
+    // ------------------------------------------------
+
+    current   : null,
+    oid       : '',
+    number    : 0,
+
+    page      : 0,
+    pages     : 0,
+    per_page  : 0,
+    line      : 0,
+
+    is_top    : false,
+    is_bottom : false,
+
+    is_end_of_data : false,
+
+    init: function(tab) {
+        this.set_mode(tab);
+
+        if (this.IsLog)
+            console.log('$TablineSelector.init, mode:'+this.get_mode());
+
+        this.alias = TABLINE;
+
+        this.container = $("#"+this.get_mode()+"-container");
+
+        this.page = 1;
+        this.pages = 1;
+        this.line = 1;
+
+        this.release();
+
+        var ob = $("tr[class~='selected']", this.container);
+        if (is_null(ob) || is_empty(ob.attr('id')))
+            //ob = this.container.find("tr[class~='tabline']").first();
+            ob = $("tr[class~='tabline']", this.container).first();
+
+        SelectedSetItem(this.alias, 'ob', ob);
+
+        this.reset();
+
+        this.onRefresh(ob);
+    },
+
+    release: function() {
+        this.current = null;
+        this.oid = '';
+        this.number = 0;
+
+        SelectedSetItem(this.alias, 'ob', null);
+    },
+
+    reset: function() {
+        this.is_top = this.is_bottom = this.is_end_of_data = false;
+
+        var size = this.container.find(".tabline").length || 0;
+        this.per_page = size;
+
+        if (this.number > this.per_page)
+            this.number = this.per_page;
+    },
+
+    get_id: function() {
+        return $_get_item_id(this.current);
+    },
+
+    get_current: function() {
+        return this.current;
+    },
+
+    get_mode: function() {
+        return this.mode;
+    },
+
+    set_mode: function(ob) {
+        this.mode = ob && ob.attr('id').split('-').slice(-1)[0];
+    },
+
+    set_current: function(ob) {
+        if (is_null(ob))
+            return;
+
+        this.current = ob;
+        this.oid = ob.attr('id');
+        this.number = parseInt($_get_item_id(ob, 2));
+
+        if (this.IsLog)
+            console.log('$TablineSelector.set_current:'+is_null(this.current)+':'+this.oid+':'+this.number);
+
+        $ActiveSelector.reset(this);
+    },
+
+    onRefresh: function(ob) {
+        if (ob === null) {
+            SelectedSetItem(this.alias, 'ob', null);
+            this.is_end_of_data = true;
+        }
+
+        this.set_current(ob);
+        return this._refresh(0);
+    },
+
+    onProgress: function(ob) {
+        return false;
+    },
+
+    _find: function(num) {
+        var ob = null;
+
+        if (is_null(num) || num <= 0)
+            return null;
+
+        this.container.find(".tabline").each(function(index, x) {
+            if (this.IsTrace)
+                alert($(x).attr('id')+':'+parseInt($_get_item_id($(x), 2)));
+
+            if (parseInt($_get_item_id($(x), 2)) == num)
+                ob = $(x);
+        });
+
+        if (this.IsTrace)
+            alert('found:'+(ob ? ob.attr('id') : 'null'));
+
+        return ob;
+    },
+
+    _refresh: function(new_page) {
+        var exit = true;
+        var line;
+
+        if (this.IsLog)
+            console.log('$TablineSelector._refresh:'+new_page+':'+this.is_top+':'+this.is_bottom+':'+this.is_end_of_data);
+
+        // --------------------
+        // Refresh current page
+        // --------------------
+
+        if (new_page == 0 && !(this.is_top || this.is_bottom || this.is_end_of_data)) {
+            var ob = SelectedGetItem(this.alias, 'ob');
+            if (!is_null(ob))
+                $onToggleSelectedClass(this.alias, ob, 'remove', null);
+            //$onToggleSelectedClass(this.alias, null, 'remove');
+            $onToggleSelectedClass(this.alias, this.current, 'add', null);
+        } 
+        else
+            exit = false;
+
+        return exit;
+    },
+
+    _move: function(direction, number) {
+        var is_found = false;
+        var num = 0;
+
+        // ------------------------
+        // Move inside current page
+        // ------------------------
+
+        if ((direction > 0 && this.number < this.per_page) || (direction < 0 && this.number > 1))
+            num = this.number + (direction > 0 ? 1 : -1);
+        else if (direction == 0 && !is_null(number))
+            num = number;
+        
+        var ob = this._find(num);
+
+        if (!is_null(ob)) {
+            this.set_current(ob);
+            is_found = true;
+        }
+
+        this.reset();
+
+        if (!is_found) {
+            this.is_end_of_data = (
+                (direction < 0 && this.page == 1) || 
+                (direction > 0 && this.page == this.pages)
+                ) ? true : false;
+
+            this.is_top = (direction < 0 && !this.is_end_of_data) ? true : false;
+            this.is_bottom = (direction > 0 && !this.is_end_of_data) ? true : false;
+        }
+
+        if (this.IsTrace)
+            alert('move:'+this.number+':'+this.is_top+':'+this.is_bottom+':'+this.is_end_of_data);
+
+        return is_found || this.is_top || this.is_bottom;
+    },
+
+    is_movable: function() {
+        return !this.is_end_of_data && this.per_page > 0 ? true : false;
     },
 
     home: function() {
@@ -427,15 +817,16 @@ var $SublineSelector = {
 
 var $TabSelector = {
     container : null,
+
+    // ===================
+    // Tabs Selector Class
+    // ===================
+
+    IsDebug : 0, IsTrace : 0, IsLog : 0,
+
     current   : null,
     number    : 0,
     count     : 0,
-
-    // -------------------
-    // Tabs Selector Class
-    // -------------------
-
-    IsTrace   : 0,
 
     init: function() {
         this.container = $("#tab-content");
@@ -449,6 +840,10 @@ var $TabSelector = {
 
     set_current: function(num) {
         this.number = num;
+    },
+
+    get_current: function() {
+        return this.current;
     },
 
     onClick: function(ob) {
@@ -467,6 +862,8 @@ var $TabSelector = {
 
         if (this.IsTrace)
             alert('onClick:'+id+':'+this.number);
+
+        $SublineSelector.release();
 
         $onTabSelect(ob);
     },
@@ -493,7 +890,8 @@ var $TabSelector = {
     _refresh: function(num) {
         var ob = this._find(num);
         if (!is_null(ob)) {
-            return $onTabSelect(ob);
+            if (typeof $onTabSelect === 'function')
+                return $onTabSelect(ob);
         }
         return false;
     },
@@ -513,6 +911,11 @@ var $TabSelector = {
 
 var $DblClickAction = {
     control   : null,
+
+    // =========================
+    // DoubleClick Handler Class
+    // =========================
+
     clicks    : 0,
     timeout   : 300,
     timer     : null,
@@ -564,49 +967,6 @@ var $DblClickAction = {
     }
 };
 
-var default_row_item = {'num':0, 'id':null, 'ob':null};
-var selected_row = 
-{
-    'admin'         : new Object(),
-    'article'       : new Object(),
-    'batch'         : new Object(),
-    'change-status' : new Object(),
-    'reference'     : new Object(),
-    'event'         : new Object(),
-    'file'          : new Object(),
-    'order'         : new Object(),
-    'preload'       : new Object(),
-    'pers'          : new Object(),
-    'oper'          : new Object(),
-
-//  ---  Default Tab Line ---
-
-    'tabline'       : new Object(),
-};
-
-function SelectedReset() {
-    for(var key in selected_row) {
-        selected_row[key] = new Object();
-        for(var item in default_row_item) {
-        	selected_row[key][item] = default_row_item[item];
-        }
-    }
-}
-
-function SelectedSetItem(key, item, ob) {
-    selected_row[key][item] = ob;
-
-    if (item == 'ob') {
-        selected_row[key]['id'] = !is_null(ob) ? $_get_item_id(ob) : null;
-    }
-    
-    //alert(key+':'+item+':'+'id'+':'+ob.attr('id'));
-}
-
-function SelectedGetItem(key, item) {
-    return selected_row[key][item];
-}
-
 // ===============
 // Action handlers
 // ===============
@@ -621,6 +981,10 @@ function $GetLogItem(source) {
 // WEB-SERVICES
 // ============
 
+function $web_free() {
+    return !isWebServiceExecute ? true : false;
+}
+
 function $web_logging(action, handler, params) {
     if (isWebServiceExecute)
         return;
@@ -628,7 +992,8 @@ function $web_logging(action, handler, params) {
     var current_action = action;
     var args = new Object();
 
-    //alert('web_logging:'+action+':'+selected_menu_action);
+    if (IsLog)
+        console.log('$web_logging, action:'+action+':'+selected_menu_action);
 
     // -----------------------
     // Check Action parameters
@@ -659,6 +1024,7 @@ function $web_logging(action, handler, params) {
                 break;
             case '600':
                 args['file_id'] = SelectedGetItem(LINE, 'id');
+                args['filter-batchtype'] = $("#batchtype").val();
                 break;
             case '700':
                 args['pers_id'] = SelectedGetItem(LINE, 'id');
@@ -686,7 +1052,8 @@ function $web_logging(action, handler, params) {
             'batch_id'              : batch_id,
             'filter-batchtype'      : $("#batchtype").val(),
             'filter-tag'            : $("#tag").val(),
-            'filter-tagvalue'       : $("#tagvalue").val()
+            'filter-tagvalue'       : $("#tagvalue").val(),
+            'active_links'          : jsonify($ConfigSelector.get_active_links())
         };
 
     } else if (action > '500') {
@@ -745,8 +1112,8 @@ function $web_logging(action, handler, params) {
         };
     }
 
-    if (!is_null(params)) 
-        args['params'] = params;
+    if (!is_null(params))
+        args['params'] = jsonify(params);
 
     args['current_sort'] = current_sort;
 
@@ -794,6 +1161,8 @@ function $web_logging(action, handler, params) {
         // RESPONSE
         // --------
 
+        $ShowLoader(-1);
+
         if (error.exchange_error)
             refresh_state = false;
 
@@ -829,10 +1198,20 @@ function $web_logging(action, handler, params) {
 
         is_loaded_success = true;
 
-        $ShowLoader(-1);
         $TriggerActions(false);
 
         $ShowLogPage();
+
+        // --------------------
+        // Run Callback Handler
+        // --------------------
+
+        if (isCallback) {
+            isCallback = false;
+
+            if (typeof log_callback === 'function')
+                log_callback(current_action, data, props);
+        }
 
     }, 'json')
     .fail(function() {

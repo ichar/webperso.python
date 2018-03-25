@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2013-05-12 18:31+0400\n"
-"PO-Revision-Date: 2018-02-15 14:04+0300\n"
+"PO-Revision-Date: 2018-03-12 12:49+0300\n"
 "Last-Translator: ichar@g2.ru\n"
 "Language-Team: ru <LL@li.org>\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
@@ -33,6 +33,9 @@ msgstr "О программе"
 msgid "Active batches"
 msgstr "Партии для обработки"
 
+msgid "Add"
+msgstr "Добавить"
+
 msgid "All"
 msgstr "Все"
 
@@ -55,7 +58,7 @@ msgid "Are you really going to change the status"
 msgstr "Вы действительно собираетесь изменить статус"
 
 msgid "Back"
-msgstr "Назад"
+msgstr "Вернуться"
 
 msgid "BankPerso"
 msgstr "БанкПерсо"
@@ -140,8 +143,17 @@ msgstr "Отправить партию на производство?"
 msgid "Command: Activate selected batches?"
 msgstr "Отправить выбранные партии на производство?"
 
+msgid "Command: Do you really want to remove the config item?"
+msgstr "Вы действительно хотите удалить запись конфигуратора?"
+
+msgid "Command: Do you really want to remove the reference item?"
+msgstr "Вы действительно хотите удалить запись справочника?"
+
 msgid "Command: Do you really want to reject selected batches?"
 msgstr "Вы действительно хотите отменить активацию для выбранных партий?"
+
+msgid "Command: Item was changed. Continue?"
+msgstr "Данные были изменены. Продолжить?"
 
 msgid "Command: Send request to the warehouse?"
 msgstr "Отправить заявку на склад?"
@@ -233,6 +245,9 @@ msgstr "Выбраны партии нескольких файлов."
 msgid "Find"
 msgstr "Найти"
 
+msgid "Frozen link"
+msgstr "Неизменяемая ссылка"
+
 msgid "of batch"
 msgstr "партии"
 
@@ -269,6 +284,9 @@ msgstr "Некорректный логин или пароль"
 msgid "Invalid password."
 msgstr "Некорректный пароль"
 
+msgid "Link"
+msgstr "Ссылка"
+
 msgid "Log Search form"
 msgstr "Поиск по журналам персосети"
 
@@ -280,6 +298,9 @@ msgstr ""
 
 msgid "Log-file types"
 msgstr "Типы файловых журналов"
+
+msgid "Message: Action was done successfully."
+msgstr "Операция выполнена успешно."
 
 msgid "Message: Activation is perfomed successfully."
 msgstr "Отправка на производство выполнена успешно."
@@ -376,6 +397,9 @@ msgstr "Возврат к странице авторизации"
 
 msgid "Run"
 msgstr "Выполнить"
+
+msgid "Save"
+msgstr "Сохранить"
 
 msgid "SDC"
 msgstr "SDC"

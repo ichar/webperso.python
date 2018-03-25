@@ -8,6 +8,7 @@ default_submit_mode = 2;
 default_action      = '300';
 default_log_action  = '301';
 default_input_name  = 'file_id';
+default_menu_item   = 'data-menu-batches';
 
 LINE    = 'order';
 SUBLINE = 'batch';
@@ -18,39 +19,6 @@ var batch_can_be_activated = 0;
 // Dialog Action Handlers
 // ----------------------
 
-function $_reset_current_sort() {
-    current_page = 1;
-}
-
-function $_next_current_sort() {
-    current_sort = current_sort == LOG_SORT.length-1 ? 0 : current_sort + 1;
-    $_reset_current_sort();
-}
-
-function $_deactivate_search() {
-    is_search_activated = false;
-    search_context = '';
-    current_page = 1;
-}
-
-function $_reset_item() {
-    refresh_current_state = true;
-    SelectedReset();
-}
-
-function $_reset_page() {
-    SelectedReset();
-    current_row_id = null;
-}
-
-function $_calculating_disabled() {
-    return false;
-}
-
-// --------------
-// Page Functions
-// --------------
-
 function sidebar_callback() {
     $onInfoContainerChanged();
 }
@@ -58,6 +26,10 @@ function sidebar_callback() {
 function log_callback(data, props) {
     batch_can_be_activated = 'activate' in props ? props['activate'] : 0;
 }
+
+// --------------
+// Page Functions
+// --------------
 
 function $Init() {
     $SidebarControl.init(sidebar_callback);
@@ -67,21 +39,21 @@ function $Init() {
     SelectedReset();
 
     $LineSelector.init();
-
+    /*
     var parent = $("#line-content");
     var ob = $("tr[class~='selected']", parent);
     $onToggleSelectedClass(LINE, ob, 'add', null);
 
     $LineSelector.set_current(ob);
-
+    */
     $SublineSelector.init();
-
+    /*
     var parent = $("#subline-content");
     var ob = $("tr[class~='selected']", parent);
     $onToggleSelectedClass(SUBLINE, ob, 'add', null);
 
     $SublineSelector.set_current(ob);
-
+    */
     $ShowMenu('data-menu-batches');
 
     $TabSelector.init();
@@ -91,20 +63,6 @@ function $Init() {
     // ------------------------
 
     interrupt(true, 1);
-}
-
-function $ActivateInfoData(show) {
-    var container = $("#info-data");
-
-    if (show)
-        container
-            .show();
-    else {
-        container.hide();
-        return;
-    }
-
-    $PageScroller.reset(true);
 }
 
 function $Confirm(mode, ob) {
@@ -164,10 +122,12 @@ function $ShowMenu(id) {
     var sdclog = $("#sdclog-content");
     var exchangelog = $("#exchangelog-content");
 
+    var tab = $("#"+id);
+
     if (selected_data_menu)
         selected_data_menu.removeClass('selected');
 
-    selected_data_menu = $("#"+id);
+    selected_data_menu = tab;
     //$("#data-content").scrollTop(0);
 
     batches.hide();
@@ -196,7 +156,12 @@ function $ShowMenu(id) {
     else if (id == 'data-menu-exchangelog')
         exchangelog.show();
 
-    if (id == 'data-menu-batches' && SelectedGetItem(SUBLINE, 'id'))
+    if (id == default_menu_item)
+        $SublineSelector.init();
+    else
+        $TablineSelector.init(tab);
+
+    if (id == default_menu_item && SelectedGetItem(SUBLINE, 'id'))
         $ActivateInfoData(1);
     else
         $ActivateInfoData(0);
@@ -292,6 +257,7 @@ function MakeFilterSubmit(mode, page) {
     }
 
     $ResetLogPage();
+
     $setPaginationFormSubmit(page);
     $onParentFormSubmit('filter-form');
 }
@@ -405,9 +371,10 @@ jQuery(function($)
         if (is_show_error)
             return;
 
-        var ob = $(this);
-        $LineSelector.set_current(ob);
-        $onToggleSelectedClass(LINE, ob, 'submit', null);
+        //var ob = $(this);
+        //$LineSelector.set_current(ob);
+        //$onToggleSelectedClass(LINE, ob, 'submit', null);
+        $LineSelector.onRefresh($(this));
     });
 
     // -----------------
@@ -418,8 +385,7 @@ jQuery(function($)
         if (is_show_error)
             return;
 
-        var ob = $(this);
-        $SublineSelector.onRefresh(ob);
+        $SublineSelector.onRefresh($(this));
     });
 
     // ---------------------
@@ -433,11 +399,12 @@ jQuery(function($)
             $InProgress(ob, 1);
     });
 
-    // ------------------------------
-    // Tab table lines data selection
-    // ------------------------------
+    // -----------------
+    // Tabline selection
+    // -----------------
 
     $(".view-lines").on('click', '.tabline', function(e) {
+        /*
         var ob = $(this);
 
         if (!is_null(current_tabline))
@@ -447,6 +414,8 @@ jQuery(function($)
         SelectedSetItem(TABLINE, 'ob', current_tabline);
 
         $onToggleSelectedClass(TABLINE, current_tabline, 'add', null);
+        */
+        $TablineSelector.onRefresh($(this));
     });
 
     // ------------------------
@@ -636,6 +605,10 @@ jQuery(function($)
     });
 });
 
+function page_is_focused(e) {
+    return $LogSearchDialog.is_focused() || $TagSearchDialog.is_focused();
+}
+
 // =======
 // STARTER
 // =======
@@ -653,6 +626,3 @@ $(function()
 
     $_init();
 });
-
-
-

@@ -66,7 +66,7 @@ _views = {
     'batchstatuslist'    : 'batchstatuslist',
 }
 
-requested_order = {}
+requested_object = {}
 
 def before(f):
     def wrapper(**kw):
@@ -79,10 +79,10 @@ def before(f):
 
 @before
 def refresh(**kw):
-    global requested_order
+    global requested_object
 
     if 'file_id' in kw and kw.get('file_id'):
-        requested_order = _get_order(kw['file_id']).copy()
+        requested_object = _get_order(kw['file_id']).copy()
 
 def _get_columns(name):
     return ','.join(database_config[name]['columns'])
@@ -129,9 +129,10 @@ def _get_page_args():
     return args
 
 def _get_order(file_id):
+    columns = database_config[default_template]['export']
     where = 'FileID=%s' % file_id
     encode_columns = ('BankName', 'FileStatus',)
-    cursor = engine.runQuery(default_template, top=1, where=where, as_dict=True, encode_columns=encode_columns)
+    cursor = engine.runQuery(default_template, columns=columns, top=1, where=where, as_dict=True, encode_columns=encode_columns)
     return cursor and cursor[0] or {}
 
 def _get_client(file_id):
@@ -202,12 +203,16 @@ def _decode_image(data, file_id, encoding=None):
     is_trace = IsDecoderTrace
 
     if data is not None:
-        client = requested_order.get('BankName')
+        client = requested_object.get('BankName')
+        file_type = requested_object.get('FileType')
         #
         # Picking up convenient encoding from 'config.image_encoding' dictionary
         #
         if encoding is None:
-            encodings = client and image_encoding.get(client) or image_encoding['default']
+            if file_type in image_encoding:
+                encodings = image_encoding.get(file_type)
+            else:
+                encodings = client and image_encoding.get(client) or image_encoding['default']
         else:
             encodings = (encoding,)
 
@@ -218,9 +223,12 @@ def _decode_image(data, file_id, encoding=None):
                 print_to(errorlog, '>>> _decompress error:%s client:%s' % (file_id, client), request=request)
             data = None
 
-        image, encoding = decoder(data, encodings, info='%s %s' % (file_id, client), is_trace=is_trace)
+        data, encoding = decoder(data, encodings, info='%s %s' % (file_id, client), 
+                                 is_trace=is_trace, 
+                                 limit=MAX_XML_BODY_LEN
+                                 )
 
-    return image, encoding
+    return data, encoding
 
 def _mask_image_content(item, mask='//', **kw):
     """
@@ -258,7 +266,7 @@ def _decode_cyrillic(item, key='default', client=None, **kw):
         return
 
     if client is None:
-        client = requested_order.get('BankName')
+        client = requested_object.get('BankName')
     
     default = IMAGE_TAGS_DECODE_CYRILLIC.get('default')
     schemes = client and IMAGE_TAGS_DECODE_CYRILLIC.get(client) or \
@@ -327,6 +335,14 @@ def _decode_cyrillic(item, key='default', client=None, **kw):
             else:
                 tag.text = values[n]
 
+def _image_fromstring(image, encoding):
+    size = image is not None and len(image) or 0
+    if size == 0:
+        return None, encoding
+    limit = max(size, MAX_XML_BODY_LEN)
+    n = image.find('<FileData>')
+    return n > -1 and etree.fromstring(image[n:limit+n]) or image, encoding
+
 def _get_image(file_id, encoding=None):
     #
     # Get original file body (FBody:OrderFilesBodyImage_tb)
@@ -341,15 +357,12 @@ def _get_image(file_id, encoding=None):
     if cursor:
         image, encoding = _decode_image(cursor[0]['FBody'], file_id, encoding)
 
-    if image is None or len(image) == 0:
-        return None, encoding
-
     try:
-        n = image.find('<FileData>')
-        return n > -1 and etree.fromstring(image[n:]) or image, encoding
+        return _image_fromstring(image, encoding)
     except:
         print_to(errorlog, '>>> _get_image xml error:%s %s' % (file_id, current_user.login), request=request)
-        print_exception()
+        if IsPrintExceptions:
+            print_exception()
         image = None
 
     return image, encoding
@@ -368,16 +381,12 @@ def _get_body(file_id, file_status=None, encoding=None):
     if cursor:
         body, encoding = _decode_image(cursor[0]['IBody'], file_id, encoding)
 
-    if body is None or len(body) == 0:
-        return None, encoding
-
     try:
-        n = body.find('<FileData>')
-        body = n > -1 and body[n:] or ''
-        return etree.fromstring(body), encoding
+        return _image_fromstring(body, encoding)
     except:
         print_to(errorlog, '>>> _get_body xml error:%s %s' % (file_id, current_user.login), request=request)
-        print_exception()
+        if IsPrintExceptions:
+            print_exception()
         body = None
 
     return body, encoding
@@ -549,8 +558,8 @@ def _get_materials(file_id, show=1, order=None):
     props = {
         'headers'    : ('Тип партии', 'Кол-во в партиях', 'Материал', 'Количество',),
         'total'      : (len(data), batch_qty, qty,),
-        'ClientName' : requested_order.get('BankName'),
-        'FileName'   : requested_order.get('FName'),
+        'ClientName' : requested_object.get('BankName'),
+        'FileName'   : requested_object.get('FName'),
         'Now'        : getDate(getToday(), LOCAL_EXCEL_TIMESTAMP),
         'Today'      : getDate(getToday(), DEFAULT_DATETIME_TODAY_FORMAT),
         'send'       : qty > 0 and check,
@@ -593,7 +602,7 @@ def getTabParams(file_id, batch_id, param_name=None, format=None, **kw):
                            'class_name' -- html-класс
                         }, ... ]
 
-            batch    -- Dictionary, Информация о партии: 
+            props    -- Dictionary, Информация о партии: 
                         {
                            'id'         -- ID партии
                            'number'     -- номер ТЗ
@@ -610,7 +619,7 @@ def getTabParams(file_id, batch_id, param_name=None, format=None, **kw):
     number = 0
 
     filter_field = re.compile(r'\$\{FILTERFIELD\.(.*)\}')
-    batch = {'id' : batch_id}
+    props = {'id' : batch_id}
 
     is_short = kw.get('is_short') and True or False
 
@@ -619,8 +628,8 @@ def getTabParams(file_id, batch_id, param_name=None, format=None, **kw):
     rows = engine.runQuery('batches.preview', where='TID=%s' % file_id, distinct=True)
 
     if rows or batch_id:
-        batch['exists_inactive'] = False
-        batch['exists_materials'] = False
+        props['exists_inactive'] = False
+        props['exists_materials'] = False
 
     try:
         if file_id and batch_id:
@@ -730,7 +739,7 @@ def getTabParams(file_id, batch_id, param_name=None, format=None, **kw):
                 row = cursor[0]
                 if row:
                     number = row['TZ']
-                    batch.update({
+                    props.update({
                         'number' : number,
                         'name'   : row['BatchType'],
                         'no'     : row['ElementQty'],
@@ -743,7 +752,7 @@ def getTabParams(file_id, batch_id, param_name=None, format=None, **kw):
             if cursor is not None and len(cursor):
                 row = cursor[0]
                 if row:
-                    batch.update({
+                    props.update({
                         'file'   : row['FName'],
                         'cards'  : row['FQty'],
                     })
@@ -753,46 +762,46 @@ def getTabParams(file_id, batch_id, param_name=None, format=None, **kw):
             # -------------
 
             if not (is_short or kw.get('without_barcode', False)):
-                batch['barcode'] = ''
+                props['barcode'] = ''
 
                 if parameters.get('TZ_ERP'):
                     barcode = genBarcode(
-                        '{0:<#10}{1:>010}{2:>06}'.format(int(parameters['TZ_ERP']), int(batch['number']), int(batch['no'])),
+                        '{0:<#10}{1:>010}{2:>06}'.format(int(parameters['TZ_ERP']), int(props['number']), int(props['no'])),
                         text='ERP_Barcode',
                     )
                     if barcode.get('output'):
-                        batch['barcode'] = barcode['output']
+                        props['barcode'] = barcode['output']
                 else:
                     barcode = {}
 
                 if IsDebug:
                     print('--> barcode: %s ERP_TZ: [%s] code: [%s]' % ( 
-                        len(batch['barcode']), parameters.get('TZ_ERP') or '', barcode.get('code')))
+                        len(props['barcode']), parameters.get('TZ_ERP') or '', barcode.get('code')))
 
             # ------------------------------------
             # Признак <активация партии разрешена>
             # ------------------------------------
 
-            batch['activate'] = batch['status'] == 1 and current_user.is_operator() and 1 or 0
+            props['activate'] = props['status'] == 1 and current_user.is_operator() and 1 or 0
 
             # -----------------
             # Файл на обработку
             # -----------------
 
             rows = engine.runQuery('batches.preview', where='TID=%s and BatchStatusID=1' % file_id, distinct=True)
-            batch['exists_inactive'] = rows and True or False
+            props['exists_inactive'] = rows and True or False
 
         rows = engine.runQuery('batches.preview', where='TID=%s and IsPrintMaterialOrder=0' % file_id, distinct=True)
         for row in rows:
             id = row[0]
             d, p, e = _get_materials(id, show=1)
             if p['send'] and not e:
-                batch['exists_materials'] = True
+                props['exists_materials'] = True
 
     except:
         print_exception()
 
-    return number and data or [], batch
+    return number and data or [], props
 
 def getTabLogs(file_id):
     return _get_logs(file_id)
@@ -1301,7 +1310,7 @@ def calculateContainerList(file_id, is_group=False, **kw):
         for batch in batches:
             batch_id = batch['id']
 
-            batch_data, batch_params = getTabParams(file_id, batch_id) #, param_name=CARD_TYPE_KEYWORD, format=3, is_short=True
+            batch_data, batch_props = getTabParams(file_id, batch_id) #, param_name=CARD_TYPE_KEYWORD, format=3, is_short=True
 
             if not keyword:
                 keyword = _get_type_keyword(batch_data)
@@ -1334,7 +1343,7 @@ def calculateContainerList(file_id, is_group=False, **kw):
 
             TZ.append(batch['TZ'])
 
-        if not is_group and total != requested_order['FQty']:
+        if not is_group and total != requested_object['FQty']:
             errors.append((_ERROR, gettext('Error: Final sum of batches Qty is unmatched.'),))
 
     except:
@@ -1346,9 +1355,9 @@ def calculateContainerList(file_id, is_group=False, **kw):
     finally:
         props = {
             'items'      : [x[1] for x in sorted(items, key=itemgetter(0))],
-            'ClientName' : requested_order['BankName'],
-            'FileName'   : requested_order['FName'],
-            'FQty'       : requested_order['FQty'],
+            'ClientName' : requested_object['BankName'],
+            'FileName'   : requested_object['FName'],
+            'FQty'       : requested_object['FQty'],
             'TZ'         : ', '.join([str(x) for x in TZ]),
             'Now'        : getDate(getToday(), LOCAL_EXCEL_TIMESTAMP),
             'Today'      : getDate(getToday(), DEFAULT_DATETIME_TODAY_FORMAT),
@@ -1433,16 +1442,16 @@ def _make_report_kp(kw):
         for batch in batches:
             batch_id = batch['id']
 
-            params, data = getTabParams(file_id, batch_id)
-            for param in params:
-                if not (param['PType'] == 1 and param['PName'] == 'КП'):
+            data, props = getTabParams(file_id, batch_id)
+            for item in data:
+                if not (item['PType'] == 1 and item['PName'] == 'КП'):
                     continue
-                key = param['PValue'].strip() or 'undefined'
+                key = item['PValue'].strip() or 'undefined'
                 if not key.startswith('$'):
                     if key not in items:
                         items[key] = 0
 
-                    items[key] += data['no']
+                    items[key] += props['no']
 
         for key in sorted(items.keys()):
             rows.append([
@@ -1479,8 +1488,8 @@ def _make_report_branch_list(kw):
         for batch in batches:
             batch_id = batch['id']
 
-            params, data = getTabParams(file_id, batch_id)
-            ps = getParamsByKeys(params, [_BRANCH, _CARD_TYPE, _ID_VSP])
+            data, props = getTabParams(file_id, batch_id)
+            ps = getParamsByKeys(data, [_BRANCH, _CARD_TYPE, _ID_VSP])
 
             if ps and len(ps.keys()) == 3:
                 try:
@@ -1489,11 +1498,11 @@ def _make_report_branch_list(kw):
                     id_vsp = ps[_ID_VSP]['PValue']
                 except:
                     continue
-                
+
                 if id_vsp not in items:
                     items[id_vsp] = [card_type, branch_name, 0]
-            
-                items[id_vsp][2] += data['no']
+
+                items[id_vsp][2] += props['no']
 
         for key in sorted(items.keys()):
             rows.append([
@@ -2344,7 +2353,7 @@ def loader():
     try:
         if action == default_action:
             batches, batch_id = _get_batches(file_id, batchtype=batchtype, batchstatus=batchstatus)
-            currentfile = [requested_order.get('FileID'), requested_order.get('FName'), batch_id]
+            currentfile = [requested_object.get('FileID'), requested_object.get('FName'), batch_id]
             config = _get_view_columns(database_config['batches'])
             action = selected_menu_action
 
