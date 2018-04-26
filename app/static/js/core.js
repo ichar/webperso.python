@@ -543,6 +543,10 @@ function setObjectByValue(key, value) {
     return x;
 }
 
+function getObjectValueByKey(ob, key) {
+    return !is_null(ob) && key in ob ? ob[key] : null;
+}
+
 function objectKeys(ob) {
     return ob ? Object.keys(ob) : [];
 }

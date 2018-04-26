@@ -295,7 +295,7 @@ $(function()
 
     $("#search-context").attr('placeholder', 'Найти (name, login, email)...');
 
-    //document.oncontextmenu = function() { return false; };
+    document.oncontextmenu = function() { return false; };
 
     $_init();
 });

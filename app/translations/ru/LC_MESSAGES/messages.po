@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2013-05-12 18:31+0400\n"
-"PO-Revision-Date: 2018-03-12 12:49+0300\n"
+"PO-Revision-Date: 2018-04-12 21:30+0300\n"
 "Last-Translator: ichar@g2.ru\n"
 "Language-Team: ru <LL@li.org>\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
@@ -233,6 +233,9 @@ msgstr "Материалы для выбранного файла отсутст
 msgid "Error: Perhaps, processing of selected orders was finished."
 msgstr "Вероятно, обработка выбранных партий уже завершена."
 
+msgid "Error: Not all batches selected to process the file."
+msgstr "Не все партии файла отобраны для отправки на производство."
+
 msgid "Error: Selected batches with different status."
 msgstr "Выбраны партии с разными статусами."
 
@@ -406,6 +409,9 @@ msgstr "SDC"
 
 msgid "Search"
 msgstr "Найти"
+
+msgid "Sorry! Its not realized yet."
+msgstr "К сожалению, данный пункт еще не реализован."
 
 msgid "Status changed"
 msgstr "Статус изменен"

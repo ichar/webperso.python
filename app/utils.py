@@ -149,7 +149,7 @@ def indentXMLTree(node, level=1, is_edge=False, count=0, limit=1000):
             indentXMLTree(ob, level+1, n+1==l and True or False, count=count+1, limit=limit)
         node.tail = tail
     if is_edge:
-         node.tail = edge
+        node.tail = edge
 
 def isIterable(v):
     return not isinstance(v, str) and not isinstance(v, dict) and isinstance(v, Iterable)
@@ -210,7 +210,7 @@ def makeIDList(ids):
 def checkPaginationRange(n, page, pages):
     return n < 3 or (n > page-3 and n < page+3) or n > pages-1
 
-def decoder(data, encodings, info='', is_trace=False, limit=None):
+def decoder(data, encodings, info='', is_trace=False, limit=None, level=0):
     image = ''
     encoding = None
 
@@ -237,18 +237,24 @@ def decoder(data, encodings, info='', is_trace=False, limit=None):
                         )
                 if is_error and n == len(encodings) - 1:
                     break
-                is_error = True
-                if 'continuation' in ex.reason and ex.start > 0:
-                    p = ex.start - 1
+
+                i, e = decoder(data[ex.start:ex.end], encodings[n+1:], info=info, is_trace=is_trace, limit=limit, level=level+1)
+                if i:
+                    image += data[:ex.start].decode(encoding)
+                    image += i
+                    data = data[ex.end:]
+                    n -= 1
                 else:
-                    p = ex.start
-                image += data[:p].decode(encoding)
-                data = data[p:]
+                    is_error = True
+                    p = 'continuation' in ex.reason and ex.start > 0 and ex.start - 1 or ex.start
+                    image += data[:p].decode(encoding)
+                    data = data[p:]
 
         if is_trace:
             print_to(None, '>>> decoder done %serrors: [%s]' % (is_error and 'with ' or 'without ', encoding))
 
-    data = None
+    if level == 0:
+        data = None
 
     if is_trace:
         print_to(None, '>>> decoder image:%s' % len(image))
@@ -303,3 +309,10 @@ def makeSqlWhere(query):
     """
     where = ['%s=%s' % (name, isinstance(value, str) and ('\'%s\'' % value) or str(value)) for name, value in query.items() if value]
     return ' AND '.join(where)
+
+def sint(value):
+    if not value:
+        return None
+    if isinstance(value, int):
+        return value
+    return value and value.isdigit() and int(value)

@@ -17,6 +17,7 @@ var IsTraceCommit = 0;            // Alert Field's state controller Commit-error
 var IsTraceRollback = 0;          // Alert Field's state controller Rollback-errors
 var IsTraceErrorException = 0;    // Alert(show) error exception
 var IsForcedRefresh = 0;          // Forced refresh any images in filesystem-cache (load with timestamp-link)
+var IsAdmin = 0;                  // User Admin permissions
 var IsAssumeExchangeError = 0;    // Exchange errors allowed or not (for localhost debug reasons)
 var IsXMLDump = 0;                // For 'internal' only - dump request/response or not
 var IsCleanBefore = 1;            // For 'internal' only - how to referesh items (clean before or not)
@@ -62,6 +63,7 @@ var isDropdownActive = false;
 var isCallback = false;
 
 var confirm_action = '';
+var confirm_response = null;
 
 var DEFAULT_HTML_SPLITTER = ':';
 

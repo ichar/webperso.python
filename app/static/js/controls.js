@@ -1230,7 +1230,7 @@ jQuery(function($)
             {text: keywords['Run'],    click: function() { $TagSearchDialog.confirmed(); }},
             {text: keywords['Reject'], click: function() { $TagSearchDialog.cancel(); }}
         ],
-        modal: true,
+        modal: false,
         draggable: true,
         resizable: false,
         position: {my: "center center", at: "center center", of: window, collision: "none"},

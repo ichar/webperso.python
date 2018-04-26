@@ -919,6 +919,7 @@ def _make_page_default(kw):
 
         cursor = engine.runQuery(default_template, columns=database_config[default_template]['columns'], 
                                  top=top, where=where, order=order, as_dict=True,
+                                 encode_columns=('Client', 'ReportPrefix',),
                                  )
         if cursor:
             IsSelected = False
@@ -944,7 +945,7 @@ def _make_page_default(kw):
                         row[x] = ''
 
                 row['id'] = row['TID']
-                row['Client'] = row['Client'].encode(default_iso).decode(default_encoding)
+                #row['Client'] = row['Client'].encode(default_iso).decode(default_encoding)
 
                 files.append(row)
 

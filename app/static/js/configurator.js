@@ -345,7 +345,7 @@ function $onClickTreeView(force) {
         tzs.ob.animate(x, duration, function() {});
         tagvalues.ob.animate(x, duration, function() {});
         tags.ob.animate(x, duration, function() {});
-        //posts.ob.animate(x, duration, function() {});
+        posts.ob.animate(x, duration, function() {});
         operparams.ob.animate(x, duration, function() {});
         opers.ob.animate(x, duration, function() {});
         processes.ob.animate(x, duration, function() {});
@@ -509,7 +509,7 @@ jQuery(function($)
 
         $onControlPanelClick($("#admin-panel-dropdown"));
 
-        if (command.startswith('admin:'))
+        if (IsAdmin && command.startswith('admin:'))
             $ConfigSelector.confirmation(command);
     });
 
@@ -527,12 +527,8 @@ jQuery(function($)
 
         $onControlPanelClick($("#actions-dropdown"));
         
-        if (command == 'action:xxxxxxxxxx') {
-            return;
-        }
-
-        $("#command").val(command);
-        $onParentFormSubmit('filter-form');
+        if (command.startswith('action:'))
+            $ShowError(keywords["Its not realized yet!"], true, true, false);
     });
 
     // --------------
@@ -588,10 +584,10 @@ jQuery(function($)
         if ($ReferenceDialog.is_focused())
             return true;
         
-        else if (e.shiftKey && e.keyCode==73)                    // Shift-I
+        else if (e.shiftKey && e.keyCode==73)         // Shift-I
             $ConfigSelector.confirmation('admin:add');
 
-        else if (e.shiftKey && e.keyCode==85)                    // Shift-U
+        else if (e.shiftKey && e.keyCode==85)         // Shift-U
             $ConfigSelector.confirmation('admin:update');
 
         else if (e.shiftKey && e.keyCode==68)                    // Shift-D
@@ -650,13 +646,19 @@ function keyboard_alt_after(keyCode) {
 }
 
 function page_is_focused(e) {
+    if (e.shiftKey && [67,79].indexOf(e.keyCode) > -1)
+        return false;
     if ((e.ctrlKey && [37,39].indexOf(e.keyCode) > -1) || (e.shiftKey && e.keyCode==9)) {
         $ConfigSelector.move(null, 1);
         $ConfigSelector.reset();
         return false;
     }
-    if (e.altKey && is_moving_keycode(e.keyCode))
-        return false;
+    if (e.altKey && is_moving_keycode(e.keyCode)) {
+        if ($ReferenceDialog.is_focused())
+            return true;
+        else
+            return false;
+    }
     return $ConfigSelector.is_focused() || $ReferenceDialog.is_focused();
 }
 

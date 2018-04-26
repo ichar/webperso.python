@@ -19,7 +19,7 @@ from ..settings import *
 from ..database import database_config, BankPersoEngine
 from ..utils import (
      getToday, getDate, getDateOnly, checkDate, cdate, indentXMLTree, isIterable, makeXLSContent, makeIDList, 
-     checkPaginationRange, getMaskedPAN
+     checkPaginationRange, getMaskedPAN, reprSortedDict
      )
 
 from ..semaphore.views import initDefaultSemaphore
@@ -132,8 +132,15 @@ def _get_batch_ids(pers_ids):
     cursor = engine.runQuery(default_template, where=where, columns=('BatchID',))
     return cursor and [row[0] for row in cursor] or []
 
-def _get_bankperso_batches(ids):
-    where = 'TZ in (%s) AND BatchTypeID in (7,14) AND FileStatusID not in (%s)' % (makeIDList(ids), makeIDList(COMPLETE_STATUSES))
+def _get_bankperso_batches(ids=None, file_id=None):
+    if file_id is not None:
+        where = 'BatchTypeID in (7,14) AND FileID=%s' % file_id
+    elif ids:
+        where = 'TZ in (%s) AND BatchTypeID in (7,14) AND FileStatusID not in (%s)' % (
+            makeIDList(ids), makeIDList(COMPLETE_STATUSES))
+    else:
+        return []
+
     cursor = engine.runQuery('batches', where=where, order='TID desc', as_dict=True, 
                              encode_columns=('Status',),
                              columns=database_config['batches'].get('export'))
@@ -365,16 +372,21 @@ def getFileBatches(pers_id=None):
 
     where = "FName='%s'" % (filename or '')
     cursor = engine.runQuery(default_template, where=where, columns=('TID', 'PersStatus',), encode_columns=('PersStatus',), as_dict=True)
-    ids = cursor and [row['TID'] for row in cursor if row['PersStatus'] == PERS_STATUS_RUN] or []
-    
-    return ids
+    data = cursor and [row['TID'] for row in cursor if row['PersStatus'] == PERS_STATUS_RUN] or []
 
-def activateBatches(pers_ids):
+    filename = filename.split()[0]
+
+    props = {'file_id' : engine.getReferenceID('orders', key='FName', value=filename, tid='FileID') or ''}
+
+    return data, props
+
+def activateBatches(pers_ids, params=None):
     """
         Check & Activate selected Batches.
 
         Arguments:
             pers_ids -- List, Selected `PersBatchID` pers_ids to activate (String)
+            file_id  -- Int, params:file id to check batches for a file entirely
         
         Returns:
             data     -- List, Stored procedures response+Batches paramaters list:
@@ -408,6 +420,8 @@ def activateBatches(pers_ids):
 
             errors   -- List, Errors list: ['error', ...], sorted by error code: 2,1,0.
     """
+    file_id = params and isinstance(params, dict) and params.get('file_id') or None
+    
     data = []
     props = {}
     errors = []
@@ -415,6 +429,7 @@ def activateBatches(pers_ids):
     ids = sorted([int(x) for x in pers_ids])
 
     rfname = re.compile(r'(\([\d]+\s*шт\))', re.I+re.DOTALL)
+    rbin = re.compile(r'.*?БИН\s*?(\d{6}).*?', re.I+re.DOTALL)
     views = ('cards.plastic-params', 'cards.plastic-params-new',)
     sql_params = {'pers_ids' : makeIDList(pers_ids)}
     batch_ids = _get_batch_ids(ids)
@@ -422,6 +437,7 @@ def activateBatches(pers_ids):
     _INDEX = 1
     _ENCODED = 3
     _DEFAULT_VALUE = 4
+    _CONFIRMED_ERROR = 3
     _UNDEFINED_ERROR = 2
     _ERROR = 1
     _WARNING = 0
@@ -434,6 +450,8 @@ def activateBatches(pers_ids):
     check_params = {}
     sumQty = sumQtyControl = 0
     responses = None
+    total_cards = ''
+    has_mir = False
 
     def _get_query_params():
         params = dbconfig['params'] % sql_params
@@ -575,6 +593,8 @@ def activateBatches(pers_ids):
             IsError = 1
             raise 1
 
+        total_bankperso_batches = len(_get_bankperso_batches(file_id=file_id))
+
         if IsLocalDebug:
 
             # -----------------------------
@@ -601,11 +621,16 @@ def activateBatches(pers_ids):
                         row['ReadyDate'] = b['ReadyDate']
 
         else:
-            bankperso_batches = _get_bankperso_batches([x['SysBatchID'] for x in responses[0]])
+            bankperso_batches = _get_bankperso_batches(ids=[x['SysBatchID'] for x in responses[0]])
 
             # -------------------------------
             # Validate BankPerso associations
             # -------------------------------
+
+            if file_id and total_bankperso_batches > len(responses[0]):
+                errors.append((_CONFIRMED_ERROR, gettext('Error: Not all batches selected to process the file.'),))
+                #IsError = 1
+                #raise 1
 
             if len(bankperso_batches) != len(responses[0]):
                 errors.append((_UNDEFINED_ERROR, gettext('Error: Perhaps, processing of selected orders was finished.'),))
@@ -685,6 +710,74 @@ def activateBatches(pers_ids):
 
         props['r1:rowspan'] = (1,2,3,9)
 
+        # ---
+        # BIN
+        # ---
+        """
+        bins = []
+
+        for row in responses[0]:
+            bin = None
+
+            if 'BIN' in row:
+                bin = row['BIN']
+            elif 'PlasticType' in row:
+                plastic_type = row['PlasticType']
+                m = rbin.match(plastic_type)
+                if m:
+                    bin = m.groups()[0]
+
+            if bin:
+                bins.append((bin, row.get('FQty'),))
+        """
+        bins = {}
+
+        total_mir_batches = 0
+        total_mir_cards = 0
+        total_cards = 0
+
+        for batch_id in batch_ids:
+            units = _get_units(batch_id)
+
+            with_mir = False
+
+            for unit in units:
+                bin = unit['PAN'][0:4]
+                if bin not in bins:
+                    bins[bin] = 0
+                bins[bin] += 1
+
+                if bin.startswith('2'):
+                    total_mir_cards += 1
+                    with_mir = True
+
+                total_cards += 1
+
+            if with_mir:
+                total_mir_batches += 1
+
+        bins = bins.items()
+
+        # ---------
+        # Check МИР
+        # ---------
+
+        has_mir = sum([x for bin, x in bins if bin.startswith('2')]) > 0 and True or False
+
+        # -------------------
+        # Total Batches/Cards
+        # -------------------
+
+        total_batches = len(props['batches'].keys())
+
+        if total_bankperso_batches == total_batches and total_cards == sumQtyControl:
+            total_cards = [
+                '%s/%s' % (total_batches, total_cards),
+                total_mir_batches > 0 and ('%s/%s' % (total_mir_batches, total_mir_cards)) or '',
+            ]
+        else:
+            total_cards = ['', '']
+
     except:
         if IsError:
             pass
@@ -701,7 +794,7 @@ def activateBatches(pers_ids):
                 filename = '%s (%s шт)' % (filename, b['FQty'])
 
             props.update({
-                'has_mir'      : False,
+                'has_mir'      : has_mir,
                 'has_protocol' : sumQtyControl > 10 and True or False,
                 'ids'          : ids,
                 'ClientName'   : b['ClientName'],
@@ -710,12 +803,15 @@ def activateBatches(pers_ids):
                 'Total'        : sumQtyControl, #sumQty XXX !
                 'Now'          : getDate(getToday(), LOCAL_EXCEL_TIMESTAMP),
                 'Today'        : getDate(getToday(), DEFAULT_DATETIME_TODAY_FORMAT),
+                'TotalCards'   : total_cards,
                 'show'         : 0,
             })
 
-    errors = [x[1] for x in sorted(errors, key=itemgetter(0), reverse=True)]
+    confirms = [x[1] for x in sorted(errors, key=itemgetter(0), reverse=True) if x[0] == _CONFIRMED_ERROR]
 
-    return responses, props, errors
+    errors = [x[1] for x in sorted(errors, key=itemgetter(0), reverse=True) if x[0] < _CONFIRMED_ERROR]
+
+    return responses, props, errors, confirms
 
 ## ==================================================== ##
 
@@ -1222,7 +1318,7 @@ def index():
             print('--> %s' % info)
 
         if IsTrace:
-            print_to(errorlog, '--> command:%s' % command)
+            print_to(errorlog, '--> command:%s %s [%s]' % (command, current_user.login, info))
 
     kw['errors'] = '<br>'.join(errors)
     kw['OK'] = ''
@@ -1291,11 +1387,18 @@ def loader():
 
     refresh(pers_id=pers_id)
 
+    params = get_request_item('params') or ''
+
     if IsDebug:
-        print('--> action:%s pers_id:%s oper_id:%s perstype:%s' % (action, pers_id, oper_id, perstype))
+        print('--> action:%s pers_id:%s oper_id:%s perstype:%s params:%s' % (
+            action, pers_id, oper_id, perstype, params
+        ))
 
     if IsTrace:
-        print_to(errorlog, '--> loader:%s %s [%s:%s:%s:%s]' % (action, current_user.login, pers_id, oper_id, perstype, selected_menu_action))
+        print_to(errorlog, '--> loader:%s %s [%s:%s:%s:%s]%s' % (
+            action, current_user.login, pers_id, oper_id, perstype, selected_menu_action,
+            params and (' params:%s' % reprSortedDict(params, is_sort=True)) or ''
+        ))
 
     batch_id = requested_batch and requested_batch['BatchID'] or None
 
@@ -1310,6 +1413,7 @@ def loader():
 
     props = None
     errors = None
+    confirms = None
 
     try:
         if action == default_action:
@@ -1325,11 +1429,6 @@ def loader():
             data, props = getTabOperParams(pers_id, oper_id)
 
         elif action == '702':
-            """
-            view = database_config['cards.batches-log']
-            columns = _get_view_columns(view)
-            data = getTabLogs(batch_id)
-            """
             view = database_config['cards.batch-opers-log']
             columns = _get_view_columns(view)
             data = getTabOperLogs(pers_id)
@@ -1345,16 +1444,16 @@ def loader():
             data = getTabParams(batch_id)
 
         elif action == '705':
-            data = getFileBatches()
+            data, props = getFileBatches()
 
-        elif action == '710':
+        elif action in '710':
             items = get_request_item('selected-items').split(':') or []
 
             if IsTrace:
                 print_to(errorlog, '--> activate items:%s' % items)
 
             currentfile = [requested_batch.get('TID'), getBatchInfo(pers_id), oper_id]
-            data, props, errors = activateBatches(items)
+            data, props, errors, confirms = activateBatches(items, params)
 
     except:
         print_exception()
@@ -1385,6 +1484,7 @@ def loader():
         'props'            : props,
         'columns'          : columns,
         'errors'           : errors,
+        'confirms'         : confirms,
     })
 
     return jsonify(response)

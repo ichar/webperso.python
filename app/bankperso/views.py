@@ -1,5 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 
+import os
 import re
 import zlib
 import random
@@ -10,7 +11,7 @@ from lxml import etree
 from config import (
      CONNECTION, BP_ROOT, 
      IsDebug, IsDeepDebug, IsTrace, IsUseDecodeCyrillic, IsUseDBLog, IsForceRefresh, IsPrintExceptions, IsDecoderTrace, LocalDebug,
-     errorlog, print_to, print_exception,
+     basedir, errorlog, print_to, print_exception,
      default_print_encoding, default_unicode, default_encoding, default_iso, image_encoding, cr,
      LOCAL_EXCEL_TIMESTAMP, LOCAL_EASY_DATESTAMP, LOCAL_EXPORT_TIMESTAMP, UTC_FULL_TIMESTAMP,
      email_address_list
@@ -24,7 +25,7 @@ from ..utils import (
      getToday, getDate, getDateOnly, checkDate, cdate, indentXMLTree, isIterable, 
      makeXLSContent, makeIDList,
      checkPaginationRange, getMaskedPAN, getParamsByKeys, decoder, pickupKeyInLine,
-     default_indent, Capitalize
+     default_indent, Capitalize, sint
      )
 from ..worker import getClientConfig, getPersoLogInfo, getSDCLogInfo, getExchangeLogInfo, getBOM
 from ..booleval import new_token
@@ -164,7 +165,7 @@ def _get_batches(file_id, **kw):
             row['Found'] = pers_tz and row['TZ'] == pers_tz
             row['id'] = row['TID']
 
-            if (batch_id and batch_id == row['TID']) or (pers_tz and pers_tz == row['TZ']):
+            if (batch_id and batch_id == row['TID']) or (pers_tz and pers_tz == row['TZ'] and not IsSelected):
                 row['selected'] = 'selected'
                 selected_id = batch_id
                 IsSelected = True
@@ -223,12 +224,12 @@ def _decode_image(data, file_id, encoding=None):
                 print_to(errorlog, '>>> _decompress error:%s client:%s' % (file_id, client), request=request)
             data = None
 
-        data, encoding = decoder(data, encodings, info='%s %s' % (file_id, client), 
-                                 is_trace=is_trace, 
-                                 limit=MAX_XML_BODY_LEN
-                                 )
+        return decoder(data, encodings, info='%s %s' % (file_id, client), 
+                       is_trace=is_trace, 
+                       limit=MAX_XML_BODY_LEN
+                       )
 
-    return data, encoding
+    return image, encoding
 
 def _mask_image_content(item, mask='//', **kw):
     """
@@ -259,21 +260,64 @@ def _mask_image_content(item, mask='//', **kw):
                         tag.text = '*' * len(tag.text)
 
 def _decode_cyrillic(item, key='default', client=None, **kw):
-    #
-    # Try to decode cyrillic from `image_tags_todecode_cyrillic` tags for given `client`
-    #
+    """
+        Try to decode cyrillic from `image_tags_todecode_cyrillic` tags for given `client`
+        
+        IMAGE_TAGS_DECODE_CYRILLIC:
+        
+            -- Dict, list of schemes to apply while decoding by Client or FileType:
+            
+               <client> : <settings>
+            
+        Settings to apply:
+
+            -- Tuple, (<fyletypes>, <schemes>)
+
+        FyleTypes:
+
+            -- Tuple, applied to given FileTypes or if empty applied to everyone
+
+        Schemes:
+
+            -- Tuple, list of `modes-scheme` pairs:
+
+               (<mode>, <scheme>), ...
+
+        Mode:
+        
+            -- String, decoder fuction mode name: <dostowin|wintodos|iso>, look at the code `_decode`
+
+        Scheme:
+
+            -- Dict, lists of tags by type of scheme declaration, types: <default|record|image>:
+            
+               <type> : <records>
+        
+        Records:
+
+            -- Dict, records to decode such as <AREP_Record>, <BANKOFFICE_Record>: 
+            
+               <record> : <tags>
+
+        Tags:
+
+            -- String, tag names string with separator ':' to decode: 'TAG1:TAG2:...'
+        
+    """
     if not IsUseDecodeCyrillic:
         return
 
     if client is None:
         client = requested_object.get('BankName')
     
-    default = IMAGE_TAGS_DECODE_CYRILLIC.get('default')
-    schemes = client and IMAGE_TAGS_DECODE_CYRILLIC.get(client) or \
-                         default or \
-                         None
+    default = IMAGE_TAGS_DECODE_CYRILLIC.get('default') or (None, None)
+    filetypes, schemes = client and IMAGE_TAGS_DECODE_CYRILLIC.get(client) or \
+                         default
 
     if not schemes:
+        return
+
+    if filetypes and requested_object.get('FileType') not in filetypes:
         return
 
     splitter = '||'
@@ -356,6 +400,7 @@ def _get_image(file_id, encoding=None):
     cursor = engine.runQuery('image', as_dict=True, params=params)
     if cursor:
         image, encoding = _decode_image(cursor[0]['FBody'], file_id, encoding)
+        cursor = None
 
     try:
         return _image_fromstring(image, encoding)
@@ -380,6 +425,7 @@ def _get_body(file_id, file_status=None, encoding=None):
     cursor = engine.runQuery('body', as_dict=True, params=params)
     if cursor:
         body, encoding = _decode_image(cursor[0]['IBody'], file_id, encoding)
+        cursor = None
 
     try:
         return _image_fromstring(body, encoding)
@@ -426,6 +472,11 @@ def _get_filestatuses(file_id, order='TID'):
 def _get_cardholders(file_id, view):
     root, encoding = _get_body(file_id)
 
+    client = requested_object.get('BankName')
+    clients = view.get('clients') or {}
+
+    columns = _get_view_columns(view)
+
     def xml_tag_value(node, tag):
         try:
             return node.find(tag).text.strip()
@@ -436,7 +487,9 @@ def _get_cardholders(file_id, view):
     
     if root is None or len(root) == 0:
         return items
-    
+
+    exists = set()
+
     records = root.findall('.//%s' % view['root'])
     for record in records:
         item  = {}
@@ -445,6 +498,12 @@ def _get_cardholders(file_id, view):
 
         for n, tags in enumerate(view['tags']):
             column = view['columns'][n]
+
+            if clients and column in clients:
+                if client not in clients[column]:
+                    continue
+
+            exists.add(column)
 
             for tag in tags:
                 value = ''
@@ -465,7 +524,7 @@ def _get_cardholders(file_id, view):
 
         items.append(item)
 
-    return items
+    return items, [x for x in columns if x['name'] in exists]
 
 def _get_file_keywords(file_id, no_batch=False):
     keys = []
@@ -764,9 +823,9 @@ def getTabParams(file_id, batch_id, param_name=None, format=None, **kw):
             if not (is_short or kw.get('without_barcode', False)):
                 props['barcode'] = ''
 
-                if parameters.get('TZ_ERP'):
+                if parameters.get('TZ_ERP') and parameters['TZ_ERP'].isdigit():
                     barcode = genBarcode(
-                        '{0:<#10}{1:>010}{2:>06}'.format(int(parameters['TZ_ERP']), int(props['number']), int(props['no'])),
+                        '{0:<#10}{1:>010}{2:>06}'.format(sint(parameters['TZ_ERP']), sint(props['number']), sint(props['no'])),
                         text='ERP_Barcode',
                     )
                     if barcode.get('output'):
@@ -1201,7 +1260,7 @@ def getTagSearchDump(file_id, tagsearch, **kw):
 
                 for item in items:
                     tag = item.tag
-                    _decode_cyrillic(item, key='record', tag=tag)
+                    #_decode_cyrillic(item, key='record', tag=tag)
                     if not is_extra:
                         _mask_image_content(item, tag=tag)
                     content += '%s%s' % (level2, etree.tostring(item, encoding="unicode").strip())
@@ -1709,20 +1768,19 @@ def _make_page_default(kw):
     # Файлы <на обработку>
     # --------------------
 
-    if state == 'R4':
+    if state and state in 'R4:R5':
         rows = engine.runQuery('batches.preview', where='BatchStatusID=1', distinct=True)
         ids = [x[0] for x in rows]
-
         """
         rows = engine.runProcedure('materials.check',
                                    file_id='null', file_status_ids=makeIDList(COMPLETE_STATUSES), check=2, 
                                    no_cursor=False, distinct=True
                                    )
         """
-        exec_params = {'file_id' : 'null', 'file_status_ids' : makeIDList(COMPLETE_STATUSES), 'check' : 2}
-        rows = engine.runQuery('materials.check', exec_params=exec_params)
+        if state == 'R4':
+            exec_params = {'file_id' : 'null', 'file_status_ids' : makeIDList(COMPLETE_STATUSES), 'check' : 2}
+            rows = engine.runQuery('materials.check', exec_params=exec_params)
 
-        if rows:
             for id in [x[0] for x in rows]:
                 if id not in ids:
                     data, props, errors = _get_materials(id, show=1)
@@ -1925,6 +1983,7 @@ def _make_page_default(kw):
 
     if is_operator:
         states.insert(1, ('R4', 'Файлы "На обработку"'))
+        states.insert(3, ('R5', 'Активно'))
 
     # --------------------------------------
     # Нумерация страниц журнала (pagination)
@@ -2216,7 +2275,7 @@ def index():
             print('--> %s' % info)
 
         if IsTrace:
-            print_to(errorlog, '--> command:%s' % command)
+            print_to(errorlog, '--> command:%s %s [%s]' % (command, current_user.login, info))
 
     elif command.startswith('service'):
         command = command.split(DEFAULT_HTML_SPLITTER)[1]
@@ -2293,6 +2352,20 @@ def index():
             return _make_xls_content(_make_export(kw), 'Журнал заказов')
 
     return make_response(render_template('bankperso.html', debug=debug, **kw))
+
+@bankperso.route('/changelog', methods = ['GET'])
+def changelog():
+    output = ''
+    try:
+        with open(os.path.join(basedir, 'changelog.txt'), 'r') as fp:
+            output = fp.readlines()
+    except:
+        if IsPrintExceptions:
+            print_exception()
+
+    response = make_response('\r\n'.join(output))
+    response.headers["Content-Disposition"] = "attachment; filename=changelog.%s.txt" % product_version.replace(',', '')
+    return response
 
 @bankperso.after_request
 def make_response_no_cached(response):
@@ -2378,8 +2451,7 @@ def loader():
 
         elif action == '303':
             view = database_config['cardholders']
-            columns = _get_view_columns(view)
-            data = getTabCardholders(file_id)
+            data, columns = getTabCardholders(file_id)
 
         elif action == '304':
             data, total = getTabIBody(file_id, is_extra=is_extra)

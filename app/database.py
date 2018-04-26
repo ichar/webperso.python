@@ -268,9 +268,13 @@ database_config = { \
             ('PLASTIC_CODE', 'PlasticType', 'PLASTIC_TYPE', 'PlasticID',),
             ('CardType', 'CLIENT_ID', 'CHIP_ID',),
             ('KIND',),
-            ('FactAddress', 'BRANCH_NAME', 'DEST_NAME',)
+            ('FactAddress', 'BRANCH_NAME', 'DEST_NAME',),
+            ('BarCode', 'LoyaltyBarcode', 'Barcode', 'BarcodeNum',),
         ),
-        'columns' : ('FileRecNo', 'PAN', 'Cardholder', 'ExpireDate', 'PLASTIC_CODE', 'CardType', 'KIND', 'FactAddress',),
+        'columns' : ('FileRecNo', 'PAN', 'Cardholder', 'ExpireDate', 'PLASTIC_CODE', 'CardType', 'KIND', 'FactAddress', 'Barcode',),
+        'clients' : {
+            'Barcode'      : 'VBRR:CITI_BANK:BIN_BANK',
+        },
         'headers' : { \
             'FileRecNo'    : '#',
             'PAN'          : 'PAN',
@@ -280,6 +284,7 @@ database_config = { \
             'CardType'     : 'Тип карты',
             'KIND'         : 'Вид',
             'FactAddress'  : 'Фактический адрес',
+            'Barcode'      : 'Штрих-код',
         },
         'func'    : {'PAN' : getMaskedPAN },
     },
@@ -1605,7 +1610,7 @@ _references = {
             'FileTypeID'              : '0:Тип файла::fk1:2:reference.file-type:FileType:CName',
             'FTVLinkID'               : '1:Тег::fk2:1:reference.linked-tagvalues:TagValue:TagValue',
             'TagParamID'              : '1:Параметр ТЗ::fk3:1:reference.tag-params:PName:PName',
-            'PValue'                  : '1:Значение параметра ТЗ::value',
+            'PValue'                  : '1:Значение параметра ТЗ:hightext:value:::::textarea',
             'Comment'                 : '1:Примечание:text:memo:::::textarea',
             'PSortIndex'              : '1:Индекс сортировки::sort',
         },

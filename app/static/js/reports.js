@@ -316,6 +316,7 @@ function makeStyles(module, report) {
         '.r5_data tr.header>td.col7 { text-align:center; }\n'+
         '.r5_data td.col3 { text-align:center; }\n'+
         '.r5_data td.col4 { text-align:center; }\n'+
+        '.r5_data td.col5 { text-align:center; }\n'+
         '.r5_data td.high { background-color:#e7e7e7; }\n';
     }
 
@@ -742,8 +743,10 @@ function makeCardsReport_3(props, page_break, single_page) {
     var cols = columns.length;
     var cls_count = 4;
 
+    var total_cards = 'TotalCards' in props ? props['TotalCards'][1] : '';
+
     var rows = [
-        '1|Кол-во ТЗ / Кол-во карт во всех ТЗ.|100%|Оператор||Должностная инструкция||',
+        '1|Кол-во ТЗ / Кол-во карт во всех ТЗ.|100%|Оператор||Должностная инструкция|'+total_cards.toString()+'|',
         '2|Сверка дизайна|100%|Оператор||||',
         '3|Габариты карты после рельефного тиснения|5 карт/смену|Оператор||14.1.1.1. ГОСТ ИСО/МЭК 10373-1|ширина:85,47-85,90 мм высота:53,92-54,18 мм толщина вне зоны тисения 0,76-0,84 мм|',
         '||5 карт/смену|Контролер||||',
@@ -869,8 +872,10 @@ function makeCardsReport_5(props, page_break, single_page) {
     var cols = columns.length;
     var cls_count = 3;
 
+    var total_cards = 'TotalCards' in props ? props['TotalCards'][0] : '';
+
     var rows = [
-        '1|Должностная инструкция|Кол-во ТЗ/Кол-во карт во всех ТЗ|100%|Оператор|||',
+        '1|Должностная инструкция|Кол-во ТЗ/Кол-во карт во всех ТЗ|100%|Оператор|'+total_cards.toString()+'||',
         '2|Должностная инструкция|Соответствие дизайна карты ТЗ|100%|Оператор|||',
         '|||100%|Контролер|||',
         '3|R-BG-02, РД 052-2013 п.1.2|Местоположение эмбоссированных символов|1 карта/ТЗ|Оператор|||',

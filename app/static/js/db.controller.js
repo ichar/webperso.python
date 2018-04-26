@@ -384,7 +384,7 @@ var $SublineSelector = {
     // Subline Selector Class
     // ======================
 
-    IsDebug : 0, IsTrace : 0, IsLog : 1,
+    IsDebug : 0, IsTrace : 0, IsLog : 0,
 
     // ----------------
     // Config Object ID
@@ -595,7 +595,7 @@ var $TablineSelector = {
     // Tabline Selector Class
     // ======================
 
-    IsDebug : 0, IsTrace : 0, IsLog : 1,
+    IsDebug : 0, IsTrace : 0, IsLog : 0,
 
     // ----------------
     // Config Object ID

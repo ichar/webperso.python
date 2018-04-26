@@ -23,7 +23,7 @@ function sidebar_callback() {
     $onInfoContainerChanged();
 }
 
-function log_callback(data, props) {
+function log_callback(current_action, data, props) {
     batch_can_be_activated = 'activate' in props ? props['activate'] : 0;
 }
 

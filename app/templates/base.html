@@ -110,6 +110,7 @@ loaderURI = '{{ loader|safe }}';
 keywords = { {{ keywords|join(', ')|safe }} };
 
 IsShowLoader = {{ is_show_loader }};
+IsAdmin = {{ is_admin }};
 
 {% if pagination %}
 LOG_SORT = new Array({{ pagination['sort']['modes']|join(', ')|safe }});

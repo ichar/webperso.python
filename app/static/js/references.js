@@ -610,11 +610,18 @@ var $ReferenceDialog = {
     },
 
     onClose: function() {
-        this.timer = setTimeout(function() { $ReferenceDialog.is_open = false; }, this.timeout);
+        this.timer = setTimeout(function() { 
+            $ReferenceDialog.is_open = false; 
+            window.clearTimeout($ReferenceDialog.timer);
+            $ReferenceDialog.timer = null; 
+        }, this.timeout);
     },
 
     onButtonClick: function(ob) {
         var command = ob.attr('id').split(':')[1];
+
+        if (!(IsAdmin || command == 'back'))
+            return;
 
         switch(command) {
             case 'save':
@@ -635,6 +642,9 @@ var $ReferenceDialog = {
 
     onIconClick: function(ob) {
         var command = ob.attr('id').split(':')[1];
+
+        if (!(IsAdmin || command == 'search'))
+            return;
 
         switch(command) {
             case 'search':
@@ -835,7 +845,7 @@ var $ConfigSelector = {
     // Configurator View Selector Class
     // ================================
 
-    IsDebug : 0, IsTrace : 0, IsLog : 1,
+    IsDebug : 0, IsTrace : 0, IsLog : 0,
 
     // -----------------------------------
     // Config Object ID (current Tab name)
@@ -980,6 +990,8 @@ var $ConfigSelector = {
         this.oid = ob.attr('id');
         this.rid = parseInt($_get_item_id(ob, 1)) || 0;
         this.number = parseInt($_get_item_id(ob, 2)) || 0;
+
+        this.active_links = new Object();
 
         if (this.rid > 0)
             this.container = this.current.parent();
@@ -1288,7 +1300,7 @@ var $ConfigSelector = {
 
             content = this.set_line(content, this.is_blank);
 
-            this.active_links = new Object();
+            //this.active_links = new Object();
 
             this.backup.is_nodata = is_nodata;
             this.backup.oid = this.oid;
@@ -1522,7 +1534,8 @@ var $ConfigSelector = {
         if ((['add','update','remove'].indexOf(command) == -1) ||
             (is_empty(id) && ['update','remove'].indexOf(command) > -1) ||
             //(this.backup.command && (this.backup.command != command || command == 'add')) || 
-            (this.backup.oid && this.backup.oid == this.oid)) {
+            (this.backup.oid && this.backup.oid == this.oid) ||
+            !IsAdmin) {
 
             //alert('invalid:'+command+':'+this.backup.command+':'+this.oid+':'+this.backup.oid);
 

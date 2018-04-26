@@ -11,7 +11,7 @@ from config import (
     IsDebug, IsDeepDebug, IsShowLoader, IsFuture, errorlog, print_to, print_exception, getCurrentDate
 )
 
-product_version = '1.80 (beta), 2018-03-25'
+product_version = '1.83 (beta), 2018-04-12'
 
 #########################################################################################
 
@@ -40,7 +40,7 @@ DEFAULT_HTML_SPLITTER = ':'
 USE_FULL_MENU = True
 
 MAX_TITLE_WORD_LEN = 50
-MAX_XML_BODY_LEN = 1024*10000
+MAX_XML_BODY_LEN = 1024*1024*10
 MAX_XML_TREE_NODES = 100
 MAX_LOGS_LEN = 999
 MAX_CARDHOLDER_ITEMS = 9999
@@ -65,15 +65,26 @@ _citi_tags = ( \
 
 IMAGE_TAGS_DECODE_CYRILLIC = {
     'CITI_BANK' : (
-        ('dostowin', {
-            'default' : {
+        ('CITIEMV',), (
+            ('dostowin', {
+                'default' : {
                         'AREP_Record' : _citi_tags[0] + _citi_tags[1],
                         'FileBody'    : _citi_tags[2],
                         },
-            'record'  : {'.' : _citi_tags[0] + _citi_tags[1] + _citi_tags[2],},
-            'image'   : {},
+                'record'  : {'.' : _citi_tags[0] + _citi_tags[1] + _citi_tags[2],},
+                'image'   : {},
             }),
-        ('iso', {'errors'  : {'.' : _citi_tags[3]},}),
+            ('iso', {'errors'  : {'.' : _citi_tags[3]},}),
+        ),
+    ),
+    'BIN_BANK' : (
+        None, (
+            ('wintodos', {
+                'default' : {
+                        'BANKOFFICE_Record' : 'CityDOS:StreetDOS:AddresseeDOS:Addressee',
+                        },
+            }),
+        ),
     ),
 }
 
@@ -201,6 +212,7 @@ def make_platform(locale, debug=None):
     _agent = agent
 
     is_owner = current_user.is_owner()
+    is_admin = current_user.is_administrator(private=False)
     is_manager = current_user.is_manager(private=True)
     is_operator = current_user.is_operator(private=True)
 
@@ -233,6 +245,7 @@ def make_platform(locale, debug=None):
         'links'          : links, 
         'version'        : version, 
         'css'            : css, 
+        'is_admin'       : is_admin and 1 or 0,
         'is_frame'       : is_frame, 
         'is_demo'        : 0, 
         'is_show_loader' : IsShowLoader,
@@ -322,6 +335,7 @@ def make_keywords():
         "'Command:Send request to the warehouse':'%s'" % gettext('Command: Send request to the warehouse?'),
         "'Exclamation:exists_inactive':'%s'" % gettext('Exclamation: Exist inactive batches'),
         "'Exclamation:exists_materials':'%s'" % gettext('Exclamation: Exist materials to send in order'),
+        "'Its not realized yet!':'%s'" % gettext("Sorry! Its not realized yet."),
         "'Message:Action was done successfully':'%s'" % gettext('Message: Action was done successfully.'),
         "'Message:Request sent successfully':'%s'" % gettext('Message: Request was sent successfully.'),
         "'OK:exists_inactive':'%s'" % gettext('OK: All batches done'),

@@ -240,17 +240,17 @@
   <div id="control-panel">
 
   <div class="dropdown-container">
+
+    {% if current_user.is_administrator() %}
     <div class="dropdown" id="admin-panel-container">
       <a class="dropdown-link" id="admin-panel-dropdown">Панель управления</a>
       <div class="dropdown-content" id="admin-panel">
-
-      {% if current_user.is_administrator() %}
         <button class="btn btn-warning" id="admin:add">Добавить параметр</button>
         <button class="btn btn-success" id="admin:update">Редактировать параметр</button>
-        <button class="btn btn-danger" id="admin:remove">Удалить параметр</button>
-      {% endif %}
+        <button class="btn btn-danger last-btn" id="admin:remove">Удалить параметр</button>
       </div>
     </div>
+    {% endif %}
     
     <div class="dropdown" id="services-container">
       <a class="dropdown-link" id="services-dropdown">Справочники</a>
@@ -266,16 +266,18 @@
         <div class="line"><hr /></div>
         <button class="btn btn-primary" id="service:tag-params">Параметры тегов</button>
         <button class="btn btn-primary" id="service:ftv-oper-params">Параметры персонализации</button>
-        <button class="btn btn-primary" id="service:ftb-post">Параметры почты</button>
+        <button class="btn btn-primary last-btn" id="service:ftb-post">Параметры почты</button>
       </div>
     </div>
     
+    {% if current_user.is_administrator() %}
     <div class="dropdown" id="actions-container">
       <a class="dropdown-link" id="actions-dropdown">Генератор</a>
       <div class="dropdown-content" id="actions">
         <button class="btn btn-success last-btn" id="action:xxx">...</button>
       </div>
     </div>
+    {% endif %}
   </div>
 
   </div>

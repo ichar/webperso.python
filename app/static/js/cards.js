@@ -16,6 +16,7 @@ SUBLINE = 'oper';
 var is_noprogress = false;
 var sid = 'selected-batches';
 var selected_report_id = '';
+var activate_file_batches = null;
 
 // ----------------------
 // Dialog Action Handlers
@@ -78,8 +79,13 @@ function $Confirm(mode, ob) {
 
                 $onParentFormSubmit();
             }
+            else if (['activate_task'].indexOf(confirm_action) > -1) {
+                $onRunCardsReports(1, confirm_response);
+            }
             break;
     }
+
+    confirm_response = null;
 }
 
 function $Notification(mode, ob) {
@@ -167,6 +173,24 @@ function $onTabSelect(ob) {
     return true;
 }
 
+function $onRunCardsReports(mode, x, report) {
+    var data = x['data'];
+    var props = x['props'];
+
+    switch(mode) {
+        case 1:
+            confirm_action = 'activate';
+
+            printCardsPacket(data, props);
+
+            $ConfirmDialog.open(keywords['Command:Activate selected batches'], 500);
+            break;
+        case 2:
+            printCardsSelectedReport(data, props, report);
+            break;
+    }
+}
+
 // -----------------------
 // Custom Control Handlers
 // -----------------------
@@ -174,6 +198,8 @@ function $onTabSelect(ob) {
 function $addSelection(ob) {
     if (is_null(ob))
         return;
+
+    activate_file_batches = null;
 
     var container = $("#"+sid);
     var oid = $_get_item_id(ob, 1);
@@ -198,8 +224,9 @@ function $addSelection(ob) {
 
 function $removeSelection() {
     var container = $("#"+sid);
-    //var oid = container.find(":selected").text();
-    //alert('remove:'+oid+':'+container.length);
+
+    activate_file_batches = null;
+
     $('option:selected', container).remove();
     $setSelection(sid, 1);
 }
@@ -305,6 +332,7 @@ function makeTodayRequest() {
 
 function selectFileBatches(x) {
     var data = x['data'];
+    var props = x['props'];
 
     if (data.length == 0) {
         $NotificationDialog.open(keywords['Warning:No inactive batches'], 500);
@@ -325,6 +353,8 @@ function selectFileBatches(x) {
         var option = new Option(oid, oid, false, false);
         options[options.length] = option;
     });
+
+    activate_file_batches = getObjectValueByKey(props, 'file_id');
 }
 
 function rejectSelectedBatches() {
@@ -334,11 +364,18 @@ function rejectSelectedBatches() {
 }
 
 function activateTask(x) {
-    var data = x['data'];
-    var props = x['props'];
     var errors = x['errors'];
+    var confirms = x['confirms'];
 
     //alert(x['currentfile']+':'+errors.join('|')+':'+errors.length);
+
+    if (confirms.length > 0) {
+        var msg = confirms.join('<br>');
+        confirm_action = 'activate_task';
+        confirm_response = x;
+        $ConfirmDialog.open(msg, 600);
+        return;
+    }
 
     if (errors.length > 0) {
         var msg = errors.join('<br>');
@@ -350,16 +387,12 @@ function activateTask(x) {
 
     if (!is_empty(selected_report_id)) {
         var report = getsplitteditem(selected_report_id, '-', 1, null);
-        printCardsSelectedReport(data, props, report);
+        $onRunCardsReports(2, x, report);
         selected_report_id = '';
         return;
     }
 
-    confirm_action = 'activate';
-
-    printCardsPacket(data, props);
-
-    $ConfirmDialog.open(keywords['Command:Activate selected batches'], 500);
+    $onRunCardsReports(1, x);
 }
 
 // ====================
@@ -386,8 +419,6 @@ jQuery(function($)
         $DblClickAction.click(
             function(ob) {
                 is_noprogress = false;
-                //$LineSelector.set_current(ob);
-                //$onToggleSelectedClass(LINE, ob, 'submit', null);
                 $LineSelector.onRefresh(ob);
             },
             function(ob) {
@@ -449,7 +480,7 @@ jQuery(function($)
 
     function $acivateSelectedBatches() {
         if ($hasSelectedItems())
-            $Handle('710', function(x) { activateTask(x); });
+            $Handle('710', function(x) { activateTask(x); }, {'file_id' : activate_file_batches});
         else
             $ShowError(keywords['Warning:No selected items'], true, true, false);
     }

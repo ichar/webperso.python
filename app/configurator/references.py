@@ -464,7 +464,7 @@ class AbstractReference(object):
         values = items and ', '.join([
             '%s=%s' % (name, 
                        self._dbtype(name) in 'varchar' and ("'%s'" % str(self._value(items, name))) or self._value(items, name)) 
-                for name in columns if name != self.id and name in self.fields and name in items and items[name]]) or ''
+                for name in columns if name != self.id and name in self.fields and name in items]) or '' # and items[name]
         sql = ''
 
         if not self._is_ready():

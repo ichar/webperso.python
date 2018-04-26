@@ -81,12 +81,12 @@ div.mainmenu    { text-align:right; white-space:nowrap; margin-right:2px; margin
     display:inline-block;
     list-style-type:none;
     font-size:12px; 
-
+    line-height:26px;
     -webkit-box-shadow: 0px 3px 20px #14314F;
     box-shadow: 0px 3px 20px #14314F;
 }
 .navigation a   { padding:5px 15px 5px 15px; color:#886D48; } /* #444080 #9C7E5C #664422 */
-.navigation li.selected { background-color:#cc0000; line-height:26px; }
+.navigation li.selected { background-color:#cc0000; line-height:32px; }
 .navigation li.selected>a { color:#fff; }
 
 a.persolink     { white-space:nowrap; color:#006688; padding:3px 6px 3px 6px; border:1px solid #864; background-color:#efefef; }
@@ -367,7 +367,7 @@ table.flash {
     color:white;
     font:normal 18px Arial;
     text-align:center;
-    width:40%;
+    width:50%;
 }
 table.flash td {
     padding:20px 40px 20px 40px;
@@ -383,7 +383,7 @@ table.flash td {
 .popup      { margin:0; }
 .error      { background-color:#D37E7C; color:white; } /* #B04E4C  */
 .ready      { background-color:#84B484; color:white; } /* #58A072 */
-.found      { border:1px solid #822 !important;  }
+.found      { border:1px solid #822 !important; background-color:bisque; }
 .disabled   { color:#ccc !important; cursor:not-allowed !important; }
 .hidden     { display:none; }
 .inline     { display:inline-block; vertical-align:top; }
@@ -906,6 +906,8 @@ dd.reference-fk { margin:0; }
 #config-container td.icon { border:0px solid #ccc; }
 #config-container img { cursor:pointer; }
 
+#config-container input, #config-container textarea { font:normal 13px Arial; line-height:20px; } 
+
 .config-title { vertical-align:middle; font-weight:bold; padding-right:10px; padding-bottom:0px; width:180px; }
 .config-value { padding:5px; vertical-align:middle; }
 
@@ -916,6 +918,8 @@ dd.reference-fk { margin:0; }
 .config-int { width:63px; text-align:center; }
 .config-varchar { min-width:260px; }
 .config-pk { background-color:#7F95B7 !important; color:white !important; }
+
+.config-hightext { min-width:460px; height:120px; }
 
 .config-panel { margin:10px 0 0 5px; }
 .config-button { margin-right:3px; }
