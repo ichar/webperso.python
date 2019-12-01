@@ -1,0 +1,58 @@
+{% extends "simple.html" %}
+
+{% block starter %}
+
+<script src="{{ url_for('static', filename='js/seller.min.js') }}{{ vsc }}"></script>
+
+{% endblock %}
+
+{% block header %}
+
+{% include 'simple-header.html' %}
+
+{% endblock %}
+
+{% block page_content %}
+
+<div id="page-container">
+  <div class="caption-container" id="caption">
+
+    <div class="caption">{{ _('Seller Order List') }}:</div>
+    <h1>{{ seller['Name'] }}</h1>
+
+    <div class="header">
+      <div class="address">
+        <p>{{ _('Company Details') }}: {{ seller['Title'] }}</p>
+        <p>{{ _('Address') }}: {{ seller['Address'] }}</p>
+      </div>
+
+      <div class="sum_price">{{ _('Total orders') }}: {{ total }} {{ _('with price') }} {{ sum_price }} EUR</div>
+    </div>
+
+  </div>
+
+  <div class="view-container" id="line-content">
+
+  {% for order in orders -%}
+    {% set id = order['TID'] -%}
+
+    <div class="line" id="row-line:{{ id }}:{{ loop.index }}">
+    {% for column in columns -%}
+      <dd class="column {{ column }}">{{ order[column] }}</dd>
+    {%- endfor -%}
+    </div>
+
+    <div class="info-container">
+      <table class="info" border="0">
+    {% for key in keys -%}
+        <tr><td><dt>{{ headers[key] }}</dt></td><td><dd>{{ items[id][key]|safe }}</dd></td></tr>
+    {%- endfor -%}
+      </table>
+    </div>
+
+  {%- endfor -%}
+
+  </div>
+</div>
+
+{% endblock %}

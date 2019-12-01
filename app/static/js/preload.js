@@ -11,6 +11,12 @@ SUBLINE = 'article';
 // Dialog Action Handlers
 // ----------------------
 
+function subline_refresh(filename) {
+    $(".filename").each(function() { 
+        $(this).html(filename);
+    });
+}
+
 // --------------
 // Page Functions
 // --------------

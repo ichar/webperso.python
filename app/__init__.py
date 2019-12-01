@@ -1,10 +1,13 @@
-from flask import Flask
+﻿# -*- coding: utf-8 -*-
+
+from flask import Flask, render_template
 from flask.ext.bootstrap import Bootstrap
 from flask.ext.mail import Mail
 #from flask.ext.moment import Moment
 from flask.ext.babel import Babel
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.login import LoginManager
+from flask_log_request_id import RequestID, current_request_id
 #from flask.ext.pagedown import PageDown
 from config import config
 
@@ -16,14 +19,18 @@ db = SQLAlchemy()
 #pagedown = PageDown()
 
 login_manager = LoginManager()
-login_manager.session_protection = 'strong'
+login_manager.session_protection = 'basic' # 'strong'
 login_manager.login_view = 'auth.login'
+
+from .patches import *
 
 
 def create_app(config_name):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
+
+    app.register_error_handler(403, forbidden)
 
     bootstrap.init_app(app)
     babel.init_app(app)
@@ -37,6 +44,8 @@ def create_app(config_name):
     #    from flask.ext.sslify import SSLify
     #    sslify = SSLify(app)
 
+    RequestID(app)
+
     from .bankperso import bankperso as bankperso_blueprint
     app.register_blueprint(bankperso_blueprint)
 
@@ -45,6 +54,19 @@ def create_app(config_name):
 
     from .configurator import configurator as configurator_blueprint
     app.register_blueprint(configurator_blueprint)
+
+    from .persostation import persostation as persostation_blueprint
+    app.register_blueprint(persostation_blueprint)
+
+    from .calculator import calculator as calculator_blueprint
+    app.register_blueprint(calculator_blueprint)
+
+    from .diamond import diamond as diamond_blueprint
+    app.register_blueprint(diamond_blueprint)
+
+    from .provision import provision as provision_blueprint
+    app.register_blueprint(provision_blueprint)
+
     """
     from .stock import stock as stock_blueprint
     app.register_blueprint(stock_blueprint)
@@ -63,9 +85,6 @@ def create_app(config_name):
 
     from .semaphore import semaphore as semaphore_blueprint
     app.register_blueprint(semaphore_blueprint, url_prefix='/semaphore')
-
-    from .profile import profile as profile_blueprint
-    app.register_blueprint(profile_blueprint, url_prefix='/profile')
 
     #from .api import api as api_blueprint
     #app.register_blueprint(api_blueprint, url_prefix='/api')

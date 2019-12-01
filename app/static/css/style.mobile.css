@@ -1,0 +1,15 @@
+body { margin:0 auto; }
+
+#flash-section {}
+
+div.flash { 
+    margin:0px auto;
+    width:50%;
+    padding:20px 40px 20px 40px;
+    white-space:nowrap; 
+    margin-bottom:10px;
+}
+
+div.visitor { 
+    margin-top:0px;
+}

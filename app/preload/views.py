@@ -25,7 +25,10 @@ engine = None
 def before(f):
     def wrapper(**kw):
         global engine
-        engine = BankPersoEngine(current_user, connection=CONNECTION['preload'])
+        if engine is not None:
+            engine.close()
+        name = kw.get('engine') or 'preload'
+        engine = BankPersoEngine(name=name, user=current_user, connection=CONNECTION[name])
         return f(**kw)
     return wrapper
 
@@ -342,7 +345,7 @@ def _make_page_default(kw):
 
 ## ==================================================== ##
 
-@preload.route('/', methods = ['GET'])
+#@preload.route('/', methods = ['GET'])
 @preload.route('/preload', methods = ['GET','POST'])
 @login_required
 def index():

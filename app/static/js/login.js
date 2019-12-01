@@ -23,3 +23,7 @@ $(function()
 
     $_init();
 });
+
+function page_is_focused(e) {
+    return false;
+}

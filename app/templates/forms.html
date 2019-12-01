@@ -1,6 +1,6 @@
-{% from 'templates.html' import render_field, render_navigation_item %}
+{% from 'templates.html' import render_field, render_navigation_item, render_navigation_link %}
 
-{% macro form(name, group, data, config) -%}
+{% macro form(name, group, data, config, root) -%}
 
 {%- if name=='register' -%}
 
@@ -21,59 +21,18 @@
 
   {%- if group=='user' -%}
 
-<form action="index" id="user-form" method="POST" onSubmit="return $onUserFormSubmit(this);">
-
   <dl>
     {{ render_field(data.login) }}
     {{ render_field(data.password) }}
     {{ render_field(data.family_name) }}
     {{ render_field(data.first_name) }}
     {{ render_field(data.last_name) }}
+    {{ render_field(data.post) }}
     {{ render_field(data.email) }}
     {{ render_field(data.role) }}
     {{ render_field(data.confirmed) }}
     {{ render_field(data.enabled) }}
   </dl>
-
-  <input type="hidden" id="user_id" name="user_id" value="" />
-  <input type="hidden" id="profile_clients" name="profile_clients" value="" />
-  <input type="hidden" name="sidebar" value="" />
-  <input class="btn btn-danger" type="submit" id="save" name="save" value="{{ _('Save') }}" disabled />
-
-</form>
-
-  {%- elif group=='profile' -%}
-
-  <h3>Профайл пользователя <span class="filename" id="profile-name"></span>:</h3>
-  <div class="profile-form-content">
-    <div class="profile-head">
-      <ul>
-        <li class="selected" role="tab"><a href="#profile-clients" id="profile-clients-tab">{{ _('Client segment') }}</a></li>
-      </ul>
-    </div>
-
-    <div class="profile-data">
-      <div class="profile-clients common-panel" role="panel">
-        <label for="item-clients-all"><input type="checkbox" id="item-clients-all" value="1" checked><span>{{ _('All clients') }}</span></label>
-        <div id="item-clients-list">
-          <div class="profile-data-panel disabled" id="profile-clients-left">
-            <ul>
-            {%- for client in data -%}
-              <li id="bank:{{ client['TID'] }}" name="cid:{{ client['TID'] }}" data="{{ client['CName'] }}">
-                <span class="client" id="profile-name">{{ client['CName'] }}</span></li>
-            {%- endfor -%}
-            </ul>
-          </div>
-          <div id="profile-clients-commands">
-            <input class="disabled" type="button" id="profile-clients-include" value=" >> " />
-            <br><br>
-            <input class="disabled" type="button" id="profile-clients-exclude" value=" << " />
-          </div>
-          <div class="profile-data-panel disabled" id="profile-clients-right"><ul></ul></div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   {%- endif -%}
 
@@ -89,6 +48,18 @@
 
   {%- endif -%}
 
+{%- elif name=='default' -%}
+
+  {%- if group=='home' -%}
+
+  <div class="navigation">
+    {%- for item in data %}
+      {{ render_navigation_link(item) }}
+    {%- endfor %}
+  </div>
+
+  {%- endif -%}
+
 {%- endif -%}
 
 {%- endmacro %}
@@ -100,7 +71,7 @@
     <thead>
     <tr>
     {%- for column in config[group]['columns'] -%}
-      <td class="column header">{{ config[group]['headers'][column][0] }}</td>
+      <td class="column header">{{ config[group]['headers'][column][0]|safe }}</td>
     {%- endfor -%}
     </tr>
     </thead>
@@ -110,8 +81,16 @@
       {%- for column in config[group]['columns'] -%}
         {% if row['Error'] %}
       <td class="column error">{{ row[column]|safe }}</td>
+        {% elif row['Confirm'] %}
+      <td class="column confirm">{{ row[column]|safe }}</td>
         {% elif row['Ready'] %}
       <td class="column ready">{{ row[column]|safe }}</td>
+        {% elif row['Stop'] %}
+      <td class="column stop">{{ row[column]|safe }}</td>
+        {% elif row['Wait'] %}
+      <td class="column wait">{{ row[column]|safe }}</td>
+        {% elif row['Archive'] %}
+      <td class="column archive">{{ row[column]|safe }}</td>
         {% else %}
       <td class="column {{ config[group]['headers'][column][1] }}">{{ row[column]|safe }}</td>
         {% endif %}
@@ -141,12 +120,15 @@
     {% for row in data -%}
     <tr class="subline {{ loop.cycle('odd', 'even') }} {{ row['selected'] }}" id="row-subline:{{ row['id'] }}:{{ loop.index }}">
       {%- for column in config[group]['columns'] -%}
+        {%- set css = 'log-' + column.lower() -%}
         {% if row['Found'] and column in ('TZ',) %}
-      <td class="column found">{{ row[column]|safe }}</td>
+      <td class="column {{ css }} found">{{ row[column]|safe }}</td>
         {% elif row['Ready'] %}
-      <td class="column ready">{{ row[column]|safe }}</td>
+      <td class="column {{ css }} ready">{{ row[column]|safe }}</td>
+        {% elif row['Error'] %}
+      <td class="column {{ css }} error">{{ row[column]|safe }}</td>
         {% else %}
-      <td class="column log-{{ column|lower }}">{{ row[column]|safe }}</td>
+      <td class="column {{ css }}">{{ row[column]|safe }}</td>
         {% endif %}
       {%- endfor -%}
     </tr>
@@ -156,7 +138,7 @@
     {%- endif -%}
     </table>
     {# if data #}
-    <div class="row-counting">Всего записей: <span id="tab-rows-total">{{ data|length }}</span></div>
+    <div class="row-counting">{{ _('Total records') }}: <span id="tab-rows-total">{{ data|length }}</span></div>
     {# endif #}
   </div>
 
@@ -169,9 +151,9 @@
       <input type="hidden" name="sidebar" value="">
     </form>
 
-    <button class="btn btn-success" id="refresh">Обновить</button>
-    <button class="btn btn-warning" id="init-filter">Сбросить фильтр</button>
-    <button class="btn btn-primary" id="export">Экспортировать</button>
+    <button class="btn btn-success" id="refresh">{{ _('Refresh') }}</button>
+    <button class="btn btn-warning" id="init-filter">{{ _('Clean & Reset query') }}</button>
+    <button class="btn btn-primary" id="export">{{ _('Export view data') }}</button>
   </div>
 
 {%- endmacro %}
@@ -180,7 +162,7 @@
 
   <div class="block" id="search-box">
     <form action="search" id="search-form" onSubmit="return false;">
-      <input class="string" id="search-context" type="text" value="{{ search_context }}">
+      <input class="string" id="search-context" type="text" value="{{ search_context }}" title="{{ _('Search by context') }}" placeholder="{{ _('Search context...') }}">
       <img id="search-icon" src="{{ root }}static/img/db-search.png" title="{{ _('Search') }}" alt="">
     </form>
   </div>

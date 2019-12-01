@@ -12,31 +12,44 @@ default_input_name  = 'user_id';
 LINE    = 'admin';
 SUBLINE = '';
 
+// Flag for 'input' keyboards
+var is_input_focused = false;
+
 // ----------------------
 // Dialog Action Handlers
 // ----------------------
+
+function sidebar_callback() {
+
+}
+
+function subline_refresh(filename) {
+    $(".filename").each(function() { 
+        $(this).html(filename);
+    });
+}
+
+function message_sent(x, errors) {
+    if (!is_null(errors) && errors.length > 0) {
+        var msg = errors.join('<br>');
+        $ShowError(msg, true, true, false);
+        return;
+    }
+
+    $NotificationDialog.open(keywords['Message:Action was done successfully']);
+}
 
 // --------------
 // Page Functions
 // --------------
 
 function $Init() {
-    $SidebarControl.init();
-
-    //$_reset_current_sort();
+    $SidebarControl.init(sidebar_callback, []);
 
     SelectedReset();
 
     $LineSelector.init();
-    /*
-    var parent = $("#line-content");
-    var ob = $("tr[class~='selected']", parent);
-    $onToggleSelectedClass(LINE, ob, 'add');
-
-    $LineSelector.set_current(ob);
-    */
     $ResetPageState();
-
     $ShowMenu(null);
 
     // ------------------------
@@ -46,13 +59,37 @@ function $Init() {
     interrupt(true, 1);
 }
 
+function $Confirm(mode, ob) {
+    $ConfirmDialog.close();
+
+    if (mode == 1)
+        switch (confirm_action) {
+            case 'photo:remove':
+                var user_id = SelectedGetItem(LINE, 'id');
+                var params = {'command':'delete_phote'};
+                $web_logging('102', function(x) { $updateUserPhoto(x['photo']); }, params);
+                break;
+        }
+    else
+        switch (confirm_action) {
+            case 'config:changed':
+                break;
+        }
+
+    confirm_action = '';
+}
+
+function $Notification(mode, ob) {
+    $NotificationDialog.close();
+}
+
 function $ResetPageState() {
     $ProfileClients.init();
     $ProfileClients.update($("#profile_clients").val());
 }
 
 function $ShowMenu(id) {
-    selected_data_menu_id = null;
+    selected_data_menu_id = id;
 }
 
 function $onRegisterFormSubmit(frm) {
@@ -66,11 +103,18 @@ function $onUserFormSubmit(frm) {
     return true;
 }
 
-function $onPaginationFormSubmit() {
+function $onPaginationFormSubmit(frm) {
+    //alert(frm.id+':'+frm.action);
     return true;
 }
 
 function $onFilterFormSubmit(frm) {
+    /*
+    var action = frm.action.split('?');
+    var qs = action.length > 1 ? '?'+action[1] : '';
+    frm.action = (action[0].indexOf('admin') > 1 ? 'admin/' : '') + 'index' + qs;
+    alert(frm.id+':'+frm.action);
+    */
     return true;
 }
 
@@ -79,8 +123,10 @@ function $onFilterFormSubmit(frm) {
 // ===========================
 
 function MakeFilterSubmit(mode, page) {
+    /*
+    alert(baseURI);
     $("#filter-form").attr("action", baseURI);
-
+    */
     switch (mode) {
 
         // -------------
@@ -115,26 +161,29 @@ jQuery(function($)
     // --------------
 
     $(".line").click(function(e) {
-        /*
-        var ob = $(this);
-        $LineSelector.set_current(ob);
-        $onToggleSelectedClass(LINE, ob, 'submit', null);
-        */
         $LineSelector.onRefresh($(this));
+        $ProfileClients.enable();
     });
 
     // -----------
     // User's Form
     // -----------
 
-    //$("#user-form").on('change', $("input, select"), function(e) {
     $("input", "#user-form").on('change keyup paste', function(e) {
+        $setUserFormSubmit(0);
+    });
+
+    $("select").on('change', function(e) {
         $setUserFormSubmit(0);
     });
 
     // -----------------------
     // User's Profile. Clients
     // -----------------------
+
+    $("a[class^='profile']").on('click', function(e) {
+        $ProfileClients.click($(this));
+    });
 
     $("input[id^='item-clients-all']").on('change', function(e) {
         var checked = $(this).prop('checked') ? true : false;
@@ -189,6 +238,34 @@ jQuery(function($)
         $ProfileClients.onRemoveClientProfileItem(ob);
     });
 
+    // -------------
+    // Photo actions
+    // -------------
+
+    $("#photo_delete").click(function(e) {
+        var ob = $(this);
+        confirm_action = 'photo:remove';
+        $ConfirmDialog.open(keywords['Command:Photo item removing. Continue?']);
+    });
+
+    // --------
+    // Settings
+    // --------
+
+    $("input.settings").on('change', $(".profile-settings-item"), function(e) {
+        $setSettings();
+    });
+
+    // ----------
+    // Privileges
+    // ----------
+
+    $(".privileges", "#profile-privileges").on('change', $(".profile-privileges-item"), function(e) {
+        //var ob = $(this);
+        //alert(ob.attr('id')+':'+ob.val());
+        $setPrivileges();
+    });
+
     // --------------------
     // Right side Data menu
     // --------------------
@@ -215,59 +292,45 @@ jQuery(function($)
         $onParentFormSubmit('command-form');
     });
 
-    // -----------------
-    // Top Command Panel
-    // -----------------
-    /*
-    $("#refresh").click(function(e) {
-        $("#command").val('refresh');
-        $onParentFormSubmit('filter-form');
-        e.preventDefault();
-    });
+    // ------------------------
+    // Control Panel Menu items
+    // ------------------------
 
-    $("#init-filter").click(function(e) {
-        $("#command").val('init-filter');
-        $onParentFormSubmit('init-form');
-        e.preventDefault();
-    });
+    $("button[id^='admin']", this).click(function(e) {
+        var ob = $(this);
+        var command = ob.attr('id');
 
-    $("#export").click(function(e) {
-        $("#command").val('export');
-        $onParentFormSubmit('filter-form');
-        e.preventDefault();
-    });
+        $onControlPanelClick($("#admin-panel-dropdown"));
 
-    // ---------------------
-    // Search context events
-    // ---------------------
-
-    function $onSearchSubmit(e) {
-        var s = strip($("#search-context").val());
-        if (s.length > 0) {
-            search_context = s;
-            $("input[id^='searched']").each(function() { $(this).val(s); });
-            is_search_activated = true;
-
-            $_reset_current_sort();
-            $onSubmitPage();
+        if (command == 'admin:message') {
+            $AdminServiceDialog.open(ob, 'message');
+            return;
         }
-    }
-
-    $("#search-context").focusin(function(e) {
-        is_search_focused = true;
-    }).focusout(function(e) {
-        is_search_focused = false;
     });
 
-    $("#search-icon").click(function(e) {
-        $onSearchSubmit(null);
-        $onParentFormSubmit('filter-form');
+    // -----------------------------------
+    // Data Section progress & Maintenance
+    // -----------------------------------
+
+    $("#data-section").on('click', '.column', function(e) {
+        var ob = $(this);
+        var parent = ob.parents("*[class*='line']").first();
+        if (is_exist(parent) && !parent.hasClass("tabline") && !ob.hasClass("header") && $PageLoader.is_activated())
+            $InProgress(ob, 1);
     });
 
-    $("#search-form").submit(function(e) {
-        $onSearchSubmit(e);
+    $("#data-section").on('focusin', 'textarea', function(e) {
+        is_input_focused = true;
+    }).on('focusout', function(e) {
+        is_input_focused = false;
     });
-    */
+
+    $("#data-section").on('focusin', 'input', function(e) {
+        is_input_focused = true;
+    }).on('focusout', function(e) {
+        is_input_focused = false;
+    });
+
     // -------------
     // Resize window
     // -------------
@@ -275,9 +338,46 @@ jQuery(function($)
     // --------
     // Keyboard
     // --------
+
+    $(window).keydown(function(e) {
+        if ($ConfirmDialog.is_focused() || $NotificationDialog.is_focused())
+            return;
+
+        if (is_show_error)
+            return;
+
+        if (e.keyCode==13) {                                     // Enter
+        }
+        
+        if (e.keyCode==27) {                                     // Esc
+        }
+
+        if ($BaseDialog.is_focused() || is_search_focused || is_input_focused)
+            return;
+
+        var exit = false;
+
+        if (e.shiftKey && e.keyCode==77) {                       // Shift-M
+            $AdminServiceDialog.open(null, 'message');
+            exit = true;
+        }
+
+        //alert(e.ctrlKey+':'+e.shiftKey+':'+e.altKey+':'+e.keyCode);
+
+        if (exit) {
+            e.preventDefault();
+            return false;
+        }
+    });
 });
 
+function readFile(e) {
+    $ProfileClients.updatePhoto(e);
+}
+
 function page_is_focused(e) {
+    if (e.shiftKey)
+        return is_input_focused;
     return false;
 }
 
@@ -291,11 +391,11 @@ $(function()
         alert('Document Ready (admin)');
 
     current_context = 'admin';
-    isKeyboardDisabled = true;
+    isKeyboardDisabled = false;
 
-    $("#search-context").attr('placeholder', 'Найти (name, login, email)...');
+    $("#search-context").attr('placeholder', keywords['Admin Find']+'...');
 
-    document.oncontextmenu = function() { return false; };
+    //document.oncontextmenu = function() { return false; };
 
     $_init();
 });

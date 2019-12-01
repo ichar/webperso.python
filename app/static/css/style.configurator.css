@@ -1,0 +1,110 @@
+
+/*** Configurator Filter Items  ***/
+
+div.configurator-filter #client       { min-width:190px; }
+div.configurator-filter #filetype     { width:398px; }
+div.configurator-filter #batchtype    { width:398px; }
+div.configurator-filter #tag          { min-width:190px; }
+div.configurator-filter #tagvalue     { min-width:190px; }
+
+/*** References ***/
+
+#reference-container { overflow-x:hidden; overflow-y:hidden; }
+#reference-box  { background-color:#F8FCFF; overflow-x:auto; overflow-y:auto; }
+
+#reference-box dd, #reference-box dt { display:inline-block; }
+#reference-box dt { font-weight:normal; }
+
+#reference-box table { border-collapse:separate; border-spacing:2px; background-color:#ccc; }
+#reference-box td { height:21px; min-width:20px; padding:3px 10px 3px 10px; }
+
+.reference-head { padding:5px 10px 5px 10px; background-color:#507080; color:white; text-align:left; }
+#reference-head-id { padding:5px; background-color:#507080; color:white; text-align:center; }
+
+.reference-item { cursor:pointer; background-color:#EFE4D4; }
+.reference-id, .reference-pk, .reference-fk { border:1px solid #333; color:#c00; }
+/*
+dd.reference-id, dd.reference-pk, dd.reference-fk { width:30px; padding:3px 5px 3px 5px; }
+dd.reference-fk { margin:0; }
+*/
+.reference-item td { white-space:nowrap; }
+/*
+.reference-name { width:380px; white-space:nowrap; }
+.reference-comment { width:240px; white-space:nowrap; }
+*/
+#reference-panel td.search { padding:0 10px 0 10px; }
+#reference-panel td.search>input { margin:6px 0 6px 0; }
+#reference-search { width:240px; }
+
+#reference-panel td.icon { border:1px solid #ccc; }
+#reference-panel img { cursor:pointer; }
+
+.reference-title { vertical-align:middle; font-weight:bold; padding-right:10px; padding-bottom:5px; width:130px; }
+
+.reference-changeform input { margin-bottom:8px; }
+.reference-int { width:63px; text-align:center; }
+.reference-varchar {} /* width:300px; */
+
+.reference-button { margin-right:3px; }
+
+/*** Config ***/
+
+#tree-view-icon { cursor:pointer; }
+
+#config-container { padding:10px; box-shadow: 0 0 20px rgba(0, 0, 0, .1) inset; }
+#config-container, .config-changeform, .config-button { font-size:12px; }
+
+.config-default { border:1px solid #ccc; background-color:#F8F4C8; }
+.config-blank { border:1px solid rgba(70, 140, 170, 0.6); background-color:rgba(180, 200, 210, 0.5); }
+
+#config-container td.icon { border:0px solid #ccc; }
+#config-container img { cursor:pointer; }
+
+#config-container input, #config-container textarea { font:normal 13px Arial; line-height:20px; } 
+
+.config-title { vertical-align:middle; font-weight:bold; padding-right:10px; padding-bottom:0px; width:180px; }
+.config-value { padding:5px; vertical-align:middle; }
+
+.config-value input:disabled { border:1px solid #ccc; padding:3px 5px; }
+
+.config-changeform td { padding-top:3px; padding-bottom:0; }
+.config-changeform input { margin-bottom:0px; }
+.config-int { width:63px; text-align:center; }
+.config-varchar { min-width:260px; }
+.config-pk { background-color:#7F95B7 !important; color:white !important; }
+
+.config-hightext { min-width:460px; height:120px; }
+
+.config-panel { margin:10px 0 0 5px; }
+.config-button { margin-right:3px; }
+
+.tab-view-content .config-value, .tab-view-content .config-varchar, .tab-view-content .config-text { width:460px; }
+.tab-view-content .config-longvarchar { width:720px; }
+
+.tab-view-content td.log-tid        { width:80px; }
+.tab-view-content td.log-filetype   { width:120px; }
+.tab-view-content td.log-batchtype  { width:180px; }
+.tab-view-content td.log-tname      { width:120px; }
+.tab-view-content td.log-tvalue     { width:120px; }
+
+#processes-container td.log-currfilestatus, 
+#processes-container td.log-nextfilestatus,
+#processes-container td.log-closefilestatus { width:210px; }
+/*
+#opers-container td.log-opertypename
+*/
+#opers-container td.log-batchtype   { width:210px; }
+#opers-container td.log-opertype    { width:320px; }
+
+#filters-container td.log-batchtype { width:280px; }
+#filters-container td.log-tname     { width:140px; }
+
+#tzs-container td.log-pname         { width:120px; }
+/*
+#tzs-container td.log-pvalue        { width:300px; }
+*/
+#tags-container td.log-tid          { width:100px; }
+
+#tagvalues-container td.log-tid     { width:100px; }
+
+#tagoperparams-container td.log-tid { width:100px; }

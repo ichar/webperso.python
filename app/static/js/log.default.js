@@ -1,16 +1,18 @@
 // ***************************
 // HELPER PAGE DEFAULT CONTENT
 // ---------------------------
-// Version: 1.10
-// Date: 22-07-2017
+// Version: 1.30
+// Date: 07-07-2019
 
 // -----------------
 // Log page handlers
 // -----------------
 
 var $ProfileClients = {
-    selected_left_item  : null,
-    selected_right_item : null,
+    menu                : null,
+    selected            : null,
+
+    IsTrace : 0, IsLog : 0,
 
     item_clients_all    : null,
     left_panel          : null,
@@ -18,11 +20,12 @@ var $ProfileClients = {
     button_include      : null,
     button_exclude      : null,
 
-    IsTrace    : 0,
+    selected_left_item  : null,
+    selected_right_item : null,
 
-    items      : new Object(),
-    left_side  : null,
-    right_side : null,
+    items               : new Object(),
+    left_side           : null,
+    right_side          : null,
 
     init: function() {
         this.selected_left_item = null;
@@ -40,6 +43,13 @@ var $ProfileClients = {
         this.items = new Object();
         this.left_side = $("#profile-clients-left > ul");
         this.right_side = $("#profile-clients-right > ul");
+
+        this.container = $("#profile-container");
+
+        this.selected = this._get_selected(null);
+
+        if (this.IsLog)
+            console.log('init:'+this.selected['id'], 'container:'+this.container);
 
         this.reset();
     },
@@ -61,6 +71,77 @@ var $ProfileClients = {
         });
 
         self.items = new Object();
+    },
+
+    _get_selected: function(ob) {
+        if (is_null(ob)) {
+            var ob = $("li[class~='selected']", this.container);
+            if (is_null(ob))
+                ob = $("li", this.container).first();
+        }
+
+        var child = ob.children().first();
+        var id = child.attr('id');
+        var cid = id.split('_')[0];
+        var container = $("#"+cid);
+        var selected = {'ob':ob, 'child':child, 'id':id, 'cid':cid, 'container':container};
+
+        if (!is_null(this.selected)) {
+            this.selected['ob'].removeClass('selected');
+            this.selected['container'].hide();
+        }
+        
+        ob.addClass('selected');
+        container.show();
+
+        if (this.IsLog)
+            console.log('selected:', objectKeyValues(selected), 'id:'+id);
+
+        return selected;
+    },
+
+    click: function(ob) {
+        var id = ob.attr('id');
+        var parent = ob.parent();
+        this.selected = this._get_selected(parent);
+    },
+
+    enable: function() {
+        $("#photo_upload").removeClass('disabled');
+        //$("#photo_delete").removeClass('disabled');
+    },
+
+    disable: function() {
+        $("#photo_upload").addClass('disabled');
+        //$("#photo_delete").addClass('disabled');
+    },
+
+    updatePhoto: function(e) {
+        var input = e.target;
+        var value = input.files[0];
+        var image = $("#photo_image");
+        var photo = $("#photo");
+
+        if (this.IsLog)
+            console.log('file:', value);
+
+        var reader = new FileReader();
+        reader.onloadend = function () { 
+            var result = reader.result;
+            
+            if (this.IsLog)
+                console.log('result:', result, 'image:', image.attr('id'));
+
+            if (is_empty(result))
+                return;
+            
+            image.prop("src", result);
+            photo.val(result);
+
+            $setUserFormSubmit(0);
+        };
+
+        reader.readAsDataURL(value);
     },
 
     activate: function(checked)
@@ -253,6 +334,7 @@ function $cleanUserForm() {
     $("#family_name", container).val('');
     $("#first_name", container).val('');
     $("#last_name", container).val('');
+    $("#post", container).val('');
     $("#email", container).val('');
 
     var ob = $("#role", container);
@@ -280,6 +362,7 @@ function $updateUserForm(data) {
     $("#family_name", container).val(data.family_name);
     $("#first_name", container).val(data.first_name);
     $("#last_name", container).val(data.last_name);
+    $("#post", container).val(data.post);
     $("#email", container).val(data.email);
 
     var ob = $("#role", container);
@@ -296,6 +379,71 @@ function $updateUserForm(data) {
     $setUserFormSubmit(1);
 }
 
+function $updateUserPhoto(data) {
+    var photo_delete = $("#photo_delete");
+    $("#photo_image").prop("src", data);
+    if (data.search('person-default') > -1)
+        photo_delete.addClass('disabled');
+    else
+        photo_delete.removeClass('disabled');
+}
+
+function $setSettings() {
+    var settings = [
+        $("#pagesize_bankperso").val(), 
+        $("#pagesize_cards").val(), 
+        $("#pagesize_persostation").val(), 
+        $("#pagesize_config").val(), 
+        $("#pagesize_provision").val(), 
+        $("#sidebar_collapse").prop('checked')?1:0, 
+        $("#use_extra_infopanel").prop('checked')?1:0
+    ];
+    $("#settings").val(settings.join(':'));
+
+    $setUserFormSubmit(0);
+}
+
+function $getSettings(values) {
+    if (values) {
+        $("#pagesize_bankperso").val(values[0]);
+        $("#pagesize_cards").val(values[1]);
+        $("#pagesize_persostation").val(values[2]);
+        $("#pagesize_config").val(values[3]);
+        $("#pagesize_provision").val(values[4]);
+        $("#sidebar_collapse").prop('checked', values[5] ? 1 : 0);
+        $("#use_extra_infopanel").prop('checked', values[6] ? 1 : 0);
+    }
+}
+
+function $setPrivileges(values) {
+    var privileges = [
+        $("#subdivision").val(),
+        $("#app_role").val(),
+        $("#app_menu").val(),
+        $("#base_url").val(),
+        $("#app_is_manager").prop('checked')?1:0,
+        $("#app_is_author").prop('checked')?1:0,
+        $("#app_is_consultant").prop('checked')?1:0
+    ];
+    $("#privileges").val(privileges.join(':'));
+
+    //alert($("#privileges").val());
+
+    $setUserFormSubmit(0);
+}
+
+function $getPrivileges(values) {
+    if (values) {
+        $("#subdivision").val(values[0]);
+        $("#app_role").val(values[1]);
+        $("#app_menu").val(values[2]);
+        $("#base_url").val(values[3]);
+        $("#app_is_manager").prop('checked', values[4] ? 1 : 0);
+        $("#app_is_author").prop('checked', values[5] ? 1 : 0);
+        $("#app_is_consultant").prop('checked', values[6] ? 1 : 0);
+    }
+}
+
 // -------------------------
 // SubLine Content Generator
 // -------------------------
@@ -303,11 +451,17 @@ function $updateUserForm(data) {
 function $updateLog(data, props) {
     var container = null;
 
+    if (IsTrace)
+        alert('$updateLog');
+
     // ---------------------------
     // Run Subline/LogPage Handler
     // ---------------------------
 
     isCallback = true;
+
+    if (is_null(props))
+        return;
 
     function set_table(container, mode) {
         var no_data = '<tr><td><div class="nodata">'+keywords['No data']+'</div></td></tr>';
@@ -349,7 +503,8 @@ function $updateLog(data, props) {
 
             var class_name = 'class_name' in data[i] ? data[i]['class_name'] : '';
             var name = data[i]['PName'];
-            var value = data[i]['PValue'];
+            var value = data[i]['PValue']
+                .replace(/\n/g, '<br>');
             
             row += body
                 .replace(/CLASS/g, class_name)
@@ -414,13 +569,14 @@ function $updateLog(data, props) {
             }
         });
 
-        if (!is_empty(content) && content.length > 0)
+        if (!is_empty(content) && content.length > 0) {
             content += 
                 '<table class="view-data" id="data_todo" border="1">'+
                     content+
                 '</table>';
 
-        container.append(content);
+            container.append(content);
+        }
     }
 
     var number = props['number'];
@@ -480,7 +636,8 @@ function $updateLogPagination(pages, rows, iter_pages, has_next, has_prev, per_p
 
 var TEMPLATE_TABLINE_HEADER = '<td class="column header">VALUE</td>';
 var TEMPLATE_TABLINE_ROW = '<tr class="CLASS-LOOP-SELECTED"ID>LINE</tr>';
-var TEMPLATE_TABLINE_COLUMN = '<td class="CLASS-ERROR-READY-SELECTED"EXT>VALUE</td>';
+var TEMPLATE_TABLINE_COLUMN = '<td class="CLASS-CLS-ERROR-READY-SELECTED"EXT>VALUE</td>';
+var TEMPLATE_TABLINE_COLUMN_SIMPLE = '<td class="CLASS-SELECTED"EXT>VALUE</td>';
 
 function makeTabLineAttrs(ob, class_name, i) {
     var id_template = 'row-'+(class_name || 'tabline')+':ID:'+(i+1).toString();
@@ -499,12 +656,32 @@ function class_selected(selected) {
     return selected ? ' selected' : '';
 }
 
+function class_confirm(confirm) {
+    return confirm ? ' confirm' : '';
+}
+
 function class_error(error) {
     return error ? ' error' : '';
 }
 
 function class_ready(ready) {
     return ready ? ' ready' : '';
+}
+
+function cls(ob) {
+    return 'cls' in ob ? ' '+ob['cls'] : '';
+}
+
+function checkExtraTab(tabs, name) {
+    var container = $("#tab-content");
+    var ob = $("#data-menu-"+name, container);
+
+    if (!is_null(ob)) {
+        if (!is_empty(tabs) && tabs.indexOf(name) > -1)
+            ob.removeClass(CSS_INVISIBLE);
+        else
+            ob.addClass(CSS_INVISIBLE);
+    }
 }
 
 function makeTabLineRow(id, class_name, i, selected, line) {
@@ -516,7 +693,7 @@ function makeTabLineRow(id, class_name, i, selected, line) {
         .replace(/LINE/g, line);
 }
 
-function makeTabLineColumns(ob, columns, selected) {
+function makeTabLineColumns(ob, columns, selected, only_columns) {
     var column = TEMPLATE_TABLINE_COLUMN;
     var error = ('Error' in ob && ob['Error']) ? true : false;
     var ready = ('Ready' in ob && ob['Ready']) ? true : false;
@@ -527,8 +704,13 @@ function makeTabLineColumns(ob, columns, selected) {
         var name = columns[j]['name'];
         var value = (name.length > 0 && (name in ob)) ? ob[name].toString() : '';
 
+        if (only_columns)
+            column = only_columns === 'all' || (only_columns === 1 && columns[j]['with_class'])  ? TEMPLATE_TABLINE_COLUMN : 
+                TEMPLATE_TABLINE_COLUMN_SIMPLE;
+
         line += column
             .replace(/CLASS/g, 'column log-'+(name == 'Code' && value.length > 0 ? value.toLowerCase() : name.toLowerCase()))
+            .replace(/-CLS/g, cls(ob))
             .replace(/-ERROR/g, class_error(error))
             .replace(/-READY/g, class_ready(ready))
             .replace(/-SELECTED/g, class_selected(selected))
@@ -544,7 +726,7 @@ function makeTabNoData(class_name, class_nodata, msg, colspan) {
         .replace(/EXT/g, ' colspan="'+colspan.toString()+'"');
 }
 
-function $updateTabData(action, data, columns, total) {
+function $updateTabData(action, data, columns, total, status, path) {
     var flash = $("#flash-section");
     var mid = '';
 
@@ -563,20 +745,19 @@ function $updateTabData(action, data, columns, total) {
             container.text(data);
             container.parent().append(
                 '<div class="row-counting">'+(title || 'Всего записей')+': <span id="tab-rows-total">'+total.toString()+
+                (!is_empty(status) ? ' '+status : '') +
                 '</span></div>'
                 );
             container.removeClass('p50');
         }
     }
 
-    function set_table(container, class_name, template) {
+    function set_table(container, class_name, template, only_columns) {
         var header = TEMPLATE_TABLINE_HEADER;
         var row = TEMPLATE_TABLINE_ROW;
         var column = TEMPLATE_TABLINE_COLUMN;
         var content = '';
         var filename = '';
-
-        container.html('');
 
         content += template || '<table class="view-data" id="tab-view-content" border="1"><thead><tr>';
 
@@ -612,12 +793,13 @@ function $updateTabData(action, data, columns, total) {
                     continue;
                 }
 
-                var [selected, id] = makeTabLineAttrs(ob, class_name, i);
+                var x = makeTabLineAttrs(ob, class_name, i); 
+                var selected = x[0], id = x[1];
 
                 if ('filename' in ob && filename != ob['filename']) {
                     filename = ob['filename'];
                     line = column
-                        .replace(/CLASS-ERROR-READY-SELECTED/g, '')
+                        .replace(/CLASS-CONFIRM-ERROR-READY-SELECTED/g, '')
                         .replace(/VALUE/g, filename)
                         .replace(/EXT/g, ' colspan="'+columns.length.toString()+'"');
 
@@ -629,15 +811,21 @@ function $updateTabData(action, data, columns, total) {
                     line = '';
                 }
 
-                line += makeTabLineColumns(ob, columns, selected);
+                line += makeTabLineColumns(ob, columns, selected, only_columns);
                 content += makeTabLineRow(id, class_name, i, selected, line);
             }
         }
 
         content += '</table>';
 
-        content += '<div class="row-counting">Всего записей: <span id="tab-rows-total">'+data.length.toString()+'</span></div>';
+        content += '<div class="row-counting">Всего записей: <span id="tab-rows-total">' + 
+                     data.length.toString() + (!is_empty(status) ? ' '+status : '') +
+                   '</span></div>';
 
+        if (is_null(container))
+            return content;
+
+        container.html('');
         container.append(content);
     }
 
@@ -680,6 +868,11 @@ function $updateTabData(action, data, columns, total) {
         case '308':
             set_table($("#exchangelog-container"), 'tabline');
             mid = 'data-menu-exchangelog';
+            break;
+        
+        case '313':
+            set_table($("#indigo-container"), 'tabline');
+            mid = 'data-menu-indigo';
             break;
         
         case '401':
@@ -806,31 +999,79 @@ function $updateTabData(action, data, columns, total) {
             set_table($("#params-container"), 'tabline');
             mid = 'data-menu-params';
             break;
+
+        case '800':
+            set_table($("#MAINDATA"), 'subline', '<table class="view-data p100" border="1"><thead><tr>');
+            mid = 'data-menu-batches';
+            break;
+
+        case '830':
+            set_table($("#MAINDATA"), 'subline', '<table class="view-data p100" border="1"><thead><tr>', 1);
+            //mid = 'data-menu-reviews';
+            break;
+
+        case '830-1':
+            set_table($("#params-container"), 'tabline');
+            //mid = 'data-menu-params';
+            break;
+
+        case '830-2':
+            set_table($("#items-container"), 'tabline');
+            //mid = 'data-menu-items';
+            break;
+
+        case '830-3':
+            set_table($("#payments-container"), 'tabline');
+            //mid = 'data-menu-payments';
+            break;
+
+        case '830-4':
+            set_table($("#comments-container"), 'tabline');
+            //mid = 'data-menu-comments';
+            break;
+
+        case '830-5':
+            set_table($("#documents-container"), 'tabline');
+            //mid = 'data-menu-documents';
+            break;
+
+        case '850':
+            return set_table(null, 'tabline');
+
+        case '853':
+            return set_table(null, 'history');
     }
-    
+
     if (!is_empty(mid))
-        $ShowMenu(mid);
+        $ShowMenu(mid, status, path);
 
     if (action != default_action)
         selected_menu_action = action;
 }
 
-function $updateSublineData(action, response, props, total) {
+function $updateSublineData(action, response, props, total, status, path) {
     var currentfile = response['currentfile'];
     var sublines = response['sublines'];
     var config = response['config'];
     var filename = currentfile[1];
 
-    $(".filename").each(function() { 
-        $(this).html(filename);
-    });
+    if (IsTrace)
+        alert('$updateSublineData:'+action);
+
+    subline_refresh(filename);
+
+    // -----------------------
+    // Refresh Extra Menu tabs
+    // -----------------------
+
+    checkExtraTab(response['tabs'], 'indigo');
 
     // -------------------------------------------------
     // Refresh Sublines in order to Init SublineSelector
     // -------------------------------------------------
 
     if (default_submit_mode != 0)
-        $updateTabData(action, sublines, config, total);
+        $updateTabData(action, sublines, config, total, status, path);
 
     $SublineSelector.init();
 
@@ -843,8 +1084,10 @@ function $updateSublineData(action, response, props, total) {
     // Refresh LogPage or Tablines
     // ---------------------------
 
-    if (selected_menu_action == default_log_action)
+    if (selected_menu_action == default_log_action) {
         $updateLog(data, props);
+        $TabSelector.reset();
+    }
     else
-        $updateTabData(selected_menu_action, data, columns, total);
+        $updateTabData(selected_menu_action, data, columns, total, status, path);
 }

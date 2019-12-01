@@ -2,10 +2,18 @@
 
 {% import 'forms.html' as Forms %}
 
+{% block page_styles %}
+
+<link href="{{ url_for('static', filename='css/style') }}.bankperso.css{{ vsc }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for('static', filename='css/pikaday/pikaday.css') }}" rel="stylesheet" type="text/css">
+
+{% endblock %}
+
 {% block starter %}
 
 <script src="{{ url_for('static', filename='js/db.controller.min.js') }}{{ vsc }}"></script>
 <script src="{{ url_for('static', filename='js/log.default.min.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/bankperso.dialogs.min.js') }}{{ vsc }}"></script>
 <script src="{{ url_for('static', filename='js/bankperso.min.js') }}{{ vsc }}"></script>
 <script src="{{ url_for('static', filename='js/reports.min.js') }}{{ vsc }}"></script>
 
@@ -14,6 +22,9 @@
 {%- else -%}
 <script src="{{ url_for('static', filename='js/bankperso.default.min.js') }}{{ vsc }}"></script>
 {% endif %}
+
+<script src="{{ url_for('static', filename='js/pikaday.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pikaday.jquery.min.js') }}"></script>
 
 {% endblock %}
 
@@ -30,6 +41,7 @@
     <!-- Addon menu -->
     <div class="menu" id="data-menu-logs">История заказа</div>
     <div class="menu" id="data-menu-cardholders">Персонализация</div>
+    <div class="menu{% if 'indigo' not in tabs %} invisible{% endif %}" id="data-menu-indigo">Индиго</div>
   {% if current_user.is_administrator() %}
     <div class="menu" id="data-menu-body">IBODY</div>
   {% endif %}
@@ -67,7 +79,7 @@
 
       </div></div><div class="cell p50"><div id="info-data" style="display:none;">
 
-      {% if current_user.is_administrator() %}
+      {% if current_user.use_extra_infopanel %}
         <h3>Параметры партии <span class="filename" id="ex_data">{{ current_file[2] }}</span>:</h3>
         <div class="view-container inline" id="EXDATA"></div>
       {% endif %}
@@ -81,25 +93,27 @@
           <button class="btn btn-primary" id="PERSO_TZ">Печать ТЗ</button>
       {% if current_user.is_operator() %}
           <button class="btn btn-primary" id="PERSO_MATERIALS">Заявка на материалы</button>
-          <button class="btn btn-primary" id="PERSO_CONTAINERLIST">Печать листа контейнера</button>
+          <button class="btn btn-primary" id="PERSO_CONTAINERLIST">Лист контейнера</button>
       {% endif %}
         </div>
 
-      {#
-        <div class="view-data-buttons" id="admin_form_buttons">
-        </div>
-      #}
+      {#<div class="view-data-buttons" id="admin_form_buttons"></div>#}
       </div>
     </div></div>
     
     <div class="view-content tab" id="logs-content" style="display:none;">
-      <h3>История заказа (хронология смены статусов) <span class="filename">{{ current_file[1] }}</span>:</h3>
-      <div class="view-container view-lines" id="logs-container"></div> <!-- {{ view_class }} -->
+      <h3>?стория заказа (хронология смены статусов) <span class="filename">{{ current_file[1] }}</span>:</h3>
+      <div class="view-container view-lines" id="logs-container"></div>
     </div>
 
     <div class="view-content tab" id="cardholders-content" style="display:none;">
       <h3>Лист персонализации <span class="filename">{{ current_file[1] }}</span>:</h3>
-      <div class="view-container view-lines" id="cardholders-container"></div> <!-- {{ view_class }} -->
+      <div class="view-container view-lines" id="cardholders-container"></div>
+    </div>
+
+    <div class="view-content tab" id="indigo-content" style="display:none;">
+      <h3>Индивидуальный дизайн (?ндиго) <span class="filename">{{ current_file[1] }}</span>:</h3>
+      <div class="view-container view-lines" id="indigo-container"></div>
     </div>
 
   {% if current_user.is_administrator() %}
@@ -157,6 +171,7 @@
 {% block filter %}
 
   <div id="log-filter" class="bankperso-filter common-filter">
+    <div id="sidebar-filter-scroller">
     <form action="{{ pagination['link'] }}" id="filter-form" method="POST">
     
     <input type="hidden" name="page" value="{{ pagination['current_page'] }}">
@@ -164,17 +179,18 @@
     <input type="hidden" id="file_id" name="file_id" value="{{ current_file[0] }}">
     <input type="hidden" id="batch_id" name="batch_id" value="{{ current_file[2] }}">
     <input type="hidden" id="status_file_id" name="status_file_id" value="">
+    <input type="hidden" id="status_keep_history" name="status_keep_history" value="0">
     <input type="hidden" id="status_batch_id" name="status_batch_id" value="">
     <input type="hidden" id="selected_batch_ids" name="selected_batch_ids" value="">
     <input type="hidden" id="searched" name="search" value="{{ search }}">
+    <input type="hidden" id="reset_search" name="reset_search" value="0">
     <input type="hidden" id="sort" name="sort" value="{{ pagination['sort']['current_sort'] }}">
-    <input type="hidden" id="logsearched" name="logsearch" value="">
-    <input type="hidden" id="tagsearched" name="tagsearch" value="">
+    <input type="hidden" id="specified" name="specified" value="">
     <input type="hidden" id="position" name="position" value="{{ pagination['position'] }}">
     <input type="hidden" id="sidebar" name="sidebar" value="{{ sidebar['state'] }}">
     <input type="hidden" id="batchstatus" name="batchstatus" value="{{ args['batchstatus'][1] }}">
     <input type="hidden" id="errors" value="{{ errors }}">
-    <input type="hidden" id="OK" value="{{ OK }}">
+    <input type="hidden" id="OK" name="OK" value="{{ OK }}">
     <input type="hidden" id="command" name="command" value="">
     {% if 'extra' in pagination %}<input type="hidden" name="__" value="1">{% endif %}
 
@@ -234,6 +250,7 @@
     </dd>
     
     </form>
+    </div>
   </div>
 
 {% endblock %}
@@ -246,7 +263,6 @@
     <div class="dropdown" id="admin-panel-container">
       <a class="dropdown-link" id="admin-panel-dropdown">Панель управления</a>
       <div class="dropdown-content" id="admin-panel">
-
       {% if current_user.is_administrator() %}
         <button class="btn btn-danger" id="admin:create">Перевыгрузить заказ</button>
         <button class="btn btn-success" id="admin:unload">Выгрузка текущего статуса файла</button>
@@ -259,20 +275,36 @@
         <button class="btn btn-warning" id="admin:change-batchstatus">Сменить статус партии файла</button>
         <div class="line"><hr /></div>
       {% endif %}
-
         <button class="btn btn-primary last-btn" id="admin:logsearch">Поиск по журналам персосети</button>
       </div>
     </div>
+
+    {% if current_user.is_operator() %}
+    <div class="dropdown" id="actions-container">
+      <a class="dropdown-link" id="actions-dropdown">Операции</a>
+      <div class="dropdown-content" id="actions">
+        <button class="btn btn-primary" id="action:changedate">Дата отгрузки</button>
+        <button class="btn btn-primary last-btn" id="action:changeaddress">Адрес филиала доставки</button>
+      </div>
+    </div>
+    {% endif %}
     
     <div class="dropdown" id="services-container">
       <a class="dropdown-link" id="services-dropdown">Отчеты</a>
       <div class="dropdown-content" id="services">
       {% if current_user.is_operator() %}
         <button class="btn btn-primary" id="service:group-container">Лист группового контейнера</button>
-        <div class="line"><hr /></div>
       {% endif %}
+        <button class="btn btn-primary" id="service:cardholders">Лист персонализации</button>
+        <div class="line"><hr /></div>
         <button class="btn btn-success" id="service:kp">Статистика КП БинБанка</button>
+      {% if current_user.is_administrator() %}
+        <button class="btn btn-success" id="service:branch-list">Статистика отгрузки по филиалам</button>
+        <div class="line"><hr /></div>
+        <button class="btn btn-danger last-btn" id="service:search-double">Дубли PAN</button>
+      {% else %}
         <button class="btn btn-success last-btn" id="service:branch-list">Статистика доставки по филиалам</button>
+      {% endif %}
       </div>
     </div>
   </div>
@@ -320,6 +352,77 @@
   </div>
 </div>
 
+<div class="common-dialog" id="changedate-confirm-container" title="{{ _('Change Delivery Date form') }}" style="display:none;">
+  <h3>{{ _('You can change the order delivery date.') }}</h3>
+  <div class="common-confirmation">
+    <h4>{{ _('Change Date format see in the application documentation.') }}</h4>
+    <div class="common-box common-panel changedate-context">
+      <input class="string" id="changedate" name="changedate" type="hidden">
+      <div id="changedate_box"></div>
+    </div>
+  </div>
+</div>
+
+<div class="common-dialog" id="changeaddress-confirm-container" title="{{ _('Change Address form') }}" style="display:none;">
+  <h3>{{ _('You can change the order delivery address.') }}</h3>
+  <div class="common-confirmation">
+    <h4>{{ _('Change Address format see in the application documentation.') }}</h4>
+    <div class="common-box common-panel">
+      <input class="string" id="changeaddress-context" name="changeaddress" type="text">
+
+      <h4>{{ _('Data validation types') }}:</h4>
+
+      <div class="changeaddress-item common-next">
+        <dt><div class="caption recno">Номер записи файла:</div></dt><dd><input class="string" id="changeaddress-recno" name="recno" type="text"></dd>
+      </div>
+      <div class="changeaddress-item common-next">
+        <dt><div class="caption branch">Код филиала:</div></dt><dd><input class="string" id="changeaddress-branch" name="branch" type="text"></dd>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
+{% block final_scripts %}
+
+<script type="text/javascript">
+/*
+var date = new Date();
+var now = date.getToday().split('-');
+
+alert(now);
+*/
+var $datepicker = $('#changedate').pikaday({
+  firstDay: 1,
+  bound: false,
+  //minDate: new Date(int(now[0]), int(now[1]), int(now[2])),
+  minDate: new Date(),
+  maxDate: new Date(2030, 12, 31),
+  yearRange: [2010,2030],
+  disableWeekends:true,
+  format: 'YYYY/M/D',
+  toString(date, format) {
+      // you should do formatting based on the passed format,
+      // but we will just return 'D/M/YYYY' for simplicity
+      const day = date.getDate();
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
+  },
+  parse(dateString, format) {
+      // dateString is the result of `toString` method
+      const parts = dateString.split('.');
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      return new Date(year, month, day);
+  },
+  onSelect: function (date) {}, //$BankpersoSubmitDialog.verified();
+  container: document.getElementById('changedate_box')
+});
+
+</script>
+
+{% endblock %}
 

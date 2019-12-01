@@ -113,11 +113,15 @@ class AbstractReference(object):
 
     @property
     def numeric(self):
-        pass
+        return None
 
     @property
     def editable_columns(self):
-        pass
+        return None
+
+    @property
+    def filtered_columns(self):
+        return None
 
     @property
     def has_links(self):
@@ -251,6 +255,9 @@ class AbstractReference(object):
 
                 id      -- Int or String, selected item id
 
+            Class attributes:
+                filtered_columns -- List, list of columns used to filter data by the query
+
             Returns:
                 rows    -- List, mappings list: [{'key':'value', ...}].
         """
@@ -258,10 +265,11 @@ class AbstractReference(object):
 
         try:
             columns = self.columns
+            filtered_columns = self.filtered_columns or columns
             where = self._set_where(query)
             
             s = ' AND '.join(['%s=%s' % (name, isinstance(value, int) and value or ("'%s'" % value))
-                    for name, value in attrs.items() if name in columns and value]
+                    for name, value in attrs.items() if name in filtered_columns and value]
                 )
 
             if s:
@@ -364,6 +372,7 @@ class AbstractReference(object):
             Keyword arguments:
                 with_identity -- Boolean: PK is <Identity> field
                 calculated_pk -- Boolean: PK should be calculated integer as max scope value
+                explicit_pk   -- Boolean: PK is editable field
 
             Returns:
                 errors  -- List, Errors list: ['error', ...], sorted by error code: 2,1,0. Empty is success.
@@ -385,6 +394,8 @@ class AbstractReference(object):
         if not self._is_ready():
             errors.append((_ERROR, gettext('Error: Class has not editable columns')))
 
+        explicit_pk = kw.get('explicit_pk') and True or False
+
         values = items and ', '.join([
             '%s' % (self._dbtype(name) in 'varchar' and ("'%s'" % str(self._value(items, name))) or self._value(items, name))
                 for name in columns if name != self.id]) or ''
@@ -399,6 +410,8 @@ class AbstractReference(object):
         elif id is None:
             if calculated_pk:
                 id = self.calculateId()
+            elif explicit_pk:
+                id = self._value(items, self.id)
             elif not with_identity:
                 errors.append((_ERROR, gettext('Error: Missing Primary Key for insert')))
 
@@ -578,7 +591,7 @@ class DicFileStatus(AbstractReference):
         super(DicFileStatus, self).__init__(engine, 'reference.file-status')
 
     def addItem(self, items, id=None, **kw):
-        return super(DicFileStatus, self).addItem(items, calculated_pk=True)
+        return super(DicFileStatus, self).addItem(items, explicit_pk=True)
 
     @property
     def title(self):
@@ -586,7 +599,7 @@ class DicFileStatus(AbstractReference):
 
     @property
     def editable_columns(self):
-        return ('StatusTypeID', 'CName',)
+        return ('TID', 'StatusTypeID', 'CName',)
 
 
 class DicFileType(AbstractReference):
@@ -913,6 +926,10 @@ class DicLinkedTagValues(AbstractReference):
     @property
     def editable_columns(self):
         return []
+
+    @property
+    def filtered_columns(self):
+        return ['TID', 'FTLinkID', 'FileTypeID', 'TName', 'TValue',]
 
     @property
     def has_links(self):

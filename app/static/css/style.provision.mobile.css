@@ -1,0 +1,51 @@
+
+/*** Provision View  ***/
+
+div.provision-container .menu { font-size: 13px }
+
+div.provision-container h3 { line-height:16px; width:100%; } /* white-space:nowrap; */
+div.provision-container #MAINDATA { max-width:600px; }
+
+table.provision-orders td._total { min-width:100px; width:100px; }
+
+#review-info-data { margin-left:10px; }
+#review_area div.review { margin:0; padding:5px; border:1px solid #aaa; }
+#review_area textarea.review_note  { margin:0px; line-height:20px; height:80px; min-width:280px; max-width:700px; }
+
+#dates-area { margin:-1px 0; }
+
+#statuses-data-buttons { margin: 0 26px 0 26px; }
+
+div.provision-container .data-buttons { 
+    padding:0; 
+}
+
+div.provision-container .data-buttons button { 
+    display:inline-block; 
+    font-size:18px;
+    margin:10px 3px 10px 3px;
+    padding:8px 16px 8px 16px;
+}
+
+div.provision-container .data-buttons-inline button { 
+    width:143px;
+}
+
+div.provision-container .data-buttons-last {
+    margin-left:-2px !important;
+    width:144px !important;
+}
+
+div.provision-container .filename .EUR span { 
+    display:-webkit-inline-box;
+    max-width:650px;
+    text-align:center;
+}
+
+tr.union td { padding:40px; }
+
+div.row-unreads { 
+    padding:20px; 
+    font:bold 16px Arial,Tahoma,"Lucida Grande";
+}
+div.row-unreads span { padding:5px; font-size:16px; color:yellow; }

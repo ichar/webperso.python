@@ -32,15 +32,14 @@
   <table border="0"><tr>
     <td><div id="semaphore" class="semaphore-default-background">
       {% for i in range(semaphore['count']) %}
-        <div class="semaphore-item semaphore-default-item" id="semaphore-{{ semaphore['ids'][i] }}" 
-            title="{{ _(semaphore['titles'][i]) }}"></div>
+        <div class="semaphore-item semaphore-default-item" id="semaphore-{{ semaphore['ids'][i] }}" title="{{ _(semaphore['titles'][i]) }}"></div>
       {% endfor %}
     </div></td>
     <td><div id="sidebar-navigator" title="{{ _('Click it to collapse&expand sidebar control') }}"></div></td>
   </tr></table>
 
   <div id="sidebar-content">
-
+  
   <div id="menu">
 
   {{ Forms.commands(base) }}
@@ -70,7 +69,7 @@
   <div id="log-pagination">
     <table border="0">
     <form action="{{ pagination['link'] }}" id="pagination-form" method="GET" onSubmit="return $onPaginationFormSubmit(this);">
-    <input type="hidden" name="sidebar" value="">
+    <input type="hidden" name="sidebar" value="" />
 
     {% block pagination_form %}{% endblock %}
 
@@ -99,7 +98,7 @@
       </td>
       <td>
         <div id="log-per-page">
-          <div class="caption per_page">Записей на странице:</div>
+          <div class="caption per_page">{{ _('Page records') }}:</div>
           <select class="popup" id="per-page" name="per_page" onchange="javascript:$SidebarControl.submit(this.form);">
           {% for o in pagination['per_page_options'] -%}
             <option value="{{ o }}" {% if pagination['per_page'] == o %}selected{% endif %}>{{ o }}</option>
@@ -111,7 +110,7 @@
       {% if pagination['sort']['modes'] %}
       <td>
         <div id="log-sortbox">
-          <div class="caption sortbox">Сортировка:</div>
+          <div class="caption sortbox">{{ _('Order by') }}:</div>
           <select class="popup" name="sort" onchange="javascript:$SidebarControl.submit(this.form);">
           {% for value, name in pagination['sort']['modes'] -%}
             <option value="{{ value }}" {% if pagination['sort']['current_sort'] == value %}selected{% endif %}>{{ name|safe }}</option>
@@ -123,6 +122,32 @@
 
       {% block pagination_icons %}{% endblock %}
     </tr>
+
+    {% if pagination['today'] %}
+    <tr>
+      <td><div class="caption today">Текущий день:</div></td>
+      <td colspan="10">
+        <table border="0"><tr><td>
+        <div id="log-today">
+          <dl>
+            <dd id="yesterday" class="pagination">
+              <a class="page nav {% if pagination['today']['has_prev'] %}enabled{% else %}disabled{% endif %}" href="{{ pagination['link'] }}&yesterday=1" title="День назад"> << </a>
+            </dd>
+            <dd id="tomorrow" class="pagination">
+              <a class="page nav {% if pagination['today']['has_next'] %}enabled{% else %}disabled{% endif %}" href="{{ pagination['link'] }}&tomorrow=1" title="День вперед"> >> </a>
+            </dd>
+            <dd id="today" class="pagination {% if pagination['today']['selected'] %}selected{% endif %}">
+              <a class="page nav" href="{{ pagination['link'] }}&today=1" title="Заказы за текущий день"> Сегодня </a>
+            </dd>
+          </dl>
+          {% if pagination['today']['date_from'] %}
+          <div class="caption today date_from">{{ pagination['today']['date_from'] }}</div>
+          {% endif %}
+        </div>
+        </td></tr></table>
+      </td>
+    </tr>
+    {% endif %}
 
     </form>
     </table>
@@ -142,4 +167,3 @@
 </section>
 
 {% endblock %}
-

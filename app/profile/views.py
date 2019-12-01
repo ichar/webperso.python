@@ -190,7 +190,7 @@ def _make_page_default(kw):
 
 ## ==================================================== ##
 
-@profile.route('/', methods = ['GET'])
+#@profile.route('/', methods = ['GET'])
 @profile.route('/profile', methods = ['GET','POST'])
 @login_required
 def index():

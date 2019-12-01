@@ -27,16 +27,6 @@ var is_search_focused = false;          // Search input in focus
 
 var search_context = '';                // Current search context value
 
-// Is obsolete !!! ------------------------------------------------------------------------------
-/*
-var IsGoPagination = false;             // Reset Log page screen flag
-
-var page_total_rows = 0;                // Total rows on the current page
-var screen_rows = 5;                    // Rows on a screen
-var current_page = 0;                   // Current page number
-var per_page = 10;                      // Total rows on a page by default or by custom selection
-var pages = 0;                          // Total pages
-*/
 // ****************************************************
 
 var default_row_item = {'num':0, 'id':null, 'ob':null};
@@ -53,6 +43,8 @@ var selected_row =
     'preload'       : new Object(),
     'pers'          : new Object(),
     'oper'          : new Object(),
+    'review'        : new Object(),
+    'history'       : new Object(),
 
 //  ---  Default Tab Line ---
 
@@ -68,12 +60,12 @@ function SelectedReset() {
 }
 
 function SelectedSetItem(key, item, ob) {
+    if (IsLog)
+        console.log('SelectedSetItem:'+key+':'+item+', id:['+(ob && ob.attr('id'))+']');
+
     selected_row[key][item] = ob;
     if (item == 'ob')
         selected_row[key]['id'] = !is_null(ob) ? $_get_item_id(ob) : null;
-
-    if (IsLog)
-        console.log('SelectedSetItem... '+key+':'+item+', id:['+(ob && ob.attr('id'))+']');
 }
 
 function SelectedGetItem(key, item) {
@@ -215,6 +207,8 @@ var $LineSelector = {
         this.oid = ob.attr('id');
         this.number = parseInt($_get_item_id(ob, 2));
 
+        this.set_position(this.page, this.number);
+
         if (this.IsTrace)
             alert(this.number);
     },
@@ -237,6 +231,10 @@ var $LineSelector = {
         this.set_position(1, 1);
     },
 
+    get_items: function() {
+        return this.container.find(".line");
+    },
+
     getSelectedItems: function(position) {
         var items = new Array();
 
@@ -244,7 +242,7 @@ var $LineSelector = {
             if (this.IsTrace)
                 alert($(x).attr('id')+':'+parseInt($_get_item_id($(x), 2)));
 
-            items.push(parseInt($_get_item_id($(x), position)));
+            items.push(is_null(position) ? $(x) : parseInt($_get_item_id($(x), position)));
         });
 
         return items;
@@ -307,6 +305,7 @@ var $LineSelector = {
                 return true;
 
             this.set_position(page, line);
+
             MakeFilterSubmit(9, page);
 
             exit = true;
@@ -330,6 +329,7 @@ var $LineSelector = {
             if (!is_null(ob)) {
                 this.current = ob;
                 this.number = num;
+                //this.set_current(ob);
                 is_found = true;
             }
         }
@@ -521,7 +521,7 @@ var $SublineSelector = {
             SelectedSetItem(this.alias, 'ob', this.current);
             //$onToggleSelectedClass(SUBLINE, this.current, 'submit', null);
 
-            $ShowOnStartup();
+            $ShowSubline();
         } 
         else
             exit = false;
@@ -625,10 +625,10 @@ var $TablineSelector = {
     init: function(tab) {
         this.set_mode(tab);
 
-        if (this.IsLog)
-            console.log('$TablineSelector.init, mode:'+this.get_mode());
-
         this.alias = TABLINE;
+
+        if (this.IsLog)
+            console.log('$TablineSelector.init, mode:'+this.get_mode(), 'alias:'+this.alias);
 
         this.container = $("#"+this.get_mode()+"-container");
 
@@ -698,6 +698,15 @@ var $TablineSelector = {
         $ActiveSelector.reset(this);
     },
 
+    set_current_by_id: function(id) {
+        var ob = $("tr[id^='row-"+this.alias+":"+id+"']", this.container);
+
+        if (this.IsLog)
+            console.log('$TablineSelector.set_current_by_id:'+id, ob);
+
+        this.onRefresh(ob);
+    },
+
     onRefresh: function(ob) {
         if (ob === null) {
             SelectedSetItem(this.alias, 'ob', null);
@@ -737,7 +746,7 @@ var $TablineSelector = {
         var line;
 
         if (this.IsLog)
-            console.log('$TablineSelector._refresh:'+new_page+':'+this.is_top+':'+this.is_bottom+':'+this.is_end_of_data);
+            console.log('$TablineSelector._refresh:'+this.alias+':'+new_page+':'+this.is_top+':'+this.is_bottom+':'+this.is_end_of_data);
 
         // --------------------
         // Refresh current page
@@ -835,6 +844,10 @@ var $TabSelector = {
         if (this.IsTrace)
             alert(this.count);
 
+        this.reset();
+    },
+
+    reset: function() {
         this.set_current(1);
     },
 
@@ -846,8 +859,31 @@ var $TabSelector = {
         return this.current;
     },
 
+    set_current_by_id: function(id) {
+        var ob = $("#"+id, this.container);
+
+        if (this.IsLog)
+            console.log('$TabSelector.set_current_by_id:'+id, ob);
+
+        this.onClick(ob);
+    },
+
     onClick: function(ob) {
         var id = ob.attr('id');
+
+        this.onMove(id);
+
+        if (id != default_menu_item)
+            $SublineSelector.release();
+
+        $onTabSelect(ob);
+    },
+
+    onMove: function(id) {
+        this._move(id);
+    },
+
+    _move: function(id) {
         var is_found = false;
         var number = 1;
 
@@ -860,35 +896,52 @@ var $TabSelector = {
 
         this.number = number;
 
-        if (this.IsTrace)
-            alert('onClick:'+id+':'+this.number);
-
-        $SublineSelector.release();
-
-        $onTabSelect(ob);
+        if (this.IsLog)
+            console.log('$TabSelector._move:'+id+':'+this.number);
     },
 
-    _find: function(num) {
-        var ob = null;
+    _find: function(direction) {
+        var num = this.number + direction;
         var number = num > this.count ? 1 : (num == 0 ? this.count : num);
+        var found_ob = null;
+        var last_ob = null;
 
         this.container.find(".menu").each(function(index, x) {
+            var ob = $(x);
+            var i = index + 1;
+            var is_invisible = ob.hasClass(CSS_INVISIBLE);
+            /*
             if ($TabSelector.IsTrace)
-                alert($(x).attr('id')+':'+index+':'+number);
-            if (index+1 == number)
-                ob = $(x);
+                alert(ob.attr('id')+':'+index+':'+number);
+            */
+            if (found_ob == null) {
+                if (i > number && direction == 1) {
+                    if (!is_invisible)
+                        found_ob = ob;
+                }
+                else if (i == number) {
+                    if (!is_invisible)
+                        found_ob = ob;
+                    else if (direction == -1 && last_ob != null)
+                        found_ob = last_ob;
+                }
+                else {
+                    if (!is_invisible)
+                        last_ob = ob;
+                }
+            }
         });
 
         this.number = number;
 
         if (this.IsTrace)
-            alert('found:'+(ob ? ob.attr('id') : 'null'));
+            alert('found:'+(found_ob ? found_ob.attr('id') : 'null'));
 
-        return ob;
+        return found_ob;
     },
 
-    _refresh: function(num) {
-        var ob = this._find(num);
+    _refresh: function(direction) {
+        var ob = this._find(direction);
         if (!is_null(ob)) {
             if (typeof $onTabSelect === 'function')
                 return $onTabSelect(ob);
@@ -897,11 +950,11 @@ var $TabSelector = {
     },
 
     left: function() {
-        return this._refresh(this.number-1);
+        return this._refresh(-1);
     },
 
     right: function() {
-        return this._refresh(this.number+1);
+        return this._refresh(1);
     },
 
     tab: function() {
@@ -960,10 +1013,120 @@ var $DblClickAction = {
 
             clearTimeout(this.timer);
 
+            this.single && this.single(this.control);
             this.double && this.double(this.control);
             this.reset();
 
         }
+    }
+};
+
+var $DraggableImage = {
+    image     : null,
+    params    : new Object(),
+
+    // =======================
+    // Draggable Image Handler
+    // =======================
+
+    IsDebug : 0, IsTrace : 0, IsLog : 0,
+
+    set_param: function(params, key, value) {
+        this.params[key] = getObjectValueByKey(params, key) || value;
+    },
+
+    get_param: function(key) {
+        return this.params[key];
+    },
+
+    init: function(params) {
+        this.set_param(params, 'width_padding', 0);
+        this.set_param(params, 'height_padding', 0);
+
+        if (this.IsLog)
+            console.log('init', this.params);
+
+        this.image = null;
+    },
+
+    onEnter: function(ob, id, e) {
+        if (is_null(ob))
+            ob = $(e.target);
+
+        if (is_null(this.image)) {
+            var control = $("#"+id);
+
+            if (is_null(control))
+                return;
+
+            this.image = {
+                'ob'        : ob, 
+                'id'        : id,
+                'control'   : control, 
+                'width'     : control.width() + this.get_param('width_padding'), 
+                'height'    : control.height() + this.get_param('height_padding')
+            }; 
+
+            this.image.ob.css({ 'cursor':'pointer' });
+            this.image.control.removeClass('hidden');
+        }
+
+        if (this.IsDebug)
+            console.log('enter', (!is_null(this.image) ? this.image.id : null), e.pageX, e.pageY);
+
+        if (this.IsDebug)
+            console.log('screen', $_height('screen-max'), $_width('screen-max'));
+    },
+
+    onLeave: function(e) {
+        if (this.IsLog)
+            console.log('leave', e.pageX, e.pageY);
+
+        if (!is_null(this.image)) {
+            this.image.control.addClass('hidden');
+            this.image.ob.css({ 'cursor':'default' });
+
+            this.image = null;
+        }
+    },
+
+    onMove: function(e) {
+        if (is_null(this.image)) 
+            return;
+
+        var scrolltop = int($(window).scrollTop());
+        var x = e.pageX;
+        var y = e.pageY;
+        var top = 0;
+        var left = 0;
+        var height_limit = int($_height('screen-max') / 2.5);
+        //var ob_left = this.image.ob.position().left;
+        //var size_width = int(($_width('max') - this.image.width) / 2);
+
+        if (y - scrolltop > height_limit) {
+            top = y - this.image.height - 10;
+            left = x - this.image.width - 10;
+        }
+        else {
+            top = y + 20;
+            left = x - this.image.width - 10;
+        }
+
+        var screen_width = $_width('screen-max');
+
+        if (x - this.image.width < 0 || x + this.image.width > screen_width - 20)
+            //left = x - int((screen_width - this.image.width) / 2);
+            left = x - int(this.image.width / 2);
+
+        //console.log(left + this.image.width, screen_width);
+
+        if (left + this.image.width > screen_width - 20)
+            left = screen_width - this.image.width - 20;
+
+        if (this.IsLog)
+            console.log('move', x, y, top, left, scrolltop, this.image.control.attr('id'));
+
+        this.image.control.offset({ top: top, left: left });
     }
 };
 
@@ -983,6 +1146,67 @@ function $GetLogItem(source) {
 
 function $web_free() {
     return !isWebServiceExecute ? true : false;
+}
+
+function $web_uploader(action, data, handler) {
+    if (isWebServiceExecute)
+        return;
+
+    if (IsLog)
+        console.log('$web_uploader:', action);
+
+    // ------------
+    // START ACTION
+    // ------------
+
+    is_loaded_success = false;
+
+    $ShowSystemMessages(true, true);
+    $ShowLoader(1);
+
+    $.ajax({
+        type: 'POST',
+        url: $SCRIPT_ROOT + '/provision/uploader',
+        data: data,
+        contentType: false,
+        cache: false,
+        processData: false,
+        //async: false,
+
+        success: function(x, status, ob) {
+            is_loaded_success = true;
+
+            $ShowLoader(-1);
+
+            var errors = x['errors'];
+
+            if (!is_empty(errors)) {
+                var msg = errors.join('<br>');
+                $ShowError(msg, true, true, false);
+            }
+
+            else if (!is_null(handler)) {
+
+                var t = typeof handler;
+
+                if (IsTrace)
+                    alert('$web_uploader.handler:'+action+':'+t);
+
+                handler(x);
+            }
+        },
+        
+        error: function(ob, status, error) {
+            is_loaded_success = false;
+
+            $ShowLoader(-1);
+        },
+
+        complete: function(ob, status) {
+            if (IsLog)
+                console.log('$web_uploader.complete, status:', status, is_loaded_success);
+        }
+    });
 }
 
 function $web_logging(action, handler, params) {
@@ -1029,7 +1253,47 @@ function $web_logging(action, handler, params) {
             case '700':
                 args['pers_id'] = SelectedGetItem(LINE, 'id');
                 break;
+            case '800':
+                args['order_id'] = SelectedGetItem(LINE, 'id');
+                args['batchtype'] = $('input[name=batchtype]:checked').val();
+                args['operator'] = $("#operator").val();
+                break;
+            case '830':
+                args['order_id'] = SelectedGetItem(LINE, 'id');
+                break;
         }
+
+    } else if (action > '830') {
+        var order_id = SelectedGetItem(LINE, 'id');
+        var review_id = SelectedGetItem(SUBLINE, 'id');
+
+        if (is_empty(order_id) && ['831','843','845'].indexOf(action) == -1)
+            return;
+
+        args = {
+            'action'                : action,
+            'order_id'              : order_id,
+            'review_id'             : review_id,
+            'note'                  : $("#note").val(),
+        };
+
+        if (['832','833','834','835','846'].indexOf(action) > -1)
+            current_action = default_action;
+
+    } else if (action > '800') {
+        var order_id = SelectedGetItem(LINE, 'id');
+        var batch_id = SelectedGetItem(SUBLINE, 'id');
+
+        if (action == default_log_action && batch_id == null)
+            return;
+
+        args = {
+            'action'                : action,
+            'order_id'              : order_id,
+            'batch_id'              : batch_id,
+            'batchtype'             : $('input[name=batchtype]:checked').val(),
+            'operator'              : $("#operator").val(),
+        };
 
     } else if (action > '700') {
         var pers_id = SelectedGetItem(LINE, 'id');
@@ -1108,7 +1372,7 @@ function $web_logging(action, handler, params) {
 
         args = {
             'action'     : action,
-            'user_id'    : user_id
+            'user_id'    : user_id,
         };
     }
 
@@ -1124,6 +1388,9 @@ function $web_logging(action, handler, params) {
         'error_code'        : '', 
         'errors'            : ''
     };
+
+    if (IsLog)
+        console.log('$web_logging, args:'+reprObject(args), current_action);
 
     // ------------
     // START ACTION
@@ -1141,13 +1408,19 @@ function $web_logging(action, handler, params) {
     $.post($SCRIPT_ROOT + loaderURI, args, function(x) {
         var action = x['action'];
 
+        if (IsTrace)
+            alert('$web_logging.post:'+action);
+
         //if (current_action != x['action'])
         //    alert('--> post:'+action+':'+current_action+':'+default_action);
 
         var total = parseInt(x['total'] || 0);
+        var status = x['status'];
+        var path = x['path'];
         var data = x['data'];
         var props = x['props'];
         var columns = x['columns'];
+
         var refresh_state = true;
 
         // -----------------------
@@ -1163,11 +1436,23 @@ function $web_logging(action, handler, params) {
 
         $ShowLoader(-1);
 
+        if (typeof log_callback_error === 'function' && should_be_updated) {
+            var errors = x['errors'];
+            log_callback_error(action, errors);
+        }
+
         if (error.exchange_error)
             refresh_state = false;
 
-        else if (!is_null(handler))
+        else if (!is_null(handler)) {
+
+            var t = typeof handler;
+
+            if (IsTrace)
+                alert('$web_logging.handler:'+action+':'+t);
+
             handler(x);
+        }
 
         // -----------------------------------------
         // Run default action (change LINE position)
@@ -1175,13 +1460,17 @@ function $web_logging(action, handler, params) {
 
         else if (current_action == default_action)
         {
-            $updateSublineData(current_action, x, props, total);
+            $updateSublineData(current_action, x, props, total, status, path);
         }
+
         else if (action == '101') 
         {
             $ProfileClients.reset();
             $updateUserForm(data);
             $ProfileClients.update(x['profile_clients']);
+            $updateUserPhoto(x['photo']);
+            $getSettings(x['settings']);
+            $getPrivileges(x['privileges']);
         }
         else if (['201','202'].indexOf(action) > -1) 
         {
@@ -1193,7 +1482,7 @@ function $web_logging(action, handler, params) {
         }
         else
         {
-            $updateTabData(current_action, data, columns, total);
+            $updateTabData(current_action, data, columns, total, status, path);
         }
 
         is_loaded_success = true;
@@ -1212,9 +1501,11 @@ function $web_logging(action, handler, params) {
             if (typeof log_callback === 'function')
                 log_callback(current_action, data, props);
         }
-
+            
     }, 'json')
     .fail(function() {
+        is_loaded_success = false;
+
         $ShowLoader(-1);
         $TriggerActions(false);
     })

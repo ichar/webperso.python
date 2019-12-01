@@ -1,12 +1,8 @@
 ﻿// *******************************
 // BANKPERSO PAGE CONTROLS MANAGER
 // -------------------------------
-// Version: 1.60
-// Date: 14-02-2018
-
-var STATUS = 'change-status';
-
-var screen_size = [$_width('screen-max'), $_height('screen-max')];
+// Version: 1.70
+// Date: 03-09-2019
 
 // =================================
 // Common Page Controls declarations
@@ -46,7 +42,7 @@ var $Semaphore = {
         this.updateState(state);
 
         if (this.IsLog)
-            console.log('semaphore init');
+            console.log('$Semaphore.init');
     },
 
     reset: function(force) {
@@ -123,7 +119,7 @@ var $Semaphore = {
 
     start: function(focused) {
         if (this.IsLog)
-            console.log('semaphore start:'+this.index);
+            console.log('$Semaphore.start:'+this.index);
 
         // ---------------
         // Start semaphore
@@ -147,14 +143,14 @@ var $Semaphore = {
         }
 
         if (this.IsLog)
-            console.log('semaphore run:'+this.index);
+            console.log('$Semaphore.run:'+this.index);
 
         $web_semaphore(this.action);
     },
 
     stop: function(focused) {
         if (this.IsLog)
-            console.log('semaphore stop:'+this.index, 'running:'+this.is_running, 'focused:'+this.is_focused);
+            console.log('$Semaphore.stop:'+this.index, 'running:'+this.is_running, 'focused:'+this.is_focused);
 
         // --------------
         // Stop semaphore
@@ -198,7 +194,7 @@ var $Semaphore = {
             alert(this.dump());
 
         if (this.IsLog)
-            console.log('semaphore refresh:'+this.dump());
+            console.log('$Semaphore.refresh:'+this.dump());
 
         this.show();
     },
@@ -235,20 +231,21 @@ var $Semaphore = {
 
 var $SidebarControl = {
     container     : {'sidebar' : null, 'data' : null, 'panel' : null, 'navigator' : null, 'semaphore' : null},
+    height        : {'sidebar' : 0, 'scroller' : 0},
 
-    IsTrace : 0, IsLog : 0,
+    IsDebug : 0, IsTrace : 0, IsLog : 0,
 
-    timeout       : 600,
+    timeout       : 300,
     timer         : null,
     
     default_position : {  // Should be the same as in common.html styles
-        'margin_left' : ["50px", "422px"]
+        'margin_left' : ["50px", "422px"], 'height_offset' : 298, 'min_offset' : 22, 'filter_width' : 398
     },
     default_count : 4,
 
     state         : 0,    // Sidebar state: 0/1 - closed/opened
     data_margin   : 0,
-    speed         : 400,
+    speed         : 600,
     is_active     : false,
     is_shown      : false,
     is_out        : false,
@@ -256,17 +253,17 @@ var $SidebarControl = {
     animated      : 0,
 
     callback      : null,
+    filter        : [],
 
-    init: function(callback) {
+    init: function(callback, filter) {
         this.callback = callback;
+        this.filter = filter;
 
         this.container.sidebar = $("#sidebarFrame");
         this.container.data = $("#dataFrame");
         this.container.panel = $("#sidebar-content");
         this.container.navigator = $("#sidebar-navigator");
         this.container.semaphore = $("#semaphore");
-
-        this.container.sidebar.css("min-height", ($_height('screen-min')-22).toString()+"px");
 
         this.state = parseInt($("#sidebar").val() || '0');
 
@@ -276,18 +273,63 @@ var $SidebarControl = {
     },
 
     initState: function() {
+        var f = !$IS_FRAME;
+        var mode = f ? 'screen-max' : 'screen-min';
+        var sidebar_height = $_height(mode) - (f ? 0 : this.default_position.min_offset);
+
+        if (this.IsDebug)
+            alert('H:'+[$_height('screen-max'), $_height('screen-min'), $_height('max'), $_height('min'), $_height('available')].join(':'));
+
+        if (this.state == 1) {
+            this.height.sidebar = sidebar_height;
+
+            this.container.sidebar.css("min-height", $_get_css_size(sidebar_height));
+
+            var scroller = $("#sidebar-filter-scroller");
+
+            if (is_exist(scroller)) {
+                var height = $("#filter-form").height() + 20;
+                var scroller_height = sidebar_height - this.default_position.height_offset;
+
+                if (this.IsLog)
+                    console.log('$SidebarControl.initState:', 
+                        this.height.sidebar, this.container.sidebar.height(), $_height('available'), height, scroller_height);
+
+                if (this.IsDebug)
+                    alert([this.height.sidebar, $_height('available'), height, scroller_height].join(':'));
+
+                scroller.css("height", $_get_css_size(scroller_height));
+
+                if (!f) {
+                    var padding_right = scroller_height < height ? this.default_position.min_offset : 0;
+                    var w = this.default_position.filter_width - padding_right;
+
+                    if (this.IsLog)
+                        console.log('$SidebarControl.width:', this.height.sidebar, this.container.sidebar.height(), height, scroller_height);
+
+                    this.filter.forEach(function(id) {
+                        var ob = $("#"+id);
+                        if (is_exist(ob)) {
+                            var x = $_get_css_size(w);
+                            ob.css({ "width" : x, "max-width" : x });
+                        }
+                    });
+
+                    scroller.css({ "width" : $_get_css_size(w), "padding-right" : $_get_css_size(padding_right) }); 
+                }
+            }
+        }
+
         var selection = $("#selected-batches");
         var parent = $("#line-table");
         var button = $("#CARDS_ACTIVATION");
         var box = $("#cards-selection-box");
 
-        if (is_null(selection) || is_null(parent) || is_null(button) || is_null(box))
+        if (!is_exist(selection) || !is_exist(parent) || !is_exist(button) || !is_exist(box))
             return;
 
-        //alert(BrowserDetect.browser+':'+BrowserDetect.version);
-
         box.css("width", button.width()+34);
-        selection.css("height", parent.height()-38).css("width", button.width()+34);
+        selection.css("height", parent.height()-38).css("width", button.width()+34); // height()-43
     },
 
     getMargin: function() {
@@ -319,9 +361,19 @@ var $SidebarControl = {
         return this.animated > 0 && this.animated < this.default_count ? true : false;
     },
 
+    begin: function() {
+        if (this.is_shown)
+            this.container.sidebar.addClass("sidebar-shadow");
+    },
+
+    done: function() {
+        if (!this.isDueAnimated() && !this.is_shown)
+            this.container.sidebar.removeClass("sidebar-shadow");
+    },
+
     toggleFrame: function(force) {
-        if (this.IsTrace)
-            alert(this.state);
+        if (this.IsLog)
+            console.log('$SidebarControl.toggleFrame, state:', this.state);
 
         if (this.isDueAnimated())
             return;
@@ -339,11 +391,13 @@ var $SidebarControl = {
             this.container.semaphore
                 .animate({ width:'toggle' }, this.speed, function() {}).promise().done(function() {
                     ++self.animated;
+                    self.done();
                 });
 
             this.container.panel
                 .animate({ width:'toggle' }, this.speed, function() {}).promise().done(function() {
                     ++self.animated;
+                    self.done();
                 });
 
             this.container.navigator.toggleClass("sidebar-rotate");
@@ -355,12 +409,13 @@ var $SidebarControl = {
                 .animate({ marginLeft:this.getMargin() }, this.speed, function() {}).promise().done(function() {
                     self.initState();
                     ++self.animated;
+                    self.done();
                 });
         else
             this.animated += 1;
 
         if (this.IsLog)
-            console.log('sidebar toggle frame:', this.animated, this.state, !this.is_shown);
+            console.log('$SidebarControl.toggleFrame, shown:', this.animated, this.state, !this.is_shown);
 
         this.onToggle();
     },
@@ -377,31 +432,34 @@ var $SidebarControl = {
             this.speed = 400;
             this.onFrameMouseOut();
         }
+
+        if (typeof sidebar_submit === 'function')
+            sidebar_submit();
     },
 
     onFrameMouseOver: function(focused) {
-        if (this.IsTrace)
-            alert('over:'+this.state+':'+this.is_shown+':'+this.animated);
+        if (this.IsLog)
+            console.log('$SidebarControl.onFrameMouseOver, state:', this.state, this.is_shown, this.animated);
+
+        this.is_out = false;
 
         if (!this.is_active || this.is_shown || this.state == 1 || this.isDueAnimated())
             return;
 
-        this.is_out = false;
+        if (!is_null(this.timer))
+            clearTimeout(this.timer);
 
         this.timer = setTimeout(function() {
             var self = $SidebarControl;
 
-            if (self.is_out) {
-                self.is_out = false;
+            if (self.is_out)
                 return;
-            }
 
             self.toggleFrame();
 
             self.is_shown = true;
-            this.is_out = false;
 
-            self.container.sidebar.addClass("sidebar-shadow");
+            self.begin();
 
             if (!is_null(focused))
                 focused.focus();
@@ -415,20 +473,28 @@ var $SidebarControl = {
     },
 
     onFrameMouseOut: function() {
-        if (this.IsTrace)
-            alert('out:'+this.state+':'+this.is_shown+':'+this.animated);
+        if (this.IsLog)
+            console.log('$SidebarControl.onFrameMouseOut, state:', this.state, this.is_shown, this.animated);
 
         this.is_out = true;
 
         if (!this.is_active || !this.is_shown || this.state == 1 || this.isDueAnimated())
             return;
-        
-        this.toggleFrame();
 
-        this.is_shown = false;
-        this.is_out = false;
+        if (!is_null(this.timer))
+            clearTimeout(this.timer);
 
-        this.container.sidebar.removeClass("sidebar-shadow");
+        this.timer = setTimeout(function() {
+            var self = $SidebarControl;
+
+            if (!self.is_out)
+                return;
+            
+            self.toggleFrame();
+
+            self.is_shown = false;
+
+        }, this.timeout);
     },
 
     onToggle: function() {
@@ -470,450 +536,266 @@ var $SidebarControl = {
     }
 };
 
-// ===========================
-// Dialog windows declarations
-// ===========================
+var $BaseDialog = {
+    container : null,
+    id        : null,
+    opened    : false,
+    focused   : false,
 
-var $StatusChangeDialog = {
-    default_size : {'file'  : [710, screen_size[1]-140-(30*2)], /* 145 */
-                    'batch' : [670, 385]
-                   },
-
-    container    : null,
-    box          : null,
-    actual_size  : new Object(),
-    state        : new Object(),
-    last         : null,
-
-    IsTrace      : 0,
-
-    min_width    : 500,
-    min_height   : 200,
-
-    offset_height_init   : 204,
-    offset_height_resize : 114,
-    offset_width_init    : 44,
-    offset_width_resize  : 0,
-
-    init: function() {
-        this.container = $("#status-confirm-container");
-        this.box = $("#status-confirmation-box");
-        //this.actual_size = new Object();
-        this.state = new Object();
-        this.last = null;
+    init: function(id) {
+        this.id = id;
+        this.container = $("#"+this.id+"-confirm-container");
     },
 
-    get_id: function() {
-        return this.container.attr('id');
+    callback: function() {
+        return this.container;
     },
 
-    get_mode: function() {
-        return this.container.attr('mode');
+    is_focused: function() {
+        return (this.focused && !is_null(this.callback())) ? true : false;
     },
 
-    set_mode: function(mode) {
-        this.container.attr('mode', mode);
+    submit: function() {
+        $onParentFormSubmit(this.id+"-form");
     },
 
-    toggle: function(ob) {
-        var oid = !is_null(ob) && ob.attr('id');
+    open: function(id) {
+        if (this.opened)
+            return;
 
-        if (this.last != null)
-            $onToggleSelectedClass(STATUS, this.last, 'remove', null);
+        this.init(id);
 
-        if (this.IsTrace)
-            alert('toggle:'+this.last+':'+oid);
+        this.opened = true;
+        this.focused = true;
 
-        $onToggleSelectedClass(STATUS, ob, 'add', null);
-
-        this.state['mode'] = this.get_mode();
-        this.state['value'] = getsplitteditem(oid, ':', 1, '');
-
-        this.last = ob;
+        this.container.dialog("open");
     },
 
-    setContent: function(id, data) {
-        var mode = this.get_mode();
+    onClose: function() {
+        this.opened = false;
+        this.focused = false;
+    },
 
-        $("#status-request").html(
-            keywords['status confirmation']+' '+
-            keywords['of '+mode]+
-            ' ID:'+id+'? '+
-            keywords['Recovery is impossible!']+' '+
-            keywords['please confirm']
-            );
-        $("#status-confirmation").remove();
+    confirmed: function() {
+        this.focused = false;
+        this.close();
 
-        var item = '<li class="change-status-item" id="status:ID">'+
-                   '<dd class="change-status-id" id="change-status-id:ID">ID</dd>VALUE</li>';
+        this.submit();
+    },
 
-        var content = '';
+    cancel: function() {
+        this.focused = false;
+        this.close();
+    },
 
-        data.forEach(function(x, index) {
-            content += item
-                .replace(/ID/g, x.id)
-                .replace(/VALUE/g, x.value);
-        });
+    close: function() {
+        this.container.dialog("close");
+        this.onClose();
+    },
 
-        var html = 
-            '<div class="common-confirmation" id="status-confirmation">'+
-            '<h4>'+keywords['status confirmation request']+'</h4>'+
-            '<div class="common-box"><div id="status-confirmation-box">'+
-            '<ul class="status-'+mode+'">'+content+'</ul>'+
-            '</div></div></div>';
-
-        this.container.append(html);
+    run: function(id) {
+        this.init(id);
+        this.onClose();
         
-        this.box = $("#status-confirmation-box");
-    },
-
-    setDefaultSize: function(force) {
-        var mode = this.get_mode();
-
-        if (!(mode in this.actual_size) || force)
-            this.actual_size[mode] = this.default_size[mode];
-
-        var size = this.actual_size[mode];
-
-        if (this.IsTrace)
-            alert('setDefaultSize:'+mode+':'+this.container.width()+':'+this.container.height()+':'+size+':'+force);
-
-        this.container.dialog("option", "width", size[0]);
-        this.container.dialog("option", "height", size[1]);
-
-        // --------------------------------
-        // Set default float content height
-        // --------------------------------
-
-        if (force)
-            this.box
-                //.css("width", size[0] - offset_width_init)
-                .css("height", (size[1] - this.offset_height_init).toString()+"px");
-    },
-
-    onResize: function(force) {
-        var mode = this.get_mode();
-
-        if (!(mode in this.actual_size))
-            return false;
-
-        if (this.IsTrace)
-            alert('resize:'+mode+':'+this.container.width()+':'+this.container.height()+':'+force);
-
-        if (this.container.width() < this.min_width || this.container.height() < this.min_height) {
-            this.setDefaultSize(true);
-            return false;
-        }
-
-        // -------------------
-        // Adjust float height
-        // -------------------
-
-        var offset = this.offset_height_resize;
-        var new_height = this.container.height() - offset;
-
-        this.box.css("height", new_height.toString()+"px");
-
-        // -------------
-        // Save new size
-        // -------------
-
-        if (force)
-            this.actual_size[mode] = [
-                this.container.width(), this.container.height() + offset + 5 // ???
-            ];
-
-        return true;
-    },
-
-    onOpen: function() {
-        this.onResize(false);
-        this.box.scrollTop(0);
-    },
-
-    onClose: function() {
-        //this.actual_size[this.get_mode()] = [this.container.width(), this.container.height()];
-    },
-
-    confirmation: function(command) {
-        this.init();
-
-        var action = 
-            command == 'admin:change-filestatus' ? '201' : (
-            command == 'admin:change-batchstatus' ? '202' : null
-            );
-
-        if (this.IsTrace)
-            alert('confirmation:'+action+':'+command);
-
-        $web_logging(action);
-    },
-
-    submit: function() {
-        $onParentFormSubmit();
-    },
-
-    open: function(action, data) {
-        var mode = (action == '201' ? 'file' : 'batch');
-        var id = SelectedGetItem(mode == 'file' ? LINE : SUBLINE, 'id');
-
-        if (id == null)
-            return;
-
-        this.set_mode(mode);
-        this.setContent(id, data);
-
-        this.container.dialog("option", "title", keywords['Status confirmation form']);
-
-        this.setDefaultSize(false);
-
-        //this.container.dialog("option", "position", {my:"center center", at:"center center", of:"#dataFrame"});
-
-        this.container.dialog("open");
-    },
-
-    confirmed: function() {
-        this.close();
-
-        if (this.IsTrace)
-            alert('confirmed:'+this.state['mode']);
-
-        if (!('mode' in this.state))
-            return;
-
-        var mode = this.state['mode'];
-        var id = SelectedGetItem((mode == 'file') ? LINE : SUBLINE, 'id');
-        var value = this.state['value'];
-        var command = 'admin:change-'+mode+'status';
-
-        $("input[name='"+mode+"_id']").each(function() { $(this).val(id); });
-        $("#status_"+mode+"_id").val(value);
-        $("#command").val(command);
-
         this.submit();
-    },
-
-    close: function() {
-        this.container.dialog("close");
     }
 };
 
-var $OrderDialog = {
+var $BaseScreenDialog = {
+    parent       : null,
+
     container    : null,
     box          : null,
-    state        : new Object(),
+    form         : null,
+    ob           : null,
+    cache        : null,
 
-    IsTrace      : 0,
+    // =================
+    // Base Screen Class
+    // =================
 
-    init: function() {
-        this.container = $("#order-confirm-container");
-        this.box = $("#order-request");
-        this.state = new Object();
+    IsDebug : 0, IsTrace : 0, IsLog : 0,
+
+    // Timeout to open a window
+    timeout      : 300,
+    timer        : null,
+    
+    id           : null,
+    cacheid      : '',
+
+    // Screen size params
+    ssp          : {'H' : {'available':0, 'container':0, 'content':0, 'box':0}, 'W' : {'available':0, 'container':0, 'content':0, 'box':0}},
+    // Screen available offset
+    offset       : {'H' : [0, 0, 0], 'W' : [0, 0, 0], 'init' : [0, 0]},
+    // Flag: this is mobile frame
+    is_mobile    : null,
+    // Windows scroll top before lock_scroll
+    scroll_top   : 0,
+
+    init: function(ob, id, parent) {
+        this.ob = ob;
+        this.id = id;
+        this.parent = parent;
+
+        this.container = $("#"+this.id+"-confirm-container");
+        this.box = $("#"+this.id+"-box");
+        this.form = $("#"+this.id+"-form");
+
+        this.cache = $("#dialog-cache");
+
+        this.cacheid = ['__', this.id, '-view-content'].join('');
+
+        this.is_mobile = $IS_FRAME == 0;
+
+        this.timer = null;
     },
 
-    get_id: function() {
-        return this.container.attr('id');
+    term: function() {
+        this.container = null;
+        this.form = null;
+        this.box = null;
+        this.ob = null;
+
+        this.id = '';
+
+        this.parent.unlock_scroll();
     },
 
-    get_mode: function() {
-        return this.container.attr('mode');
+    lock_scroll: function() {
+        this.scroll_top = $(window).scrollTop();
+        $("html, body").css({ overflow: "hidden",  height: "100%" });
     },
 
-    set_mode: function(mode) {
-        this.container.attr('mode', mode);
+    unlock_scroll: function() {
+        $("html, body").css({ overflow: "auto",  height: "auto" });
+        $(window).scrollTop(this.scroll_top);
     },
 
-    toggle: function(ob) {
-        this.state['mode'] = this.get_mode();
+    check_screen: function() {
+        if (this.IsDebug) {
+            var ss = '<h3>Screen:'
+                + 'H:'+[
+            verge.viewportH(),
+            window.screen.height, 
+            window.screen.availHeight, 
+            document.body.clientHeight, 
+            document.documentElement.clientHeight
+                ].join(':') + ' *** '
+                + 'W:'+[
+            verge.viewportW(),
+            window.screen.width, 
+            window.screen.availWidth, 
+            document.body.clientWidth, 
+            document.documentElement.clientWidth
+                ].join(':') + 
+                '</h3>';
+
+            var hs = '<h3>setDefaultSize:'
+                + 'H:'+[$_height('screen-max'), $_height('screen-min'), $_height('max'), $_height('min'), $_height('available')].join(':') + '</h3>'
+                + '<table class="param-screen">'
+                + '<tr><td>container: </td><td>' + this.ssp['H']['container'] + '</td></tr>'
+                + '<tr><td>content:   </td><td>' + this.ssp['H']['content']   + '</td></tr>'
+                + '<tr><td>box: </td><td>' + this.ssp['H']['box'] + '</td></tr>'
+                + '<tr><td>offset: </td><td>' + this.offset['init'][0] + '</td></tr>'
+                + '<tr><td>available: </td><td>' + this.ssp['H']['available'] + '</td></tr>'
+                + '</table>';
+
+            var ws = '<h3>setDefaultSize:'
+                + 'W:'+[$_width('screen-max'), $_width('screen-min'), $_width('max'), $_width('min'), $_width('available')].join(':') + '</h3>'
+                + '<table class="param-screen">'
+                + '<tr><td>container: </td><td>' + this.ssp['W']['container'] + '</td></tr>'
+                + '<tr><td>content:   </td><td>' + this.ssp['W']['content']   + '</td></tr>'
+                + '<tr><td>box: </td><td>' + this.ssp['W']['box'] + '</td></tr>'
+                + '<tr><td>offset: </td><td>' + this.offset['init'][1] + '</td></tr>'
+                + '<tr><td>available: </td><td>' + this.ssp['W']['available'] + '</td></tr>'
+                + '</table>';
+
+            this.box.html('<div class="check-screen"><h2>mode:'+this.mode+'(is'+(this.is_mobile ? ' ':' not ')+'mobile'+') '
+                + 'window orientation:'+$_window_orientation() + '</h2>'
+                + 'screen params:<br><div>' + ss + hs + ws + '</div></div>');
+        }
     },
 
-    setContent: function(id, data) {
-        var mode = this.get_mode();
+    reset: function(with_cache) {
+        clearTimeout(this.timer);
 
-        this.box.html(
-            keywords['order confirmation']+' '+keywords[mode+' selected file']+
-            ' ID:'+id+'? '+keywords['Recovery is impossible!']+' '+keywords['please confirm']
-        );
+        if (with_cache)
+            this.box.html(this.cache.html().replace(/__/g, ''));
+
+        this.cache.html('');
     },
 
-    submit: function() {
-        $onParentFormSubmit();
+    progress: function() {
+        $InProgress(this.ob, 1);
     },
 
-    open: function(command) {
-        this.init();
-
-        var mode = (command == 'admin:create') ? 'create' : 'delete';
-        var id = SelectedGetItem(LINE, 'id');
-
-        if (this.IsTrace)
-            alert('open:'+command+':'+id);
-
-        if (id == null)
-            return;
-
-        this.set_mode(mode);
-        this.setContent(id, null);
-
-        this.toggle(null);
-
-        //this.container.dialog("option", "position", {my:"center center", at:"center center", of:"#dataFrame"});
-
-        this.container.dialog("open");
+    load: function(html) {
+        this.cache.html(html);
     },
 
-    confirmed: function() {
-        this.close();
+    setDefaultSize: function(offset) {
+        var scrool_width = 16;
 
-        if (!('mode' in this.state))
-            return;
+        this.offset = offset;
 
-        var mode = this.state['mode'];
-        var id = SelectedGetItem(LINE, 'id');
-        var command = 'admin:'+mode;
+        var content = $("#"+this.cacheid);
+        var box = this.cache;
 
-        $("input[name='file_id']").each(function() { $(this).val(id); });
-        $("#command").val(command);
+        if (this.IsLog)
+            console.log('$BaseScreenDialog.setDefaultSize:', is_exist(box), box.attr('id'), 
+                ['W', box.width(), box.outerWidth(), 'H', box.height(), box.outerHeight()].join(':'),
+                ['W', content.width(), 'H', content.height()].join(':')
+                );
 
-        this.submit();
+        this.ssp['H']['content'] = box.height();
+        this.ssp['W']['content'] = int(Math.max(content.width(), 800));
+
+        this.parent.reset();
+
+        var mode = this.parent.mode;
+
+        this.ssp['H']['available'] = $_height(mode) + this.offset['init'][0];
+        this.ssp['W']['available'] = $_width(mode) + this.offset['init'][1];
+
+        this.ssp['H']['container'] = int(Math.min(this.ssp['H']['available'], this.ssp['H']['content'] + this.offset['H'].sum()));
+        this.ssp['H']['box'] = this.ssp['H']['container'] - this.offset['H'][0];
+
+        var height = $_get_css_size(this.ssp['H']['box']);
+
+        this.box.css({"height" : height, "max-height" : height});
+
+        if (this.IsLog)
+            console.log('$ProvisionSelectorDialog.setDefaultSize:', 'H:', this.box.outerHeight());
+        
+        this.ssp['W']['container'] = int(Math.min(this.ssp['W']['available'], this.ssp['W']['content'] + this.offset['W'].sum()));
+        this.ssp['W']['box'] = this.ssp['W']['container'] - this.offset['W'][0];
+
+        var width = $_get_css_size(this.ssp['W']['box']);
+
+        $("#history-caption").css({"width" : width, "white-space" : "nowrap"});
+
+        if (this.IsLog)
+            console.log('$ProvisionSelectorDialog.setDefaultSize:', 'W:', this.box.outerWidth());
+
+        this.check_screen();
+
+        this.container.dialog("option", "height", this.ssp['H']['container']);
+        this.container.dialog("option", "width", this.ssp['W']['container']);
+
+        this.parent.lock_scroll();
     },
 
-    close: function() {
-        this.container.dialog("close");
-    }
-};
-
-var $LogSearchDialog = {
-    container : null,
-    opened    : false,
-    focused   : false,
-
-    init: function() {
-        this.container = $("#logsearch-confirm-container");
+    width: function(){
+        return this.ssp['W']['container'];
     },
 
-    callback: function() {
-        return this.container;
+    height: function(){
+        return this.ssp['H']['container'];
     },
 
-    is_focused: function() {
-        return (this.focused && !is_null(this.callback())) ? true : false;
+    handle: function(f) {
+        this.timer = setTimeout(f, self.timeout);
     },
-
-    submit: function() {
-        $onParentFormSubmit();
-    },
-
-    open: function() {
-        if (this.opened)
-            return;
-
-        this.init();
-
-        this.opened = true;
-        this.focused = true;
-
-        //this.container.dialog("option", "position", {my:"center center", at:"center center", of:"#dataFrame"});
-
-        this.container.dialog("open");
-    },
-
-    onClose: function() {
-        this.opened = false;
-        this.focused = false;
-    },
-
-    confirmed: function() {
-        this.focused = false;
-        this.close();
-
-        var command = 'admin:logsearch';
-        var value =
-            $("#logsearch-context").val()+
-            '::'+($("#logsearch-apply-filter").prop('checked')? 1 : 0).toString()+
-            '::'+($("#item-logsearch-exchange").prop('checked') ? 1 : 0).toString()+
-            '::'+($("#item-logsearch-bankperso").prop('checked') ? 1 : 0).toString()+
-            '::'+($("#item-logsearch-sdc").prop('checked') ? 1 : 0).toString()+
-            '::'+($("#item-logsearch-infoexchange").prop('checked') ? 1 : 0).toString();
-        $("#logsearched").val(value);
-        $("#command").val(command);
-
-        this.submit();
-    },
-
-    cancel: function() {
-        this.focused = false;
-        this.close();
-    },
-
-    close: function() {
-        this.container.dialog("close");
-        this.onClose();
-    }
-};
-
-var $TagSearchDialog = {
-    container : null,
-    opened    : false,
-    focused   : false,
-
-    init: function() {
-        this.container = $("#tagsearch-confirm-container");
-    },
-
-    callback: function() {
-        return this.container;
-    },
-
-    is_focused: function() {
-        return (this.focused && !is_null(this.callback())) ? true : false;
-    },
-
-    submit: function() {
-        $onParentFormSubmit();
-    },
-
-    open: function() {
-        if (this.opened)
-            return;
-
-        this.init();
-
-        this.opened = true;
-        this.focused = true;
-
-        //this.container.dialog("option", "position", {my:"center center", at:"center center", of:"#dataFrame"});
-
-        this.container.dialog("open");
-    },
-
-    onClose: function() {
-        this.opened = false;
-        this.focused = false;
-    },
-
-    confirmed: function() {
-        this.focused = false;
-        this.close();
-
-        var command = 'admin:tagsearch';
-        var value =
-            $("#tagsearch-context").val();
-        $("#tagsearched").val(value);
-        $("#command").val(command);
-
-        this.submit();
-    },
-
-    cancel: function() {
-        this.focused = false;
-        this.close();
-    },
-
-    close: function() {
-        this.container.dialog("close");
-        this.onClose();
-    }
 };
 
 var $ConfirmDialog = {
@@ -923,13 +805,14 @@ var $ConfirmDialog = {
 
     init: function() {
         this.container = $("#confirm-container");
+        //this.id = 'ui-id-2';
     },
 
     is_focused: function() {
         return this.focused;
     },
 
-    open: function(msg, width, height) {
+    open: function(msg, width, height, title) {
         if (this.opened)
             return;
 
@@ -940,11 +823,14 @@ var $ConfirmDialog = {
 
         this.setContent(msg);
 
+        //$("#"+this.id).html(!is_empty(title) ? title : keywords['Confirm notification form']);
+        this.container.dialog("option", "title", !is_empty(title) ? title : keywords['Confirm notification form']);
+
         //this.container.dialog("option", "position", {my:"center center", at:"center center", of:"#dataFrame"});
 
-        if (width)
+        if (!is_empty(width))
             this.container.dialog("option", "width", width);
-        if (height)
+        if (!is_empty(height))
             this.container.dialog("option", "height", height);
 
         this.container.dialog("open");
@@ -985,13 +871,14 @@ var $NotificationDialog = {
 
     init: function() {
         this.container = $("#notification-container");
+        //this.id = 'ui-id-3';
     },
 
     is_focused: function() {
         return this.focused;
     },
 
-    open: function(msg, width, height) {
+    open: function(msg, width, height, title) {
         if (this.opened)
             return;
 
@@ -1002,11 +889,14 @@ var $NotificationDialog = {
 
         this.setContent(msg);
 
+        //$("#"+this.id).html(!is_empty(title) ? title : keywords['Notification form']);
+        this.container.dialog("option", "title", !is_empty(title) ? title : keywords['Notification form']);
+
         //this.container.dialog("option", "position", {my:"center center", at:"center center", of:"#dataFrame"});
 
-        if (width)
+        if (!is_empty(width))
             this.container.dialog("option", "width", width);
-        if (height)
+        if (!is_empty(height))
             this.container.dialog("option", "height", height);
 
         this.container.dialog("open");
@@ -1041,12 +931,25 @@ var $NotificationDialog = {
 
 var $HelpDialog = {
     container : null,
+    box       : null,
     context   : null,
+
     opened    : false,
+
+    // Flag: this is mobile frame
+    is_mobile    : null,
+    // Mode of screen available
+    mode         : '',
 
     init: function() {
         this.container = $("#help-container");
+        this.box = $("#help-box");
+        
         this.context = $CurrentContext();
+
+        this.is_mobile = $IS_FRAME == 0;
+
+        this.mode = this.is_mobile ? 'available' : 'min';
     },
 
     open: function() {
@@ -1069,48 +972,59 @@ var $HelpDialog = {
     },
 
     confirmed: function() {
-        var box = $("#help-info");
+        var info = $("#help-info");
+        var height_container = 0; // 22 for item
+
         var s = '<p class="group">'+'Общие команды интерфейса'+':</p>'+
                 //'<div><dt class="keycode">Shift-F1</dt><dd class="spliter">:</dd><p class="text">'+'Данная справка'+'</p></div>'+
-                '<div><dt class="keycode">Shift-O/C</dt><dd class="spliter">:</dd><p class="text">'+'Развернуть/свернуть панель меню'+'</p></div>'+
+                '<div><dt class="keycode">Shift-O | C</dt><dd class="spliter">:</dd><p class="text">'+'Развернуть/свернуть панель меню'+'</p></div>'+
                 //'<div><dt class="keycode">F5</dt><dd class="spliter">:</dd><p class="text">'+'Команда "Обновить данные"'+'</p></div>'+
                 //'<div><dt class="keycode">Ctrl-F5</dt><dd class="spliter">:</dd><p class="text">'+'Команда "Обновить интерфейс (перезагрузка)"'+'</p></div>'+
                 '<p class="group">'+'Журнал (заказы/файлы)'+':</p>'+
-                '<div><dt class="keycode">Ctrl/Shift-Up/Down</dt><dd class="spliter">:</dd><p class="text">'+'назад/вперед на одну строку'+'</p></div>'+
+                '<div><dt class="keycode">Ctrl | Shift-Up|Down</dt><dd class="spliter">:</dd><p class="text">'+'назад/вперед на одну строку'+'</p></div>'+
                 //'<div><dt class="keycode">Ctrl/Shift-Down</dt><dd class="spliter">:</dd><p class="text">'+'вперед на одну строку'+'</p></div>'+
-                '<div><dt class="keycode">Ctrl-Home/End</dt><dd class="spliter">:</dd><p class="text">'+'к первой/последней странице'+'</p></div>'+
+                '<div><dt class="keycode">Ctrl-Home | End</dt><dd class="spliter">:</dd><p class="text">'+'к первой/последней странице'+'</p></div>'+
                 //'<div><dt class="keycode">Ctrl-End</dt><dd class="spliter">:</dd><p class="text">'+'к последней странице'+'</p></div>'+
-                '<div><dt class="keycode">Shift-PgUp/PgDown</dt><dd class="spliter">:</dd><p class="text">'+'к предыдущей/следующей странице'+'</p></div>'+
+                '<div><dt class="keycode">Shift-PgUp | PgDown</dt><dd class="spliter">:</dd><p class="text">'+'к предыдущей/следующей странице'+'</p></div>'+
                 //'<div><dt class="keycode">Shift-PgDown</dt><dd class="spliter">:</dd><p class="text">'+'к следующей странице'+'</p></div>'+
-                '<p class="group">'+'ИнфоБлок (партии/события)'+':</p>'+
-                '<div><dt class="keycode">Alt-Up/Down</dt><dd class="spliter">:</dd><p class="text">'+'назад/вперед на одну строку'+'</p></div>'+
+                '<p class="group">'+'?нфоБлок (партии/события)'+':</p>'+
+                '<div><dt class="keycode">Alt-Up | Down</dt><dd class="spliter">:</dd><p class="text">'+'назад/вперед на одну строку'+'</p></div>'+
                 //'<div><dt class="keycode">Alt-Down</dt><dd class="spliter">:</dd><p class="text">'+'вперед на одну строку'+'</p></div>'+
-                '<div><dt class="keycode">Alt-PgUp/PgDown</dt><dd class="spliter">:</dd><p class="text">'+'к первой/последней строке'+'</p></div>'+
+                '<div><dt class="keycode">Alt-PgUp | PgDown</dt><dd class="spliter">:</dd><p class="text">'+'к первой/последней строке'+'</p></div>'+
                 //'<div><dt class="keycode">Alt-PgDown</dt><dd class="spliter">:</dd><p class="text">'+'к последней строке'+'</p></div>'+
-                '<p class="group">'+'ИнфоМеню (вкладки)'+':</p>'+
+                '<p class="group">'+'?нфоМеню (вкладки)'+':</p>'+
                 '<div><dt class="keycode">Shift-Tab</dt><dd class="spliter">:</dd><p class="text">'+'к следующей вкладке (в цикле)'+'</p></div>'+
-                '<div><dt class="keycode">Ctrl-Left/Right</dt><dd class="spliter">:</dd><p class="text">'+'к предыдущей/следующей вкладке'+'</p></div>'+
+                '<div><dt class="keycode">Ctrl-Left | Right</dt><dd class="spliter">:</dd><p class="text">'+'к предыдущей/следующей вкладке'+'</p></div>'+
                 //'<div><dt class="keycode">Ctrl-Right</dt><dd class="spliter">:</dd><p class="text">'+'к следующей вкладке'+'</p></div>'+
                 '<p class="group">'+'Функциональные команды'+':</p>';
 
         if (['bankperso'].indexOf(this.context) > -1) {
-            s +=
+            s += 
                 '<div><dt class="keycode">Shift-L</dt><dd class="spliter">:</dd><p class="text">'+'Поиск по журналам персосети'+'</p></div>'+
-                '<div><dt class="keycode">Shift-P</dt><dd class="spliter">:</dd><p class="text">'+'Печать ТЗ'+'</p></div>';
+                '<div><dt class="keycode">Shift-Q</dt><dd class="spliter">:</dd><p class="text">'+'Поиск по списку тегов'+'</p></div>'+
+                '<div><dt class="keycode">Shift-P</dt><dd class="spliter">:</dd><p class="text">'+'Печать ТЗ'+'</p></div>'+
+                '<div><dt class="keycode">Shift-W</dt><dd class="spliter">:</dd><p class="text">'+'Смена даты отгрузки'+'</p></div>'+
+                '<div><dt class="keycode">Shift-A</dt><dd class="spliter">:</dd><p class="text">'+'Смена адреса филиала доставки'+'</p></div>'+
+                '<div><dt class="keycode">Shift-D</dt><dd class="spliter">:</dd><p class="text">'+'Удалить заказ'+'</p></div>'+
+                '<div><dt class="keycode">Shift-F</dt><dd class="spliter">:</dd><p class="text">'+'Сменить статус файла'+'</p></div>'+
+                '<div><dt class="keycode">Shift-B</dt><dd class="spliter">:</dd><p class="text">'+'Сменить статус партии файла'+'</p></div>'+
+                '';
+
+            height_container = Math.min(792, $_height(this.mode) - 10);
         }
 
         if (['cards'].indexOf(this.context) > -1) {
-            s +=
+            s += 
                 '<div><dt class="keycode">Shift-A</dt><dd class="spliter">:</dd><p class="text">'+'Активировать партии файла'+'</p></div>'+
                 '<div><dt class="keycode">Shift-P</dt><dd class="spliter">:</dd><p class="text">'+'Печать документов'+'</p></div>';
         }
 
-            s +=
+            s += 
                 '<div><dt class="keycode">Shift-R</dt><dd class="spliter">:</dd><p class="text">'+'Сбросить фильтр'+'</p></div>'+
                 '<div><dt class="keycode">Shift-S</dt><dd class="spliter">:</dd><p class="text">'+'Контекстный поиск'+'</p></div>';
 
         if (['bankperso','cards'].indexOf(this.context) > -1) {
-            s +=
+            s += 
                 '<div><dt class="keycode">Shift-T</dt><dd class="spliter">:</dd><p class="text">'+'Фильтр текущего дня'+'</p></div>'+
                 '';
         }
@@ -1120,10 +1034,45 @@ var $HelpDialog = {
                 '<div><dt class="keycode">Shift-I</dt><dd class="spliter">:</dd><p class="text">'+'Добавить параметр'+'</p></div>'+
                 '<div><dt class="keycode">Shift-U</dt><dd class="spliter">:</dd><p class="text">'+'Редактировать параметр'+'</p></div>'+
                 '<div><dt class="keycode">Shift-D</dt><dd class="spliter">:</dd><p class="text">'+'Удалить параметр'+'</p></div>'+
+                '<div><dt class="keycode">Shift-F</dt><dd class="spliter">:</dd><p class="text">'+'Создать сценарий'+'</p></div>'+
+                '<div><dt class="keycode">Shift-G</dt><dd class="spliter">:</dd><p class="text">'+'Добавить дизайн CardStandard'+'</p></div>'+
+                '<div><dt class="keycode">Shift-X</dt><dd class="spliter">:</dd><p class="text">'+'Открыть справочник X:[0-9]'+'</p></div>'+
                 '';
+
+            height_container = Math.min(724, $_height(this.mode) - 10);
         }
 
-        box.html(s);
+        if (['provision'].indexOf(this.context) > -1) {
+            s += 
+                '<div><dt class="keycode">Shift-I</dt><dd class="spliter">:</dd><p class="text">'+'Создать заказ'+'</p></div>'+
+                '<div><dt class="keycode">Shift-U</dt><dd class="spliter">:</dd><p class="text">'+'Редактировать заказ'+'</p></div>'+
+                '<div><dt class="keycode">Shift-D</dt><dd class="spliter">:</dd><p class="text">'+'Удалить заказ'+'</p></div>'+
+                '<div><dt class="keycode">Shift-T</dt><dd class="spliter">:</dd><p class="text">'+'Создать копию заказа'+'</p></div>'+
+                '<div><dt class="keycode">Shift-H</dt><dd class="spliter">:</dd><p class="text">'+'Отправить на согласование заказчику'+'</p></div>'+
+                '<div><dt class="keycode">Shift-Q</dt><dd class="spliter">:</dd><p class="text">'+'Обосновать'+'</p></div>'+
+                '<div><dt class="keycode">Shift-W</dt><dd class="spliter">:</dd><p class="text">'+'Согласовать'+'</p></div>'+
+                '<div><dt class="keycode">Shift-E</dt><dd class="spliter">:</dd><p class="text">'+'Отказать'+'</p></div>'+
+                '<div><dt class="keycode">Shift-M</dt><dd class="spliter">:</dd><p class="text">'+'История изменения заказа'+'</p></div>'+
+                '<div><dt class="keycode">Shift-< | ></dt><dd class="spliter">:</dd><p class="text">'+'Отметить как непрочтенное/прочтенное'+'</p></div>'+
+                '';
+
+            height_container = Math.min(814, $_height(this.mode) - 10);
+        }
+
+        if (['admin'].indexOf(this.context) > -1) {
+            s += 
+                '<div><dt class="keycode">Shift-M</dt><dd class="spliter">:</dd><p class="text">'+'Информационное письмо'+'</p></div>'+
+                '';
+
+            height_container = Math.min(600, $_height(this.mode) - 10);
+        }
+
+        info.html(s);
+
+        if (height_container > 0) {
+            this.box.css({ 'height' : $_get_css_size(height_container-162) });
+            this.container.dialog("option", "height", height_container);
+        }
     },
 
     cancel: function() {
@@ -1136,112 +1085,51 @@ var $HelpDialog = {
     }
 };
 
+var $Images = {
+    default_images : ['static/img/sky-dark.jpg', 'static/img/sky-light.jpg'],
+
+    IsTrace : 0, IsLog : 0,
+
+    init: function() {
+        $onImagesPreload();
+    },
+
+    _get_src: function(item, i) {
+        return root+item+('?i='+i)+(IsForcedRefresh ? "?"+new Date().getTime() : ''); // isIE
+    },
+
+    _on_load_images: function() {
+        if ($Images.IsTrace)
+            alert('$Images.on_load_images');
+
+        $Images.init();
+    },
+
+    preload: function() {
+        var items = [];
+
+        for(var i=0; i < this.default_images.length; i++) {
+            items.push(this._get_src(this.default_images[i], i));
+        }
+
+        if (IsShowLoader == 1)
+            items.push(this._get_src('static/img/loader.gif'), 0);
+
+        if (items.length > 0) {
+            preloadImages(items, this._on_load_images);
+            return;
+        }
+
+        this.init();
+    }
+};
+
 // =======
 // Dialogs
 // =======
 
 jQuery(function($) 
 {
-    // --------------------
-    // Status Change Dialog
-    // --------------------
-
-    $("#status-confirm-container").dialog({
-        autoOpen: false,
-        buttons: [
-            {text: keywords['Confirm'], click: function() { $StatusChangeDialog.confirmed(); }},
-            {text: keywords['Reject'],  click: function() { $StatusChangeDialog.close(); }}
-        ],
-        modal: true,
-        draggable: true,
-        resizable: true,
-        position: {my: "center center", at: "center center", of: window, collision: "none"},
-        create: function (event, ui) {
-            $(event.target).parent().css("position", "fixed");
-        },
-        open: function() {
-            $StatusChangeDialog.onOpen();
-        },
-        close: function() {
-            $StatusChangeDialog.onClose();
-        },
-        resize: function() {
-            $StatusChangeDialog.onResize(true);
-        }
-    });
-
-    // ----------------------------
-    // Order Recreate/Remove Dialog
-    // ----------------------------
-
-    $("#order-confirm-container").dialog({
-        autoOpen: false,
-        width:540, // 640
-        height:150, // 136
-        position:0,
-        buttons: [
-            {text: keywords['Confirm'], click: function() { $OrderDialog.confirmed(); }},
-            {text: keywords['Reject'],  click: function() { $OrderDialog.close(); }}
-        ],
-        modal: true,
-        draggable: true,
-        resizable: false,
-        position: {my: "center center", at: "center center", of: window, collision: "none"},
-        create: function (event, ui) {
-            $(event.target).parent().css("position", "fixed");
-        },
-    });
-
-    // -----------------
-    // Log Search Dialog
-    // -----------------
-
-    $("#logsearch-confirm-container").dialog({
-        autoOpen: false,
-        width:540,
-        height:420,
-        position:0,
-        buttons: [
-            {text: keywords['Run'],    click: function() { $LogSearchDialog.confirmed(); }},
-            {text: keywords['Reject'], click: function() { $LogSearchDialog.cancel(); }}
-        ],
-        modal: true,
-        draggable: true,
-        resizable: false,
-        position: {my: "center center", at: "center center", of: window, collision: "none"},
-        create: function (event, ui) {
-            $(event.target).parent().css("position", "fixed");
-        },
-        close: function() {
-            $LogSearchDialog.onClose();
-        }
-    });
-
-    // -----------------
-    // Tag Search Dialog
-    // -----------------
-
-    $("#tagsearch-confirm-container").dialog({
-        autoOpen: false,
-        width:590,
-        height:270,
-        position:0,
-        buttons: [
-            {text: keywords['Run'],    click: function() { $TagSearchDialog.confirmed(); }},
-            {text: keywords['Reject'], click: function() { $TagSearchDialog.cancel(); }}
-        ],
-        modal: false,
-        draggable: true,
-        resizable: false,
-        position: {my: "center center", at: "center center", of: window, collision: "none"},
-        create: function (event, ui) {
-            $(event.target).parent().css("position", "fixed");
-        },
-        close: function() {
-            $TagSearchDialog.onClose();
-        }
-    });
-
     // ---------------
     // Help form: <F1>
     // ---------------
@@ -1249,7 +1137,7 @@ jQuery(function($)
     $("#help-container").dialog({
         autoOpen: false,
         width:560,
-        height:642, /* 720 = 25 for one line */
+        height:645, /* 720 = 25 for one line */
         //position:0,
         buttons: [
             {text: keywords['OK'], click: function() { $HelpDialog.cancel(); }}
@@ -1315,3 +1203,4 @@ jQuery(function($)
         }
     });
 });
+

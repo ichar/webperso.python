@@ -1,0 +1,543 @@
+
+/*** PROVISION ***/
+
+.column { line-height:14px; }
+
+/*** Provision Filter Items  ***/
+
+div.provision-filter .popup { max-width:398px; }
+
+div.provision-filter #subdivision     { width:220px; }
+div.provision-filter #author          { width:220px; }
+div.provision-filter #seller          { width:398px; max-width:398px; }
+div.provision-filter #currency        { min-width:86px; }
+div.provision-filter #condition       { width:220px; }
+div.provision-filter #order-date-from { width:128px; }
+div.provision-filter #order-date-to   { width:128px; }
+div.provision-filter #status          { width:220px; }
+
+/*** Provision View  ***/
+
+.sizable-container { width:100%; border:1px solid #aaa; float:left;}
+
+.sizable-box { margin:3px; overflow-x:auto; overflow-y:auto; }
+.sizable-box > table { border:0; padding:0; border-spacing:5px; width:100%; }
+
+.provision-orders {}
+
+td.npp      { width:36px; min-width:36px; max-width:36px; }
+td.article  { color:#400; font-size:12px; font-weight:bold; min-width:250px; max-width:500px; }
+td.seller   { max-width:300px; }
+td.money    { text-align:right; font:bold 14px "Calibri"; color:#0c1348; border:1px solid rgba(20, 60, 80, 0.75) !important; }
+td.qty      { width:60px; min-width:60px; text-align:center; }
+td.rd       { width:60px; min-width:60px; }
+td.tax      {}
+td.no-tax   { width:10px; text-align:left; line-height:14px; }
+
+td.seller a {
+    color:#2042a8;
+    font-weight:bold;
+}
+
+.provision-container { 
+    margin:2px 10px 2px 10px; 
+    padding-left:10px;
+}
+
+.editable { border-left:20px solid #9dbbd2; }
+.frozen   { border-left:20px solid #d29d9d; }
+
+.review-container { width:100%; }
+
+div.provision-container td.log-tid        { width:34px; }
+div.provision-container td.log-statusdate { width:50px; background-color:#aaa; color:#fff !important; }
+div.provision-container td.log-reviewer   { width:160px; white-space:nowrap; }
+div.provision-container td.log-note       {} /* min-width:65px !important; */
+/*
+div.provision-container td.log-reviewer, div.provision-container td.log-note { font-size:12px; line-height:18px; }
+*/
+tr.review td.column, tr.accepted td.column, tr.rejected td.column, tr.confirm td.column, tr.execute td.column, tr.paid td.column, tr.finish td.column { color:black; }
+tr.review td.review, tr.accepted td.accepted, tr.rejected td.rejected, tr.confirm td.confirm, tr.execute td.execute, tr.paid td.paid, tr.finish td.finish { color:white; }
+
+div.provision-container tr.selected td.column,
+div.provision-container tr.selected td.noselected { color:black; }
+
+table.provision-orders td._total { width:100px; }
+table.provision-orders tr.selected td._total  { font-size:18px; color:#a52a2a; min-width:98px; width:98px; }
+
+div.provision-container div.cell { vertical-align:top; }
+div.cell div.view-container { margin-left:1px; margin-top:1px; }
+
+tr.confirm td.noselected { background-color:#5463bf; color:white; }
+tr.rejected td.noselected { background-color:#D37E7C; color:white; }
+tr.accepted td.noselected { background-color:#84B484; color:white; }
+
+td.review { background-color:rgba(100, 50, 50, 0.65) !important; color:white !important; } /* #886666 */
+
+td.ready, td.accepted { background-color:#84C284 !important; color:white !important; }
+td.error, td.rejected { background-color:#E4606A !important; color:white !important; }
+td.confirm            { background-color:#4B55CC !important; color:white !important; }
+td.confirmation       { background-color:#48BCD8 !important; color:white !important; }
+td.execute            { background-color:#CC80CC !important; color:white !important; }
+td.paid               { background-color:#DEA248 !important; color:white !important; }
+td.finish             { background-color:#488DA0 !important; color:white !important; }
+
+tr.unread td.npp {}
+tr.unread td.article { border:1px solid #aaa; border-right:10px solid #aaa; padding-right:10px; } /* #B5332D */
+tr.unread.selected td.article { border:1px solid #C80000; border-right:10px solid #C80000; }
+
+tr.union td { padding:20px; }
+
+div.row-unreads { 
+    background-color:rgba(140, 0, 0, 0.65); 
+    border:1px solid #842020;
+    border-radius:8px;
+    padding:10px 20px; 
+    font:bold 13px Arial,Tahoma,"Lucida Grande";
+    color:white;
+    text-align:center;
+
+    -webkit-box-shadow: 0px 3px 20px #14314F;
+    box-shadow: 0px 3px 20px #14314F;
+}
+div.row-unreads span { padding:5px; font-size:14px; color:yellow; }
+
+div.provision-container td.log-status {
+    white-space:nowrap;
+    color:#8A6582;
+}
+
+div.provision-container td.log-status .status_stamp {
+    padding:7px 5px 7px 5px;
+    /*
+    background-color:#EDECF4;
+    color:#4C2E2E;    
+    */
+    color:#eee;
+    border:1px solid #aaa;
+    font-family:serif;
+    font-weight:bold;
+}
+
+div.provision-container td.log-status .accept       { background-color:#84C284; }
+div.provision-container td.log-status .reject       { background-color:#E4606A; }
+div.provision-container td.log-status .confirm      { background-color:#4B55CC; }
+div.provision-container td.log-status .paid         { background-color:#DEA248; }
+div.provision-container td.log-status .confirmation { background-color:#48BCD8; }
+/*
+div.provision-container td.log-status .confirmation { color:#333; }
+*/
+div.provision-container h3 {
+    font-size:14px;
+    margin: 5px 0 5px 10px;
+    display: block;
+}
+
+div.provision-container h3 > span { color:#626EA4; } /* rgba(80, 100, 150, 1.0) */
+
+div.provision-container .filename h4 { font-size:12px; margin:0 5px 0 0; display:inline-block; width:100px; vertical-align:top; }
+
+div.provision-container .filename div.info { margin-top:2px; line-height:18px; }
+
+div.provision-container .filename .x5 { 
+    background:rgba(120, 190, 220, 0.3);
+    display:inline-flex;
+    font-family:Arial,Tahoma; 
+    margin-bottom:2px; 
+    margin-left:40px; 
+    margin-top:10px; 
+    padding:10px 16px;
+    color:#000;
+    -webkit-box-shadow: 0px 3px 10px #14314F;
+    box-shadow: 0px 3px 10px #14314F;
+}
+
+div.provision-container .filename .x5_left { float:left; display:inline-block; margin-right:40px; }
+
+div.provision-container .filename .purpose { 
+    font-size:12px;
+    /*
+    max-width:700px;
+    */
+}
+div.provision-container .filename .equipment { 
+    font-size:12px;
+}
+div.provision-container .filename .seller { 
+    font-size:12px;
+}
+div.provision-container .filename .EUR { 
+    margin-left:40px;
+    font-size:12px;
+}
+div.provision-container .filename .EUR span { 
+    display:inline-block;
+    /*
+    max-width:650px;
+    */
+    margin:20px 0 0 0;
+    font-family:Arial,Tahoma,"Lucida Grande";
+    font-weight:bold;
+    font-size:16px;
+    border:2px solid #ab2222;
+    text-align:center; 
+    white-space:nowrap; 
+    padding:10px 20px;
+    color:#211; /* #682020 */
+}
+div.provision-container .filename .account { 
+    margin-left:40px;
+    color:#333;
+}
+div.provision-container .filename .author { 
+    margin:20px 0 0 40px;
+    font-size:12px;
+    color:rgba(120, 80, 180, 1.0);
+}
+div.provision-container .filename .purpose *,
+div.provision-container .filename .equipment *,
+div.provision-container .filename .seller * { display:inline-block; }
+
+div.provision-container .filename .x5_right { float:right; display:inline-block; margin:3px 0 0 0; }
+
+div.provision-container .category {
+    background-color:#F0F8FF;
+    border:1px solid #6d5050;
+    padding:8px 12px;
+    text-align:center;
+    vertical-align:top;    
+    color:white; 
+    border-radius:24px;
+    cursor:pointer;
+}
+div.provision-container .category_name { font:bold 18px serif; line-height:20px; }
+div.provision-container .cc1 { background-color:#d42a2a; }
+div.provision-container .cc2 { background-color:#42a860; }
+div.provision-container .cc3 { background-color:#2040cc; }
+
+div.provision-container .filename .review_date {
+    background-color:#cc0000;
+    display:inline-block;
+    margin:20px 0 0 40px;
+    color:white;
+    padding:10px;
+}
+div.provision-container .filename .review_date h3 { color:white; margin:5px 10px; }
+div.provision-container .filename .review_date span { color:yellow; }
+
+/*** Provision Tabs Menu  ***/
+
+div.provision-container .data-menu { margin:20px 20px 0 10px; padding:0; }
+div.provision-container .menu { 
+    margin-right:5px; 
+}
+div.provision-container .tab {
+
+}
+div.provision-container .tab .column {
+    font-size:11px;
+    padding:5px;
+}
+div.provision-container div.tab-item {} /* white-space:nowrap; */
+div.provision-container div.tab-item dt, div.provision-container div.tab-item dd { display:inline-block; } 
+div.provision-container div.tab-box {
+    border:1px solid #aaa;
+    margin-left:10px;
+    padding:0;
+}
+div.provision-tab-items {
+    background-color: lavender;
+    padding:10px;
+}
+div.provision-container .tab-item dt { 
+    font-size:12px;
+    width:160px;
+}
+div.provision-container .tab-item select { 
+    min-width:325px; 
+}
+div.provision-container .tab-item input { 
+    min-width:312px;
+    margin-bottom:0;
+}
+div.provision-container .tab-item input[type="checkbox"] { 
+    min-width:20px; 
+    margin:5px 1px 0 1px;
+}
+
+#review_area textarea.review_note  { border:1px solid #ccc; }
+
+#info-container td { vertical-align:middle; }
+
+#info-container td.log-price, 
+#info-container td.log-total, 
+#info-container td.log-tax { text-align:right; }
+
+#params-container .log-name {}
+#params-container .log-value {}
+
+div.provision-container .params-container, 
+div.provision-container .items-container, 
+div.provision-container .payments-container, 
+div.provision-container .comments-container,
+div.provision-container .documents-container { margin-top:26px; }
+div.provision-container .statuses-container { margin-top:28px; min-width: 666px !important; }
+
+#item_name       { min-width:320px; margin-bottom:0; height:60px; }
+#item_qty        { min-width:60px; width:60px; }
+#item_units      { min-width:60px; width:60px; }
+#item_total      { min-width:140px; width:140px; }
+
+#payment_date    { min-width:100px; width:140px; }
+#payment_total   { min-width:140px; width:140px; } 
+#payment_comment { min-width:320px; margin-bottom:0; }
+#payment_status  { min-width:124px; }
+#payment_comment { min-width:320px; margin-bottom:0; }
+
+#comment_value   { min-width:312px; margin-bottom:0; height:60px; }
+#document_value  { min-width:312px; margin-bottom:0; height:60px; }
+
+#status-info {
+    background-color:#fff;
+    text-align:center;
+    margin:5px 20px 5px 28px;
+    padding:10px;
+    font-weight:bold;
+    font-size:14px;
+    min-width:200px;
+    white-space:nowrap;
+}
+.on-work     { border:2px solid #888; color:#888; }
+.on-review   { border:2px solid #866; color:#866; }
+.on-accepted { border:2px solid #7a7; color:#7a7; }
+.on-rejected { border:2px solid #c88; color:#c88; }
+.on-confirm  { border:2px solid #88c; color:#88c; }
+.on-execute  { border:2px solid #a6a; color:#a6a; }
+.on-paid     { border:2px solid #a6a; color:#a6a; }
+.on-finish   { border:2px solid #6aa; color:#6aa; }
+.on-archive  { border:2px solid #ccc; color:#ccc; }
+.on-removed  { border:2px solid #333; color:#333; }
+
+div.provision-container .data-buttons { 
+    white-space:nowrap; 
+    text-align:center; 
+}
+#params-data-buttons, #items-data-buttons, #payments-data-buttons, #comments-data-buttons, #documents-data-buttons { 
+    background-color: beige;
+    margin-top:0px;
+    border-top:1px solid #ccc;
+}
+#statuses-data-buttons {
+    padding:10px;
+}
+
+/*** Provision Uploader Form  ***/
+
+.common-input .uploadBox {
+    display:inline-block;
+    position:relative;
+}
+.common-input .choosen {
+    border:1px solid #aaa;
+    font-size:14px;
+    margin:0;
+    color:#777;
+}
+.common-input .fileUpload {
+    overflow:hidden;
+}
+.common-input .fileUpload input.upload {
+    border: 1px solid black;
+    font-size:20px;
+    cursor: pointer;
+    /*
+    border: 1px solid black;
+    */
+    opacity: 0;
+}
+
+/*** Documents Uploader ***/
+
+#documents-items .uploadBox { 
+}
+#documents-items .choosen { 
+}
+#documents-items .fileUpload { 
+    width:28px;
+    height:20px;
+    padding:4px 8px;
+    margin-top:-2px !important;
+}
+#documents-items .fileUpload input.upload { 
+    min-width:46px;
+    width:46px;
+    height:20px;
+    margin:-40px 0 0 -10px;
+}
+
+/*** Order Data Uploader ***/
+
+#provisionuploader-confirm-container {
+    overflow:hidden;
+}
+
+#provisionuploader-box .uploadBox { 
+    margin: 0 0 0 10px; 
+    width:520px;
+    white-space:nowrap;
+}
+#provisionuploader-box .choosen {
+    width:390px;
+    padding:6px 10px;
+}
+#provisionuploader-box .fileUpload {
+    margin:10px;
+}
+#provisionuploader-box .fileUpload input.upload {
+    position:absolute;
+    top:100px;
+    left:454px;
+    width:100px;
+    height:60px;
+    padding:0;
+    /*
+    border: 1px solid black;
+    margin:0 20px 0 20px;
+    right:0;
+    */
+    opacity:0;
+}
+
+/*** Provision CreateOrder Form  ***/
+
+#order-confirm-container .createorder { background-color:rgba(90, 140, 180, 0.1); }
+#order-confirm-container .updateorder { background-color:rgba(180, 140, 90, 0.1); }
+#order-confirm-container .cloneorder  { background-color:rgba(90, 140, 180, 0.1); }
+
+#order-confirm-container .common-box { padding:10px; }
+#order-box {
+    padding:10px;
+    overflow-x:hidden;
+    overflow-y:auto;
+}
+
+div.order-item dd, div.order-item dt { display:inline-block; } 
+div.order-item { margin:0; }
+div.order-item dt { width:140px; }
+div.order-item input { margin:0px; }
+div.order-item textarea { margin:0px; line-height:18px; height:60px; width:500px; }
+div.order-item select { max-width:514px; }
+
+#order-confirm-container .total { padding:0; }
+
+#order_article, #order_title { height:40px; }
+#order_equipment { height:60px; }
+#order_purpose { height:80px; }
+#order_qty { width:80px; }
+#order_price { width:80px; }
+
+/*** Provision Dates Area  ***/
+
+#info-container div.view-content {} /* display:inline-block; */
+#info-container table {}
+#info-container td.dates-area { vertical-align:top; margin-left:20px; }
+
+#dates-area { 
+    float:right; 
+    text-align:right;
+    vertical-align:top;
+}
+#dates-area .order_date {
+    border:1px solid #aaa;
+    text-align:center;
+    margin:10px 10px 2px 10px;
+    padding:5px;
+    width:140px;
+}
+#dates-area .order_date h4 { 
+    margin:0; 
+    font-size:12px; 
+    color: #1A1E8A;
+}
+#dates-area .order_date dd { 
+    margin:0; 
+    padding:2px; 
+    font:bold 14px "Lucida Grande",Tahoma; 
+}
+
+#params-container .log-name, 
+#items-container .log-name, 
+#comments-container .log-name,
+#documents-container .log-name { max-width:400px; }
+
+#documents-items div.fileUpload { margin:0 5px 0 5px; }
+#documents-items dt.common-title {}
+
+#reviews-container table { width:100% !important; }
+
+#documents-container .log-filename { min-width:210px; }
+#documents-container .log-note {}
+
+/*** Order Changes History Box ***/
+
+#history-caption {}
+
+#history-box { 
+    /*
+    border:1px solid black;
+    padding:10px;
+    */
+    overflow-x:hidden; 
+    overflow-y:auto; 
+}
+
+#history-view-content { 
+    background-color:rgba(240, 175, 175, 0.2);
+    width:100%; 
+}
+
+#history-view-content tr.history > td.column { color:black; }
+
+#history-view-content .log-rd { width:100px; }
+#history-view-content .log-name { 
+    white-space:nowrap; 
+    /*
+    background-color:#469090; 
+    color:white !important; 
+    */
+}
+#history-view-content .log-value {}
+
+#subline_review {}
+
+/*** Provision Inline Subline Area ***/
+
+@media (max-width: 1600px) {
+
+#info-container table {} /* -webkit-fill-available */
+#info-container table.info-container-box { width:100%; }
+
+div.provision-container div.cell { display:block; }
+div.provision-container #MAINDATA { display:table-row-group; }
+div.provision-container #MAINDATA table,
+div.provision-container div.tab table { min-width:680px; }
+div.provision-container div.tab-box { display:inline-block; margin:20px 40px 0 1px; min-width:678px; }
+div.provision-container div.review-container { display:table-cell; }
+
+#params-container,
+#items-container,
+#payments-container,
+#comments-container { max-width:680px;}
+#documents-container table { min-width:680px; }
+
+#reviews-content table { width:inherit; }
+#review-info-data { margin:20px 20px 0 0 !important; }
+#info-container td.info-area { width:inherit; }
+#status-info { display: inline-block; margin-left: 16px; }
+
+#review_area textarea.review_note { max-width:1200px !important; }
+
+div.provision-container .statuses-container { margin-top: 10px; }
+div.provision-container #MAINDATA .log-reviewer { white-space:nowrap; }
+
+}

@@ -1,16 +1,39 @@
 {% extends "base.html" %}
 
-{% import "bootstrap/wtf.html" as wtf %}
+{% from 'templates.html' import render_login, render_password, render_submit %}
 
 {% block styles %}
 
+  {%- if is_mobile -%}
+
+<link href="{{ url_for('static', filename='css/style') }}.login.mobile.css{{ vsc }}" rel="stylesheet" type="text/css">
+
+  {%- else -%}
+
 <link href="{{ url_for('static', filename='css/style') }}.login.css{{ vsc }}" rel="stylesheet" type="text/css">
+
+  {%- endif -%}
 
 {% endblock %}
 
 {% block starter %}
 
-<script src="{{ url_for('static', filename='js/login.min.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/login.js') }}{{ vsc }}"></script>
+
+<script type="text/javascript">
+
+$(document).ready(function() {
+    $('.x_pass').click(function(){
+        var id = $(this).attr('for');
+        var ob = $('#'+id);
+        var type = ob.attr('type') == "text" ? "password" : 'text';
+        var s = $(this).html() == "<span class=\"glyphicon glyphicon-eye-close\" title=\"Скрыть пароль\"></span>" ? "<span class=\"glyphicon glyphicon-eye-open\" title=\"Показать пароль\"></span>" : "<span class=\"glyphicon glyphicon-eye-close\" title=\"Скрыть пароль\"></span>";
+        $(this).html(s);
+        ob.prop('type', type);
+    });
+});
+
+</script> 
 
 {% endblock %}
 
@@ -19,7 +42,21 @@
 {% block page_content %}
 
 <div class="login">
-  {{ wtf.quick_form(form) }}
+  <form action="" method="post" class="form" role="form">
+    <div style="display:none;"><input id="csrf_token" name="csrf_token" type="hidden" value="None"></div>
+
+    {{ render_login(form.login) }}
+
+    {{ render_password(form.password) }}
+
+    <div class="checkbox">
+      <label><input checked="" id="remember_me" name="remember_me" type="checkbox" value="y">Сохранять подключение</label>
+    </div>
+
+    {{ render_submit(form.submit) }}
+
+  </form>
+
   <br>
   <p>{{ _('Do you wish to change password?') }} <a href="{{ url_for('auth.change_password') }}">{{ _('Click here') }}</a>.</p>
 </div>

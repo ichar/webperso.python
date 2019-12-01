@@ -5,6 +5,7 @@ import codecs
 import sys
 import os
 import re
+import time
 from operator import itemgetter
 
 from config import (
@@ -292,7 +293,7 @@ def _findkey(line, key, **kw):
     no_span = kw.get('no_span') and True or False
     
     if case_insensitive:
-        n = line.lower().find(key)
+        n = line.lower().find(key.lower())
     else:
         n = line.find(key)
     
@@ -350,6 +351,10 @@ def openfile(filename, mode='r', encoding=default_encoding, use_codecs=False):
 def closefile(fin):
     if fin and not fin.closed:
         fin.close()
+
+def is_valid_line(line, is_bytes):
+    keys = is_bytes and (b'-->', b'==>', b'>>>',) or ('-->', '==>', '>>>',)
+    return line and len([1 for key in keys if key not in line]) == len(keys) and True or False
 
 def checkfile(filename, mode, encoding, logs, keys, getter, msg, **kw):
     """
@@ -441,12 +446,22 @@ def checkfile(filename, mode, encoding, logs, keys, getter, msg, **kw):
             size = 0
             pointer = fin.tell()
 
+            if pointer == os.path.getsize(filename):
+                break
+
+            if IsDeepDebug and IsLogTrace:
+                print_to(None, '... pointer[%s]: %s' % (pointer, num_logged))
+
             try:
                 line = fin.readline()
                 size = len(line)
                 num_line += 1
 
-                info = '%d:%d' % (num_line, pointer)
+                if not is_valid_line(line, is_bytes):
+                    continue
+
+                info = '%d:%d:%d' % (num_line, size, pointer)
+                line_save = line
                 #
                 # Decode bytes as string with more preffered encoding
                 #
@@ -456,10 +471,10 @@ def checkfile(filename, mode, encoding, logs, keys, getter, msg, **kw):
                 # Check end of the stream
                 #
                 if not line:
-                    if pointer == fin.tell():
-                        break
-                    else:
-                        continue
+                    if size > 0:
+                        if IsDeepDebug and IsLogTrace:
+                            print_to(None, '!!! NO LINE DECODED[%s]: %s %s' % (filename, info, line_save))
+                    continue
                 if IsLinesOnly:
                     lines.append((filename, line,))
                     num_logged += 1
@@ -471,11 +486,11 @@ def checkfile(filename, mode, encoding, logs, keys, getter, msg, **kw):
                 #
                 # Search keys and add a new item to the logs-collection
                 #
-                x = checkline(line, logs, keys, getter, 
-                    token=token, unique=unique, with_count=with_count, case_insensitive=case_insensitive, no_span=no_span)
+                logged = checkline(line, logs, keys, getter, 
+                                   token=token, unique=unique, with_count=with_count, case_insensitive=case_insensitive, no_span=no_span)
 
-                if x > 0:
-                    num_logged += x
+                if logged > 0:
+                    num_logged += logged
 
             except (ValueError, UnicodeError):
                 if IsLogTrace:
@@ -551,12 +566,19 @@ def lines_emitter(filename, mode, encoding, msg, **kw):
             size = 0
             pointer = fin.tell()
 
+            if pointer == os.path.getsize(filename):
+                break
+
             try:
                 line = fin.readline()
                 size = len(line)
                 num_line += 1
 
-                info = '%d:%d' % (num_line, pointer)
+                if not is_valid_line(line, is_bytes):
+                    continue
+
+                info = '%d:%d:%d' % (num_line, size, pointer)
+                line_save = line
                 #
                 # Decode bytes as string with more preffered encoding
                 #
@@ -566,10 +588,10 @@ def lines_emitter(filename, mode, encoding, msg, **kw):
                 # Check end of the stream
                 #
                 if not line:
-                    if pointer == fin.tell():
-                        break
-                    else:
-                        continue
+                    if size > 0:
+                        if IsDebug or IsLogTrace:
+                            print_to(None, '!!! NO LINE DECODED[%s]: %s\n%s' % (filename, info, line_save))
+                    continue
                 #
                 # Generate a new line output
                 #
@@ -577,17 +599,18 @@ def lines_emitter(filename, mode, encoding, msg, **kw):
 
             except (ValueError, UnicodeError):
                 if IsLogTrace:
-                    print_to(None, '>>> INVALID %s LINE[%s]: %s %s' % (msg, filename, info, line))
+                    print_to(None, '>>> INVALID %s LINE[%s]: %s\n%s' % (msg, filename, info, line))
                 if IsPrintExceptions:
                     print_exception()
                 if size > 0 and fin.tell() - pointer > size:
                     fin.seek(pointer+size, 0)
             except:
-                if IsDeepDebug and IsLogTrace:
-                    print_to(None, '!!! EMITTER ERROR[%s]: %s %s' % (filename, info, line))
+                if IsLogTrace:
+                    print_to(None, '!!! EMITTER ERROR[%s]: %s\n%s' % (filename, info, line))
                 if IsPrintExceptions:
-                    print_exception()
-                raise
+                    print_exception(1)
+                else:
+                    raise
 
     except EOFError:
         pass
@@ -765,7 +788,18 @@ def walk(logs, checker, root, **kw):
     aliases = kw.get('aliases') or None
     files = kw.get('files')
 
-    obs = os.listdir(root)
+    obs, n = [], 0
+
+    while n < 3:
+        try:
+            obs = os.listdir(root)
+            break
+        except:
+            if IsLogTrace:
+                print_to(None, '... walk:%s, root:%s' % (n, root))
+
+            time.sleep(3)
+            n += 1
 
     for name in obs:
         folder = normpath(os.path.join(root, name))
@@ -824,7 +858,9 @@ def check_perso_log(logs, filename, encoding=default_encoding, **kw):
     date_format = kw.get('date_format') or DEFAULT_DATETIME_FORMAT
     case_insensitive = kw.get('case_insensitive')
     no_span = kw.get('no_span')
+
     forced = kw.get('forced') and True or False
+    unresolved = kw.get('unresolved') and True or False
 
     set_globals(kw.get('globals'))
 
@@ -834,7 +870,7 @@ def check_perso_log(logs, filename, encoding=default_encoding, **kw):
 
         try:
             for n, column in enumerate(columns):
-                ob[column] = values[n]
+                ob[column] = values[n].strip()
         except:
             pass
 
@@ -842,6 +878,8 @@ def check_perso_log(logs, filename, encoding=default_encoding, **kw):
             x = datetime.datetime.strptime('%s' % ob['Date'], fmt[1])
             ob['Date'] = cdate(x, date_format)
         except:
+            if IsDebug and IsPrintExceptions:
+                print_exception()
             return None
 
         if 'Code' in ob:
@@ -854,10 +892,10 @@ def check_perso_log(logs, filename, encoding=default_encoding, **kw):
         # ------------------------------
         # Observer Log-lines constructor
         # ------------------------------
-
+        """
         if case_insensitive:
             keys = [key.lower() for key in keys]
-
+        """
         i = 0
         while lines and i < len(lines):
             filename, line = lines[i]
@@ -869,6 +907,10 @@ def check_perso_log(logs, filename, encoding=default_encoding, **kw):
             if x != 0:
                 lines.pop(i)
             else:
+                """
+                if IsDeepDebug and unresolved:
+                    print_to(None, '!!! UNRESOLVED:\n%s\n%s%s\n' % (filename, line, keys))
+                """
                 i += 1
         return
 
@@ -902,7 +944,7 @@ def getPersoLogInfo(**kw):
 
     if IsTrace:
         keys = _extract_keys(kw.get('keys')) or []
-        print_to(None, '\n==> CHECK_PERSO_LOG: %s STARTED [%s:%s:%s]' % ( \
+        print_to(None, '\n==> CHECK_PERSO_LOG: %s STARTED [%s:%s:%s]' % ( 
             datetime.datetime.now().strftime(UTC_FULL_TIMESTAMP),
             len(keys) > 0 and keys[0] or '',
             kw.get('client'),
@@ -918,7 +960,9 @@ def getPersoLogInfo(**kw):
         walk(logs, check_perso_log, root, encoding=encoding, **kw)
     except Exception as e:
         _register_error(logs, e, **kw)
-        print_exception()
+
+        if IsPrintExceptions:
+            print_exception()
 
     logs = sorted(logs, key=itemgetter('Date'))
 
@@ -956,6 +1000,7 @@ def check_infoexchange_log(logs, filename, encoding=default_encoding, **kw):
     no_span = kw.get('no_span')
 
     forced = kw.get('forced') and True or False
+
     original_logger = kw.get('original_logger') and True or False
 
     def _get_log_item(line):
@@ -968,7 +1013,7 @@ def check_infoexchange_log(logs, filename, encoding=default_encoding, **kw):
 
         try:
             for n, column in enumerate(columns):
-                ob[column] = values[n]
+                ob[column] = values[n].strip()
         except:
             if IsDebug and IsPrintExceptions:
                 print_exception()
@@ -995,9 +1040,14 @@ def check_infoexchange_log(logs, filename, encoding=default_encoding, **kw):
         fin, forced_encoding, is_opened = openfile(filename, 'r', encoding=encoding)
 
         IsOutput = IsFound = False
-        lines = []
+        lines, n = [], 0
 
         for line in fin:
+            if IsDeepDebug and IsLogTrace:
+                print_to(None, '... line[%s]: %s' % (n, len(lines)))
+
+            n += 1
+
             try:
                 if forced:
                     logs.append(_get_log_item(line))
@@ -1064,7 +1114,7 @@ def getInfoExchangeLogInfo(**kw):
 
     if IsTrace:
         keys = _extract_keys(kw.get('keys')) or []
-        print_to(None, '\n==> CHECK_INFOEXCHANGE_LOG: %s STARTED [%s:%s:%s]' % ( \
+        print_to(None, '\n==> CHECK_INFOEXCHANGE_LOG: %s STARTED [%s:%s:%s]' % ( 
             datetime.datetime.now().strftime(UTC_FULL_TIMESTAMP),
             len(keys) > 0 and keys[0] or '',
             kw.get('client'),
@@ -1080,7 +1130,9 @@ def getInfoExchangeLogInfo(**kw):
         walk(logs, check_infoexchange_log, root, encoding=encoding, **kw)
     except Exception as e:
         _register_error(logs, e, **kw)
-        print_exception()
+
+        if IsPrintExceptions:
+            print_exception()
     
     logs = sorted(logs, key=itemgetter('Date'))
 
@@ -1104,7 +1156,9 @@ def check_sdc_log(logs, filename, encoding=default_encoding, **kw):
     date_format = kw.get('date_format') or DEFAULT_DATETIME_FORMAT
     case_insensitive = kw.get('case_insensitive')
     no_span = kw.get('no_span')
+    
     forced = kw.get('forced') and True or False
+    unresolved = kw.get('unresolved') and True or False
 
     set_globals(kw.get('globals'))
 
@@ -1114,7 +1168,7 @@ def check_sdc_log(logs, filename, encoding=default_encoding, **kw):
 
         try:
             for n, column in enumerate(columns):
-                ob[column] = values[n]
+                ob[column] = values[n].strip()
         except:
             pass
 
@@ -1134,10 +1188,10 @@ def check_sdc_log(logs, filename, encoding=default_encoding, **kw):
         # ------------------------------
         # Observer Log-lines constructor
         # ------------------------------
-
+        """
         if case_insensitive:
             keys = [key.lower() for key in keys]
-
+        """
         i = 0
         while lines and i < len(lines):
             filename, line = lines[i]
@@ -1149,6 +1203,10 @@ def check_sdc_log(logs, filename, encoding=default_encoding, **kw):
             if x != 0:
                 lines.pop(i)
             else:
+                """
+                if IsDeepDebug and unresolved:
+                    print_to(None, '!!! UNRESOLVED:\n%s\n%s%s\n' % (filename, line, keys))
+                """
                 i += 1
         return
 
@@ -1185,7 +1243,7 @@ def getSDCLogInfo(**kw):
 
     if IsTrace:
         keys = _extract_keys(kw.get('keys')) or []
-        print_to(None, '\n==> CHECK_SDC_LOG: %s STARTED [%s:%s:%s]' % ( \
+        print_to(None, '\n==> CHECK_SDC_LOG: %s STARTED [%s:%s:%s]' % ( 
             datetime.datetime.now().strftime(UTC_FULL_TIMESTAMP),
             len(keys) > 0 and keys[0] or '',
             kw.get('client'),
@@ -1201,7 +1259,9 @@ def getSDCLogInfo(**kw):
         walk(logs, check_sdc_log, root, encoding=encoding, **kw)
     except Exception as e:
         _register_error(logs, e, **kw)
-        print_exception()
+
+        if IsPrintExceptions:
+            print_exception()
 
     logs = sorted(logs, key=itemgetter('Date'))
 
@@ -1265,7 +1325,7 @@ def check_exchange_log(logs, filename, encoding=default_encoding, **kw):
 
         try:
             for n, column in enumerate(columns):
-                ob[column] = values[n]
+                ob[column] = values[n].strip()
         except:
             pass
 
@@ -1287,10 +1347,10 @@ def check_exchange_log(logs, filename, encoding=default_encoding, **kw):
         # ------------------------------
         # Observer Log-lines constructor
         # ------------------------------
-
+        """
         if case_insensitive:
             keys = [key.lower() for key in keys]
-
+        """
         i = 0
         while lines and i < len(lines):
             filename, line = lines[i]
@@ -1338,7 +1398,7 @@ def getExchangeLogInfo(**kw):
 
     if IsTrace:
         keys = _extract_keys(kw.get('keys')) or []
-        print_to(None, '\n==> CHECK_EXCHANGE_LOG: %s STARTED [%s:%s:%s]' % ( \
+        print_to(None, '\n==> CHECK_EXCHANGE_LOG: %s STARTED [%s:%s:%s]' % ( 
             datetime.datetime.now().strftime(UTC_FULL_TIMESTAMP),
             len(keys) > 0 and keys[0] or '',
             kw.get('client'),
@@ -1354,7 +1414,9 @@ def getExchangeLogInfo(**kw):
         walk(logs, check_exchange_log, root, encoding=encoding, **kw)
     except Exception as e:
         _register_error(logs, e, **kw)
-        print_exception()
+
+        if IsPrintExceptions:
+            print_exception()
 
     logs = sorted(logs, key=itemgetter('Date'))
 

@@ -25,6 +25,12 @@ function sidebar_toggle() {
     $onClickTreeView(1);
 }
 
+function subline_refresh(filename) {
+    $(".filename").each(function() { 
+        $(this).html(filename);
+    });
+}
+
 function log_callback(action, data, props) {
     // ---------------------------------------------------------
     // Set callback to handle add-ons such as LogPage refreshing
@@ -55,16 +61,15 @@ function config_callback_setup(id) {
 // --------------
 
 function $Init() {
-    $SidebarControl.init(sidebar_callback);
+    $SidebarControl.init(sidebar_callback, ['filetype', 'batchtype']);
 
     page_sort_title = $("#sort_icon").attr('title');
 
     SelectedReset();
 
     $LineSelector.init();
-
+    //$SublineSelector.init();
     $ShowMenu(default_menu_item);
-
     $TabSelector.init();
 
     // ------------------------
@@ -79,6 +84,9 @@ function $Confirm(mode, ob) {
 
     if (mode == 1)
         switch (confirm_action) {
+            case 'admin:removescenario':
+                $ConfigScenarioDialog.confirmed('removescenario');
+                break;
             case 'reference:remove':
                 $ReferenceDialog.confirmed('remove');
                 break;
@@ -487,7 +495,7 @@ jQuery(function($)
     $("#data-section").on('click', '.column', function(e) {
         var ob = $(this);
         var parent = ob.parents("*[class*='line']").first();
-        if (!is_null(parent) && !parent.hasClass("tabline") && $ActiveSelector.onProgress())
+        if (!is_null(parent) && !parent.hasClass("tabline") && !ob.hasClass("header") && $ActiveSelector.onProgress())
             $InProgress(ob, 1);
     });
 
@@ -527,8 +535,20 @@ jQuery(function($)
 
         $onControlPanelClick($("#actions-dropdown"));
         
-        if (command.startswith('action:'))
-            $ShowError(keywords["Its not realized yet!"], true, true, false);
+        if (command == 'action:configscenario') {
+            $ConfigScenarioDialog.create();
+            return;
+        }
+        
+        if (command == 'action:removescenario') {
+            $ConfigScenarioDialog.remove();
+            return;
+        }
+
+        if (command == 'action:createdesign') {
+            $CreateDesignDialog.open();
+            return;
+        }
     });
 
     // --------------
@@ -581,17 +601,30 @@ jQuery(function($)
             }
         }
 
-        if ($ReferenceDialog.is_focused())
+        if ($ReferenceDialog.is_focused() || $BaseDialog.is_focused() || is_search_focused)
             return true;
         
-        else if (e.shiftKey && e.keyCode==73)         // Shift-I
+        else if (e.shiftKey && e.keyCode==73)                    // Shift-I
             $ConfigSelector.confirmation('admin:add');
 
-        else if (e.shiftKey && e.keyCode==85)         // Shift-U
+        else if (e.shiftKey && e.keyCode==85)                    // Shift-U
             $ConfigSelector.confirmation('admin:update');
 
         else if (e.shiftKey && e.keyCode==68)                    // Shift-D
             $ConfigSelector.confirmation('admin:remove');
+
+        else if ($ConfigSelector.is_focused())                   // STOP ConfigSelector forms
+            return true;
+
+        else if (e.shiftKey && e.keyCode==70) {                  // Shift-F
+            $ConfigScenarioDialog.create();
+            return false;
+        }
+
+        else if (e.shiftKey && e.keyCode==71) {                  // Shift-G
+            $CreateDesignDialog.open();
+            return false;
+        }
 
         // REFERENCEs
 
@@ -647,18 +680,14 @@ function keyboard_alt_after(keyCode) {
 
 function page_is_focused(e) {
     if (e.shiftKey && [67,79].indexOf(e.keyCode) > -1)
-        return false;
+        return $ConfigSelector.is_focused() || $ReferenceDialog.is_focused();
     if ((e.ctrlKey && [37,39].indexOf(e.keyCode) > -1) || (e.shiftKey && e.keyCode==9)) {
         $ConfigSelector.move(null, 1);
         $ConfigSelector.reset();
         return false;
     }
-    if (e.altKey && is_moving_keycode(e.keyCode)) {
-        if ($ReferenceDialog.is_focused())
-            return true;
-        else
-            return false;
-    }
+    if (e.altKey && is_moving_keycode(e.keyCode))
+        return $ReferenceDialog.is_focused();
     return $ConfigSelector.is_focused() || $ReferenceDialog.is_focused();
 }
 
@@ -677,4 +706,3 @@ $(function()
 
     $_init();
 });
-

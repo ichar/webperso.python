@@ -2,14 +2,21 @@
 
 {% import 'forms.html' as Forms %}
 
+{% block page_styles %}
+
+<link href="{{ url_for('static', filename='css/style') }}.configurator.css{{ vsc }}" rel="stylesheet" type="text/css">
+
+{% endblock %}
+
 {% block starter %}
 
 <script src="{{ url_for('static', filename='js/db.controller.min.js') }}{{ vsc }}"></script>
 <script src="{{ url_for('static', filename='js/log.default.min.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/configurator.dialogs.min.js') }}{{ vsc }}"></script>
 <script src="{{ url_for('static', filename='js/configurator.min.js') }}{{ vsc }}"></script>
 
 <script src="{{ url_for('static', filename='js/bankperso.default.min.js') }}{{ vsc }}"></script>
-<script src="{{ url_for('static', filename='js/references.min.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/reference.dialogs.min.js') }}{{ vsc }}"></script>
 
 {% endblock %}
 
@@ -170,7 +177,8 @@
 
 {% block filter %}
 
-  <div id="log-filter" class="confugurator-filter common-filter">
+  <div id="log-filter" class="configurator-filter common-filter">
+    <div id="sidebar-filter-scroller">
     <form action="{{ pagination['link'] }}" id="filter-form" method="POST">
 
     <input type="hidden" name="page" value="{{ pagination['current_page'] }}">
@@ -178,11 +186,12 @@
     <input type="hidden" id="file_id" name="file_id" value="{{ current_file[0] }}">
     <input type="hidden" id="batch_id" name="batch_id" value="{{ current_file[2] }}">
     <input type="hidden" id="searched" name="search" value="{{ search }}">
+    <input type="hidden" id="reset_search" name="reset_search" value="0">
     <input type="hidden" id="sort" name="sort" value="{{ pagination['sort']['current_sort'] }}">
     <input type="hidden" id="position" name="position" value="{{ pagination['position'] }}">
     <input type="hidden" id="sidebar" name="sidebar" value="{{ sidebar['state'] }}">
     <input type="hidden" id="errors" value="{{ errors }}">
-    <input type="hidden" id="OK" value="{{ OK }}">
+    <input type="hidden" id="OK" name="OK" value="{{ OK }}">
     <input type="hidden" id="command" name="command" value="">
 
     <dt><div class="caption bank">Клиент:</div></dt>
@@ -231,6 +240,7 @@
     </dd>
 
     </form>
+    </div>
   </div>
 
 {% endblock %}
@@ -274,7 +284,10 @@
     <div class="dropdown" id="actions-container">
       <a class="dropdown-link" id="actions-dropdown">Генератор</a>
       <div class="dropdown-content" id="actions">
-        <button class="btn btn-success last-btn" id="action:xxx">...</button>
+        <button class="btn btn-primary" id="action:configscenario">Создать сценарий</button>
+        <button class="btn btn-success" id="action:createdesign">Добавить дизайн CardStandard</button>
+        <div class="line"><hr /></div>
+        <button class="btn btn-danger last-btn" id="action:removescenario">Удалить конфигурацию</button>
       </div>
     </div>
     {% endif %}
@@ -290,5 +303,141 @@
   <h3 id="reference-title"></h3>
 </div>
 
-{% endblock %}
+<div class="common-dialog" id="configscenario-confirm-container" title="{{ _('Create Scenario settings form') }}" style="display:none;">
+  <h3>{{ _('Input form items to generate a new Scenario settings.') }}</h3>
+  <div class="common-confirmation">
+    <h4>{{ _('Create Scenario string format see in the application documentation.') }}</h4>
+    <div class="common-box common-panel" id="configscenario-box">
+      <form action="{{ pagination['link'] }}" class="common-form" id="configscenario-form" method="POST">
+      <input type="hidden" id="file_id" name="file_id" value="{{ current_file[0] }}">
+      <input type="hidden" name="position" value="{{ pagination['position'] }}">
+      <input type="hidden" name="sidebar" value="{{ sidebar['state'] }}">
+      <input type="hidden" id="OK" name="OK" value="{{ OK }}">
+      <input type="hidden" id="command" name="command" value="">
 
+      <div class="configscenario-item">
+        <dt><div class="caption configtype">Тип сценария:</div></dt><dd>
+          <select class="popup" id="configscenario_configtype" name="configtype">
+            <option value="cardstandard">CardStandard</option>
+            <option value="easy">CardStandard Easy</option>
+          </select>
+        </dd>
+      </div>
+
+      <h4>Опции:</h4>
+
+      <label for="configscenario-pcode"><input type="checkbox" id="configscenario-pcode" name="pcode" value="1" checked><span>Печать ПИН-конвертов</span></label>
+      <label for="configscenario-filter"><input type="checkbox" id="configscenario-filter" name="filter" value="1" checked><span>Включить фильтр</span></label>
+
+      <hr />
+
+      <div class="configscenario-item common-next">
+        <dt><div class="caption clientname">Наименование клиента:</div></dt><dd><input class="string" id="configscenario_clientname" name="clientname" type="text"></dd>
+      </div>
+      <div class="configscenario-item common-next">
+        <dt><div class="caption clientid">ID клиента:</div></dt><dd><input class="string" id="configscenario_clientid" name="clientid" type="text"></dd>
+      </div>
+
+      <hr />
+
+      <h4>Теги:</h4>
+
+      <table class="configscenario-label"><tr><td>
+
+      <label for="configscenario-deliverytype">
+        <input type="checkbox" id="configscenario-deliverytype" name="deliverytype" value="1" checked><span>DeliveryType</span></label>
+      <label for="configscenario-dumpbankflag">
+        <input type="checkbox" id="configscenario-dumpbankflag" name="dumpbankflag" value="1"><span>DUMPBANK_FLAG</span></label>
+      <label for="configscenario-idvsp">
+        <input type="checkbox" id="configscenario-idvsp" name="idvsp" value="1" checked><span>ID_VSP</span></label>
+      
+      <td><td>
+      
+      <label for="configscenario-ischip">
+        <input type="checkbox" id="configscenario-ischip" name="ischip" value="1" checked><span>IsChip</span></label>
+      <label for="configscenario-ispost">
+        <input type="checkbox" id="configscenario-ispost" name="ispost" value="1"><span>IsPost</span></label>
+      <label for="configscenario-packagecode">
+        <input type="checkbox" id="configscenario-packagecode" name="packagecode" value="1" checked><span>PackageCode</span></label>
+      
+      <td><td>
+      
+      <label for="configscenario-paysystem">
+        <input type="checkbox" id="configscenario-paysystem" name="paysystem" value="1" checked><span>PAY_SYSTEM</span></label>
+      <label for="configscenario-plastictype">
+        <input type="checkbox" id="configscenario-plastictype" name="plastictype" value="1" checked><span>PlasticType</span></label>
+      <label for="configscenario-readydate">
+        <input type="checkbox" id="configscenario-readydate" name="readydate" value="1"><span>ReadyDate</span></label>
+      
+      <td><td>
+      
+      <label for="configscenario-registerdate">
+        <input type="checkbox" id="configscenario-registerdate" name="registerdate" value="1"><span>RegisterDate</span></label>
+      
+      </td></tr></table>
+
+      <div class="configscenario-item common-next">
+        <dt class="maxbatchsize"><div class="caption">Максимальное количество карт в партии:</div></dt>
+        <dd><input id="configscenario_maxbatchsize" name="maxbatchsize" type="number" value="500"></dd>
+      </div>
+      <div class="configscenario-item common-next">
+        <dt><div class="caption pinincreg">Реестр инкассации ПИН-конвертов:</div></dt>
+        <dd><input class="string" id="configscenario_pinincreg" name="pinincreg" type="text"></dd>
+      </div>
+      <div class="configscenario-item common-next">
+        <dt><div class="caption crdincreg">Реестр инкассации карт:</div></dt>
+        <dd><input class="string" id="configscenario_crdincreg" name="crdincreg" type="text"></dd>
+      </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="common-dialog" id="createdesign-confirm-container" title="{{ _('Add new design form') }}" style="display:none;">
+  <h3>{{ _('Input form items to generate a new CardStandard product design.') }}</h3>
+  <div class="common-confirmation">
+    <h4>{{ _('Create Design string format see in the application documentation.') }}</h4>
+    <div class="common-box common-panel" id="createdesign-box">
+      <form action="{{ pagination['link'] }}" class="common-form" id="createdesign-form" method="POST">
+      <input type="hidden" name="file_id" value="{{ current_file[0] }}">
+      <input type="hidden" name="position" value="{{ pagination['position'] }}">
+      <input type="hidden" name="sidebar" value="{{ sidebar['state'] }}">
+      <input type="hidden" id="OK" name="OK" value="{{ OK }}">
+      <input type="hidden" name="command" value="admin:createdesign">
+
+      <div class="createdesign-item">
+        <dt><div class="caption cardtype">Тип карты:</div></dt><dd><input class="string" id="createdesign_cardtype" name="cardtype" type="text"></dd>
+      </div>
+      <div class="createdesign-item common-next">
+        <dt><div class="caption bin">Б?Н:</div></dt><dd><input class="string" id="createdesign_bin" name="bin" type="text"></dd>
+      </div>
+      <div class="createdesign-item common-next">
+        <dt><div class="caption erp">ERP ТЗ:</div></dt><dd><input class="string" id="createdesign_erp" name="erp" type="text">
+        <span class="common-mark">* {{ _('May be omitted') }}</span></dd>
+      </div>
+      <div class="createdesign-item common-next">
+        <dt><div class="caption prerp">Производственное ТЗ:</div></dt><dd><input class="string" id="createdesign_prerp" name="prerp" type="text">
+        <span class="common-mark">* {{ _('May be omitted') }}</span></dd>
+      </div>
+      <div class="createdesign-item common-next">
+        <dt><div class="caption code">Код пластика:</div></dt><dd><input class="string" id="createdesign_code" name="code" type="text"></dd>
+        <span class="common-mark">VP00</span></dd>
+      </div>
+      <div class="createdesign-item common-next">
+        <dt><div class="caption design">Номер дизайна (Вид):</div></dt><dd><input class="string" id="createdesign_design" name="design" type="text"></dd>
+        <span class="common-mark">{{ _('Number') }}</span></dd>
+      </div>
+      <div class="createdesign-item common-next">
+        <dt><div class="caption frontside">Лицевая сторона:</div></dt><dd><textarea class="string" id="createdesign_frontside" name="frontside"></textarea></dd>
+      </div>
+      <div class="createdesign-item common-next">
+        <dt><div class="caption backside">Оборотная сторона:</div></dt><dd><textarea class="string" id="createdesign_backside" name="backside"></textarea></dd>
+      </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -18,6 +18,7 @@ var IsTraceRollback = 0;          // Alert Field's state controller Rollback-err
 var IsTraceErrorException = 0;    // Alert(show) error exception
 var IsForcedRefresh = 0;          // Forced refresh any images in filesystem-cache (load with timestamp-link)
 var IsAdmin = 0;                  // User Admin permissions
+var IsOperator = 0;               // User Operator permissions
 var IsAssumeExchangeError = 0;    // Exchange errors allowed or not (for localhost debug reasons)
 var IsXMLDump = 0;                // For 'internal' only - dump request/response or not
 var IsCleanBefore = 1;            // For 'internal' only - how to referesh items (clean before or not)
@@ -25,14 +26,33 @@ var IsCheckImageTimeout = 0;      // Wait images will be refreshed before init a
 var IsTriggeredSubmit = 0;        // Show/Hide startup page
 var IsShowLoader = 0;             // Apply submit image
 
+// ----------------
+//  Public Options:
+// ----------------
+
+var IsOptionRowspan = 0;          // Use rowspan check
+var IsOptionContainerChanged = 0; // Change info container size
+
+// ----------
+//  Browsers:
+// ----------
+
+var IsMSIE = 0;
+var is_webkit = 0;
+
 // ---------------------------------------------------------
 //  Line Page Submit Type:
 //  0 - page submit, 1 - startup action, 2 - selected action
 // ---------------------------------------------------------
 var default_submit_mode = 0;
-var default_action = null;        // Action for submit mode > 0
-var default_log_action = null;    // Action for Log Tab
+var default_action = null;        // Action code for default refreshing (SUBLINE), submit mode > 0
+var default_log_action = null;    // Action code for refreshing Log Tab area
+var default_print_action = null;  // Action code for printing Log Tab area
+var default_handler = null;       // Handler for Log Action, optionally
+var default_params = null;        // Params for Log Action, optionally
 var default_input_name = '';      // Name of LINE input tag
+
+var should_be_updated = false;    // Optional flag to update LINE
 
 var current_context = '';         // Current context name
 
@@ -67,18 +87,27 @@ var confirm_response = null;
 
 var DEFAULT_HTML_SPLITTER = ':';
 
+var CSS_INVISIBLE = 'invisible';
+
 // ------------
 // Module items
 // ------------
 
+var root = '';
+var back = '';
 var baseURI = '';
 var loaderURI = '';
 
 var page_state = -1;
+var page_scroll_top = 0;
 
 var is_loaded_success = false;
 var is_show_error = false;
 var is_link = false;
+var is_scroll_top = false;
+var is_on_refresh = false;
+
+var no_window_scroll = false;
 
 // ----------------
 // Global Functions
@@ -91,7 +120,7 @@ function interrupt(start, mode, timeout, callback, index, type) {
     //  timeout - длительность таймаута
     //  callback - функция обратного вызова[9] (строка) или строковый параметр[-1]
     //  index - индекс таймаута
-    //  type - тип функции: setTimeout/setInterval
+    //  type - тип функции: 0/1, setTimeout/setInterval
     //
     if (start) {
         var i = !is_null(index) ? index : TID.length;
@@ -146,14 +175,31 @@ function interrupt(start, mode, timeout, callback, index, type) {
     }
 }
 
+function $_window_orientation() {
+    return typeof(window.orientation) !== 'undefined' ? (
+        window.orientation == 0 || window.orientation == 180 ? 'portrait' : 'landscape') : (
+        screen.msOrientation || screen.mozOrientation || (screen.orientation || {}).type);
+}
+
+function $_screen_with_scroll(mode) {
+    if (['height', 'H'].indexOf(mode) > -1)
+        return $_height('max') > window.screen.height;
+    return $_width('max') > window.screen.width;
+}
+
+function $_get_css_size(value) {
+    return value.toString()+"px";
+}
+
 function $_screen_center(mode) {
-    var f = !$IS_FRAME ? true : false;
-    var m = mode || (f ? 'screen-max' : 'screen-min');
+    var f = $IS_FRAME ? true : false;
+    var m = mode || (!f ? 'screen-max' : 'screen-min');
     return { 'W':$_width(m), 'H':$_height(m) };
 }
 
 function $_height(m) {
     //var ob = $(window);
+    var f = !$IS_FRAME ? true : false;
     if (m == 'screen-max')
         return Math.max(window.screen.availHeight, verge.viewportH());
     if (m == 'screen-min')
@@ -166,11 +212,19 @@ function $_height(m) {
             document.documentElement.clientHeight
             //ob.height()
         );
+    if (m == 'available' && f) {
+        //var mode = $_window_orientation().startswith('portrait') ? 'screen-max' : 'screen-min';
+        var mode = $_window_orientation().startswith('landscape') ? 'screen-min' : 'screen-max';
+        //var mode = 'screen-max';
+        return $_height(mode);
+    }
+    if (m == 'client')
+        return document.documentElement.clientHeight;
     else
         return Math.min(
             window.screen.height,
-            window.screen.availHeight, 
-            document.body.clientHeight, 
+            window.screen.availHeight,
+            document.body.clientHeight,
             document.documentElement.clientHeight
             //ob.height()
         );
@@ -185,12 +239,20 @@ function $_width(m) {
         return Math.min(window.screen.availWidth, verge.viewportW());
     if (m == 'max')
         return Math.max(
-            window.screen.width,                    // S
-            window.screen.availWidth,               // W
-            document.body.clientWidth,              // B
-            document.documentElement.clientWidth    // H
+            window.screen.width,
+            window.screen.availWidth,
+            document.body.clientWidth,
+            document.documentElement.clientWidth
             //ob.width()
         );
+    if (m == 'available' && f) {
+        //var mode = $_window_orientation().startswith('portrait') ? 'screen-min' : 'screen-max';
+        var mode = $_window_orientation().startswith('landscape') ? 'screen-min' : 'screen-max';
+        //var mode = 'screen-max';
+        return $_width(mode);
+    }
+    if (m == 'client')
+        return document.documentElement.clientWidth;
     else
         return Math.min(
             window.screen.width, 
@@ -216,10 +278,38 @@ function $_set_body_value(id, value) {
     $("#"+id).each(function() { $(this).val(value); });
 }
 
+function $_show_window_in_center(container, mode) {
+    var page = $("#html-container");
+    var f = $IS_FRAME ? true : false;
+    var sh = f ? 40 : 20;
+    var sw = 0;
+    var center = $_screen_center(mode);
+    var top = int((center.H-container.height())/2)-sh;
+    var left = int((center.W-container.width())/2)-sw;
+
+    if ($_screen_with_scroll('H'))
+        top += $(window).scrollTop();
+
+    container
+        .css('top', $_get_css_size(top)).css('left', $_get_css_size(left))
+        .show();
+}
+
 function $_init() {
+    is_webkit = !(isIE || IsMSIE) ? true : false;
+
+    $Images.init(); // preload();
+}
+
+function $onImagesPreload() {
     $ShowPageSubmitMessages();
+    
     $Init();
-    $ShowPage(false);
+
+    if (typeof($_show_page) === 'function')
+        return;
+        
+    $ShowPage(0);
 }
 
 // ===============
@@ -231,16 +321,23 @@ function $CurrentContext() {
 }
 
 function $ShowPage(disable) {
+    if (disable === null)
+        return;
     var startup_page_container = $("#html-container");
     if (disable)
-        startup_page_container
-            .hide();
+        startup_page_container.hide();
     else
-        startup_page_container
-            .show();
+        startup_page_container.removeClass("hidden").show();
 }
 
 function $ShowOnStartup() {
+    selected_menu_action = default_log_action;
+    $Handle(
+        selected_menu_action, default_handler, default_params
+    );
+}
+
+function $ShowSubline() {
     selected_menu_action = default_log_action;
     $Go(
         selected_menu_action
@@ -263,16 +360,18 @@ function $ShowPageSubmitMessages() {
         $NotificationDialog.open(OK);
 }
 
-function $ShowSystemMessages(reset, error) {}
+function $ShowSystemMessages(reset, error) {
+}
 
 function $TriggerActions(disable) {
     if (IsTriggeredSubmit && default_submit_mode == 0)
         $ShowPage(disable);
 }
 
-function $ShowError(msg, is_ok, is_err, is_session_close) {
+function $ShowError(msg, is_ok, is_error, is_session_close) {
     if (is_show_error || !msg)
         return;
+    
     var container = $("#error-container");
 
     $("#error-text").html(msg);
@@ -282,19 +381,13 @@ function $ShowError(msg, is_ok, is_err, is_session_close) {
             '<button id="error-button-ok" class="ui-button-text" onclick="javascript:$HideError();">'+keywords['OK']+'</button>'
         );
     }
-    if (is_err)
+    if (is_error)
         container.removeClass("warning").addClass("error");
     else
         container.removeClass("error").addClass("warning");
 
-    var f = !$IS_FRAME ? true : false;
-    var c = $_screen_center('min');
-    var top = (int((c.H-container.height())/2)-(f?20:0)).toString()+'px';
-    var left = (int((c.W-container.width())/2)).toString()+'px';
-
-    container
-        .css('top', top).css('left', left)
-        .show();
+    $_show_window_in_center(container, null);
+    
     is_show_error = true;
 
     $("#error-button-ok").focus();
@@ -305,6 +398,7 @@ function $ShowError(msg, is_ok, is_err, is_session_close) {
 function $HideError() {
     $("#error-container").hide();
     $("#error-button").html('');
+
     is_show_error = false;
 
     $SetFocus();
@@ -313,6 +407,9 @@ function $HideError() {
 function $ShowLoader(start) {
     //alert('loader:'+start+':'+isWebServiceExecute);
 
+    if (is_show_error)
+        return;
+
     if (start) {
         var loader = $("#page-loader");
         var container = $("#html-container");
@@ -320,14 +417,13 @@ function $ShowLoader(start) {
             isWebServiceExecute = false;
             if (IsShowLoader)
                 loader.hide();
-            else {
+            else
                 container.removeClass("inprogress");
-                $InProgress(null);
-            }
+            $InProgress(null);
         } else {
             isWebServiceExecute = true;
             if (IsShowLoader)
-                loader.show();
+                $_show_window_in_center(loader, null);
             else
                 container.addClass("inprogress");
         }
@@ -336,6 +432,9 @@ function $ShowLoader(start) {
 
 function $ActivateInfoData(show) {
     var container = $("#info-data");
+
+    if (is_null(container))
+        return;
 
     if (show)
         container.show();
@@ -349,6 +448,10 @@ function $ActivateInfoData(show) {
 
 function $RemoveInfoData() {
     var container = $("#info-data");
+
+    if (is_null(container))
+        return;
+
     container.empty().hide();
 }
 
@@ -363,7 +466,8 @@ function $InProgress(ob, mode) {
     }
 }
 
-function $SetFocus(ob) {}
+function $SetFocus(ob) {
+}
 
 function $ResetSearch(deactivate) {
     //
@@ -408,6 +512,11 @@ function $ShowLogPage() {
     
     if (!is_null(ob))
         $onToggleSelectedClass(SUBLINE, ob, 'add', null);
+
+    if (is_scroll_top) {
+        $(window).scrollTop(0);
+        is_scroll_top = false;
+    }
 }
 
 function $ResetLogPage() {
@@ -416,7 +525,7 @@ function $ResetLogPage() {
 }
 
 function $Go(action) {
-    $web_logging(action, null);
+    $web_logging(action);
 }
 
 function $Handle(action, handler, params) {
@@ -433,19 +542,39 @@ function $onParentFormSubmit(id) {
 
     $SidebarControl.onBeforeSubmit();
 
-    //alert('submit');
+    var is_run = 1;
+
+    try { 
+        is_run = performance.navigation.type == 0 ? 1 : 0; 
+    }
+    catch(err) {}
+
+    //alert([is_run, action].join(':'));
+
+    if (is_run)
+        $("#OK", frm).val('run');
+
+    var ob = $("#window_scroll", frm);
+    var top = is_on_refresh ? page_scroll_top : $(window).scrollTop();
+
+    if (is_exist(ob))
+        ob.val(!no_window_scroll ? top : '');
+
+    //alert('submit:'+frm.attr('id')+':'+ob.val()+':'+top);
 
     frm.submit();
 }
 
 function $onLineFormSubmit() {
+    //alert('$onLineFormSubmit:'+default_submit_mode);
     switch (default_submit_mode) {
         case 0:
             $onParentFormSubmit();
             break;
         case 1:
         case 2:
-            $Go(default_action);
+            //$Go(default_action);
+            $Handle(default_action, default_handler, default_params);
             break;
     }
 }
@@ -472,14 +601,15 @@ function $onToggleSelectedClass(key, ob, action, command, force) {
     //
     // It used together with db.controller classes: $LineSelector, $SublineSelector.
     // On run `SelectedGetItem` function keeps current (selected before) item. 
-    // Current item and his children have CSS `selected` class.
+    // Current item and his children has CSS `selected` class.
     // Action `submit` valid for LINE key only!
 
     var id = !is_null(ob) ? $_get_item_id(ob) : SelectedGetItem(key, 'id');
     var mask = [LINE, SUBLINE, TABLINE, REFERENCE].indexOf(key) > -1 ? 'td' : 'dd';
     var input = "input[name^='"+default_input_name+"']";
 
-    //alert(key+':'+id+':'+action+':'+mask+':'+input);
+    if (IsLog)
+        console.log('$onToggleSelectedClass:'+key+':'+id+':'+action+':'+mask+':'+input, ob);
 
     if (is_empty(id))
         return;
@@ -497,10 +627,13 @@ function $onToggleSelectedClass(key, ob, action, command, force) {
             return;
 
         if (IsLog)
-            console.log('$onToggleSelectedClass:'+action+':'+id);
+            console.log('$onToggleSelectedClass.make:'+action+':'+id);
 
         $(mask, ob).each(function() {
-            if (action == 'add') {
+            // Check prop 'rowspan' for joined table columns
+            if (IsOptionRowspan && ($(this).hasClass("noselected") || $(this).prop('rowspan') > 1))
+                $.noop();
+            else if (action == 'add') {
                 $(this).addClass("selected");
                 if (key == LINE && mode == 1)
                     $(input).each(function() { $(this).val(id); });
@@ -620,15 +753,16 @@ jQuery(function($)
         $SidebarControl.onNavigatorClick(false);
     });
 
-    $("#sidebarFrame").mouseenter(function(e) {
-        $SidebarControl.onFrameMouseOver();
+    $("#sidebarFrame").on("mouseleave", function(e) {
+        /*
+        console.log(getObjectValueByKey(e.target, 'id'));
+        console.log($(this).has(e.target));
+        */
+        if (!(isIE || IsMSIE || isFirefox) || $(this).has(e.target).length == 0) //
+            $SidebarControl.onFrameMouseOut();
         e.stopPropagation();
-    }).mouseleave(function(e) {
-        if ((isIE || isFirefox) && $(this).has(e.target).length > 0) { 
-            e.stopPropagation();
-            return;
-        }
-        $SidebarControl.onFrameMouseOut();
+    }).on("mouseenter", function(e) {
+        $SidebarControl.onFrameMouseOver();
         e.stopPropagation();
     });
 
@@ -662,16 +796,29 @@ jQuery(function($)
         e.preventDefault();
     });
 
+    $("#back").click(function(e) {
+        window.location.replace(back || root);
+        e.preventDefault();
+    });
+
+    $("#reload").click(function(e) {
+        window.location.reload();
+        e.preventDefault();
+    });
+
     // ---------------------
     // Search context events
     // ---------------------
 
     function $onSearchSubmit(e) {
         var s = strip($("#search-context").val());
-        if (s.length > 0) {
+        if (is_search_focused || is_null(e)) {
             search_context = s;
             $("#search-context").val(s);
-            $("input[id='searched']").each(function() { $(this).val(s); });
+            if (is_empty(s))
+                $("input[id='reset_search']").each(function() { $(this).val('1'); });
+            else
+                $("input[id='searched']").each(function() { $(this).val(s); });
             $LineSelector.onFormSubmit();
             $setPaginationFormSubmit(1);
             $onParentFormSubmit('filter-form');
@@ -707,7 +854,20 @@ jQuery(function($)
     // ---------------
 
     $(window).focus(function() {
-        $Semaphore.start(true);
+        if (is_on_refresh)
+            return;
+
+        page_scroll_top = $(window).scrollTop();
+
+        if (typeof($_activate) === 'function' && $_activate(1)) {
+            is_on_refresh = true;
+
+            $HideError();
+            $ShowPage(1);
+            $onRefreshClick();
+        }
+        else
+            $Semaphore.start(true);
     }).blur(function() {
         $Semaphore.stop(false);
     });
@@ -738,7 +898,7 @@ jQuery(function($)
     $(window).keydown(function(e) {
         var exit = false;
 
-        if (!e.ctrlKey && e.keyCode==116) {                      // F5 !!! IMPORTANT
+        if (e.keyCode==116) {                                    // F5 !!! IMPORTANT !e.ctrlKey && 
             $onRefreshClick();
             exit = true;
         }
@@ -746,9 +906,14 @@ jQuery(function($)
         if (e.shiftKey && e.keyCode==112)                        // Shift-F1
             exit = $onOpenHelp();
 
-        if ($ConfirmDialog.is_focused() || $NotificationDialog.is_focused() || 
-            page_is_focused(e) || isKeyboardDisabled)
+        if ($ConfirmDialog.is_focused() || $NotificationDialog.is_focused() || page_is_focused(e) || isKeyboardDisabled)
             return;
+
+        try {
+            if ($BaseDialog.is_focused() || is_search_focused)
+                return;
+        } 
+        catch (err) {}
 
         if (e.shiftKey && [67, 79].indexOf(e.keyCode) > -1) {    // Shift-C,Shift-O
             $SidebarControl.onNavigatorClick(false);
@@ -887,4 +1052,3 @@ function $web_semaphore(action) {
 
     });
 }
-

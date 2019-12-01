@@ -4,28 +4,44 @@
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
+  {%- if auth -%}
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="author" content="Rosan Finance = Igor Kharlamov (ichar)">
-  {% if title %}
+  {%- elif is_mobile -%}
+<meta name="viewport" content="width=1080">
+  {%- else -%}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  {%- endif -%}
+<meta name="author" content="Rosan Finance, Igor E. Kharlamov (skype:ichar_x)">
+  {%- if title -%}
 <title>{{ title }}</title>
-  {% else %}
-<title>Bank Perso Viewer Main Page</title>
-  {% endif %}
-<link href="{{ url_for('static', filename='css/bootstrap.css') }}" rel="stylesheet" type="text/css" media="screen">
+  {%- else -%}
+<title>WebPerso Viewer Main Page</title>
+  {%- endif -%}
+<link href="{{ url_for('static', filename='css/bootstrap' + bootstrap + '.css') }}{{ vsc }}" rel="stylesheet" type="text/css" media="screen">
 <link href="{{ url_for('static', filename='css/bootstrap-responsive.min.css') }}" rel="stylesheet" type="text/css">
+<!--
+<link href="{{ url_for('static', filename='css/bootstrap-theme.min.css') }}{{ vsc }}" rel="stylesheet" type="text/css">
+-->
 <link href="{{ url_for('static', filename='css/jquery-ui.custom.css') }}" rel="stylesheet" type="text/css">
 <link href="{{ url_for('static', filename='css/style') }}.common.css{{ vsc }}" rel="stylesheet" type="text/css">
+  {%- if not auth -%}
+    {%- if css -%}
 <link href="{{ url_for('static', filename='css/style') }}.{{ css }}.css{{ vsc }}" rel="stylesheet" type="text/css">
+    {%- endif -%}
+    {%- if usertype -%}
 <link href="{{ url_for('static', filename='css/style') }}.{{ usertype }}.css{{ vsc }}" rel="stylesheet" type="text/css">
+    {%- endif -%}
+  {%- endif -%}
+
+{% block header_styles %}{% endblock %}
 {% block styles %}{% endblock %}
 
 <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jquery-ui.custom.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jquery.color.min.js') }}"></script>
-<!--
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
--->
+  {%- if auth -%}
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+  {%- endif -%}
 <script src="{{ url_for('static', filename='js/verge.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/core.min.js') }}{{ vsc }}"></script>
 <script src="{{ url_for('static', filename='js/common.min.js') }}{{ vsc }}"></script>
@@ -35,7 +51,7 @@
 </head>
 <body>
 
-<div id="html-container">
+<div class="{% if is_hidden %}hidden{% endif %}" id="html-container">
 
 {% block sidebar_content %}{% endblock %}
 
@@ -43,11 +59,11 @@
 
 {% if show_flash %}
 
-<section class="" id="flash-section">
+<section id="flash-section">
   
   {% for message in get_flashed_messages() %}
 
-    <table class="flash"><tr><td>{{ _(message) }}</td></tr></table>
+    <div class="flash">{{ _(message) }}</div>
 
   {% endfor %}
   
@@ -77,13 +93,15 @@
 
 <div id="page-loader" style="display:none;">
   <div>{{ _('Please, wait the system response') }}...</div>
-  {#<img src="{{ root }}static/img/logo.png"><br>#}
-  <img src="{{ root }}static/img/loader.gif">
+  {% if logo %}<img src="{{ logo }}"><br>{% endif %}
+  <img src="{{ image_loader }}">
 </div>
 
 <div class="common-dialog" id="help-container" title="{{ _('Help information') }}" style="display:none;">
   <h3>{{ _('Helper keypress guide') }}:</h3>
-  <div class="common-box" id="help-info"></div>
+  <div class="common-box" id="help-box">
+    <div id="help-info"></div>
+  </div>
 </div>
 
 <div class="common-dialog" id="confirm-container" title="{{ _('Confirm notification form') }}" style="display:none;">
@@ -95,6 +113,8 @@
   <div id="notification-info"></div>
 </div>
 
+<div id="dialog-cache"></div>
+
 {% block dialogs_content %}{% endblock %}
 
 <script type="text/javascript">
@@ -105,12 +125,16 @@ $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
 $IS_FRAME = {{ is_frame }};
 $IS_DEMO = {{ is_demo }};
 
+root = '{{ root }}';
+back = '{{ back }}';
 baseURI = '{{ root }}{{ base }}';
 loaderURI = '{{ loader|safe }}';
 keywords = { {{ keywords|join(', ')|safe }} };
 
 IsShowLoader = {{ is_show_loader }};
 IsAdmin = {{ is_admin }};
+IsOperator = {{ is_operator }};
+IsMSIE = {{ is_explorer }};
 
 {% if pagination %}
 LOG_SORT = new Array({{ pagination['sort']['modes']|join(', ')|safe }});
@@ -121,6 +145,8 @@ $SidebarControl.state = {{ sidebar['state'] }};
 $Semaphore.init('{{ semaphore["state"] }}');
 //-->
 </script> 
+
+{% block final_scripts %}{% endblock %}
 
 </body>
 </html>

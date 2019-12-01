@@ -5,7 +5,7 @@ import random
 
 from config import (
      CONNECTION, 
-     IsDebug, IsDeepDebug, IsTrace, IsForceRefresh, LocalDebug, 
+     IsDebug, IsDeepDebug, IsTrace, IsForceRefresh, IsPrintExceptions, LocalDebug, 
      errorlog, print_to, print_exception,
      default_unicode, default_encoding, default_iso
      )
@@ -23,6 +23,7 @@ from ..utils import (
 from ..semaphore.views import initDefaultSemaphore
 
 from .references import *
+from .generator import FileTypeSettingsGenerator
 
 ##  ======================================
 ##  Configurator View Presentation Package
@@ -30,10 +31,13 @@ from .references import *
 
 default_page = 'configurator'
 default_action = '600'
-default_template = 'configurator-files'
+default_template = 'configurator-files-default'
 engine = None
 
+# Локальный отладчик
 IsLocalDebug = LocalDebug[default_page]
+# Использовать OFFSET в SQL запросах
+IsApplyOffset = 1
 
 _views = {
     'files'     : 'configurator-files',
@@ -45,7 +49,10 @@ requested_object = {}
 def before(f):
     def wrapper(**kw):
         global engine
-        engine = BankPersoEngine(current_user, connection=CONNECTION['configurator'])
+        if engine is not None:
+            engine.close()
+        name = kw.get('engine') or 'configurator'
+        engine = BankPersoEngine(name=name, user=current_user, connection=CONNECTION[name])
         return f(**kw)
     return wrapper
 
@@ -53,8 +60,14 @@ def before(f):
 def refresh(**kw):
     global requested_object
 
-    if 'file_id' in kw and kw.get('file_id'):
-        requested_object = _get_file(kw['file_id']).copy()
+    file_id = kw.get('file_id')
+    if file_id is None:
+        return
+    
+    requested_object = _get_file(file_id).copy()
+
+def requested_file_type_id():
+    return requested_object.get('TID')
 
 def _get_columns(name):
     return ','.join(database_config[name]['columns'])
@@ -70,6 +83,9 @@ def _get_view_columns(view):
 
 def _get_page_args():
     args = {}
+
+    if has_request_item(EXTRA_):
+        args[EXTRA_] = (EXTRA_, None)
 
     try:
         args = { \
@@ -140,9 +156,10 @@ def _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_sele
     return rows
 
 def _get_file(file_id):
-    columns = database_config[default_template]['export']
+    view = _views['files']
+    columns = database_config[view]['export']
     where = 'TID=%s' % file_id
-    cursor = engine.runQuery(default_template, columns=columns, top=1, where=where, as_dict=True)
+    cursor = engine.runQuery(view, columns=columns, top=1, where=where, as_dict=True)
     return cursor and cursor[0] or {}
 
 def _get_batches(file_id, batch_id=None, **kw):
@@ -163,7 +180,7 @@ def _get_batches(file_id, batch_id=None, **kw):
                              as_dict=True,
                              )
     if cursor:
-        IsSelected = False
+        is_selected = False
         
         for n, row in enumerate(cursor):
             row['id'] = row['TID']
@@ -172,13 +189,13 @@ def _get_batches(file_id, batch_id=None, **kw):
                 if (tid and tid == row['TID']):
                     row['selected'] = 'selected'
                     selected_id = tid
-                    IsSelected = True
+                    is_selected = True
                 else:
                     row['selected'] = ''
 
             batches.append(row)
 
-        if not (no_selected or IsSelected):
+        if not (no_selected or is_selected):
             row = batches[0]
             selected_id = row['id']
             row['selected'] = 'selected'
@@ -305,7 +322,7 @@ def _get_tagvalues(file_id, **kw):
 
     columns = kw.get('columns')
     order = 'TName'
-    encode_columns = ('TName', 'TValue', 'TMemo',)
+    encode_columns = ('TName', 'TValue', 'TMemo', 'TagValue',)
 
     return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
@@ -467,6 +484,14 @@ def _get_processparams(file_id, **kw):
 
     return _cursor_evaluate(view, columns, tid, where, order, encode_columns, with_selected)
 
+def _get_top(per_page, page):
+    if IsApplyOffset:
+        top = per_page
+    else:
+        top = per_page * page
+    offset = page > 1 and (page - 1) * per_page or 0
+    return top, offset
+
 ## ==================================================== ##
 
 def getTabBatchInfo(batch_id):
@@ -494,44 +519,44 @@ def getTabBatchInfo(batch_id):
 
     return number and data or [], props
 
-def getTabProcesses(file_id, **kw):
-    return _get_processes(file_id, **kw)
+def getTabProcesses(**kw):
+    return _get_processes(requested_file_type_id(), **kw)
 
-def getTabOpers(file_id, **kw):
-    return _get_opers(file_id, **kw)
+def getTabOpers(**kw):
+    return _get_opers(requested_file_type_id(), **kw)
 
-def getTabOperParams(file_id, **kw):
-    return _get_operparams(file_id, **kw)
+def getTabOperParams(**kw):
+    return _get_operparams(requested_file_type_id(), **kw)
 
-def getTabFilters(file_id, **kw):
-    return _get_filters(file_id, **kw)
+def getTabFilters(**kw):
+    return _get_filters(requested_file_type_id(), **kw)
 
-def getTabTags(file_id, **kw):
-    return _get_tags(file_id, **kw)
+def getTabTags(**kw):
+    return _get_tags(requested_file_type_id(), **kw)
 
-def getTabTagValues(file_id, **kw):
-    return _get_tagvalues(file_id, **kw)
+def getTabTagValues(**kw):
+    return _get_tagvalues(requested_file_type_id(), **kw)
 
-def getTabTZs(file_id, **kw):
-    return _get_tzs(file_id, **kw)
+def getTabTZs(**kw):
+    return _get_tzs(requested_file_type_id(), **kw)
 
-def getTabERPCodes(file_id, **kw):
-    return _get_erpcodes(file_id, **kw)
+def getTabERPCodes(**kw):
+    return _get_erpcodes(requested_file_type_id(), **kw)
 
-def getTabMaterials(file_id, **kw):
-    return _get_materials(file_id, **kw)
+def getTabMaterials(**kw):
+    return _get_materials(requested_file_type_id(), **kw)
 
-def getTabPosts(file_id, **kw):
-    return _get_posts(file_id, **kw)
+def getTabPosts(**kw):
+    return _get_posts(requested_file_type_id(), **kw)
 
-def getTabTagOpers(file_id, **kw):
-    return _get_tagopers(file_id, **kw)
+def getTabTagOpers(**kw):
+    return _get_tagopers(requested_file_type_id(), **kw)
 
-def getTabTagOperParams(file_id, **kw):
-    return _get_tagoperparams(file_id, **kw)
+def getTabTagOperParams(**kw):
+    return _get_tagoperparams(requested_file_type_id(), **kw)
 
-def getTabProcessParams(file_id, **kw):
-    return _get_processparams(file_id, **kw)
+def getTabProcessParams(**kw):
+    return _get_processparams(requested_file_type_id(), **kw)
 
 ## ==================================================== ##
 
@@ -603,12 +628,11 @@ def runReference(attrs, params):
 
     return data, props, ob.config, ob.editable_columns
 
-def runConfigItem(file_id, attrs, params):
+def runConfigItem(attrs, params):
     """
         Configurator class adapter.
         
         Arguments:
-            file_id -- Int, file type id
             attrs   -- Dict, query attributes
             params  -- Dict or String, with the keys:
             
@@ -631,6 +655,7 @@ def runConfigItem(file_id, attrs, params):
             config  -- Dict, config object
             columns -- List, editable columns list
     """
+    file_id = requested_file_type_id()
     command, mode, query, items, id = _load_params(params)
     
     reference = reference_factory.get(mode)
@@ -663,7 +688,7 @@ def runConfigItem(file_id, attrs, params):
         data['FileTypeID'] = requested_object.get('TID')
         data['FileType'] = requested_object.get('FileType')
 
-        if (':%s:' % mode.strip()) in ':tzs:erpcodes:materials:posts:processparams:':
+        if (':%s:' % mode.strip()) in ':tzs:erpcodes:materials:posts:tagopers:processparams:':
             data['TagValue'] = ''
 
         data = [data]
@@ -800,6 +825,55 @@ def runConfigItem(file_id, attrs, params):
 
 ## ==================================================== ##
 
+def _create_scenario(kw):
+    """
+        Generate a new Application Config scenario
+    """
+    errors = None
+
+    try:
+        generator = FileTypeSettingsGenerator(engine, requested_object)
+        configtype = request.form.get('configtype')
+
+        if not configtype:
+            pass
+        elif configtype == 'cardstandard':
+            errors = generator.createCardStandardScenario(request.form)
+        elif configtype == 'easy':
+            errors = generator.createEasyScenario(request.form)
+    except:
+        if IsPrintExceptions:
+            print_exception()
+
+    return errors
+
+def _remove_scenario(kw):
+    errors = None
+
+    try:
+        generator = FileTypeSettingsGenerator(engine, requested_object)
+        errors = generator.removeScenario()
+    except:
+        if IsPrintExceptions:
+            print_exception()
+
+    return errors
+
+def _create_design(kw):
+    """
+        Generate a new CardStandard product design
+    """
+    errors = None
+
+    try:
+        generator = FileTypeSettingsGenerator(engine, requested_object)
+        errors = generator.createNewDesign(request.form)
+    except:
+        if IsPrintExceptions:
+            print_exception()
+
+    return errors
+
 def _make_page_default(kw):
     file_id = int(kw.get('file_id'))
     batch_id = int(kw.get('batch_id'))
@@ -812,11 +886,7 @@ def _make_page_default(kw):
     filter = ''
     qs = ''
 
-    # -------------------------------
-    # Представление БД (default_view)
-    # -------------------------------
-
-    default_view = database_config[default_template]
+    template = default_template
 
     # --------------------------------------------
     # Позиционирование строки в журнале (position)
@@ -830,15 +900,14 @@ def _make_page_default(kw):
     # -----------------------------------
     
     page, per_page = get_page_params(default_page)
-    top = per_page * page
-    offset = page > 1 and (page - 1) * per_page or 0
+    top, offset = _get_top(per_page, page)
 
     # ------------------------
     # Поиск контекста (search)
     # ------------------------
 
-    search = get_request_item('search')
-    IsSearchEvent = False
+    search = get_request_search()
+    is_search_event = False
     items = []
 
     if search:
@@ -861,10 +930,14 @@ def _make_page_default(kw):
                 id = FileTypeID = value or None
             elif name == 'BatchTypeID':
                 id = BatchTypeID = value or None
-                
-            if id and name in ('ClientID', 'FileTypeID',): #, 'BatchTypeID'
+
+            if id and name in ('ClientID', 'FileTypeID',): #
                 items.append("%s=%s" % (name, id))
-            
+
+            elif id and name in ('BatchTypeID',):
+                items.append("%s=%s" % (name, id))
+                template = _views['files']
+
             if value:
                 filter += "&%s=%s" % (key, value)
 
@@ -873,15 +946,24 @@ def _make_page_default(kw):
 
     where = qs or ''
 
+    # -------------------------------
+    # Представление БД (default_view)
+    # -------------------------------
+
+    default_view = database_config[template]
+
     # ---------------------------------
     # Сортировка журнала (current_sort)
     # ---------------------------------
 
     current_sort = int(get_request_item('sort') or '0')
     if current_sort > 0:
-        order = '%s' % default_view['columns'][current_sort]
+        order = '%s' % default_view['columns'][current_sort-1]
     else:
         order = 'Client, FileType'
+
+    if current_sort in (1,):
+        order += " desc"
 
     if IsDebug:
         print('--> where:%s %s, order:%s' % (where, args, order))
@@ -909,7 +991,7 @@ def _make_page_default(kw):
         # Кол-во записей по запросу в журнале (total_files)
         # -------------------------------------------------
 
-        cursor = engine.runQuery(default_template, columns=('count(*)',), where=where)
+        cursor = engine.runQuery(template, columns=('count(*)',), where=where, distinct=True)
         if cursor:
             total_files = cursor[0][0]
 
@@ -917,16 +999,16 @@ def _make_page_default(kw):
         # Типы файлов (files)
         # ===================
 
-        cursor = engine.runQuery(default_template, columns=database_config[default_template]['columns'], 
-                                 top=top, where=where, order=order, as_dict=True,
+        cursor = engine.runQuery(template, columns=database_config[template]['columns'], 
+                                 top=top, offset=offset, where=where, order=order, as_dict=True,
                                  encode_columns=('Client', 'ReportPrefix',),
-                                 )
+                                 distinct=True)
         if cursor:
-            IsSelected = False
+            is_selected = False
 
             for n, row in enumerate(cursor):
-                if offset and n < offset:
-                    continue
+                #if offset and n < offset:
+                #    continue
 
                 if file_id:
                     if not confirmed_file_id and file_id == row['TID']:
@@ -936,7 +1018,7 @@ def _make_page_default(kw):
 
                     if file_id == row['TID']:
                         row['selected'] = 'selected'
-                        IsSelected = True
+                        is_selected = True
                 else:
                     row['selected'] = ''
 
@@ -952,7 +1034,7 @@ def _make_page_default(kw):
             if line > len(files):
                 line = 1
 
-            if not IsSelected and len(files) >= line:
+            if not is_selected and len(files) >= line:
                 row = files[line-1]
                 confirmed_file_id = file_id = row['id'] = row['TID']
                 file_name = row['FileType']
@@ -1043,7 +1125,8 @@ def _make_page_default(kw):
     query_string = 'per_page=%s' % per_page
     base = 'configurator?%s' % query_string
 
-    modes = [(n, '%s' % default_view['headers'][x][0]) for n, x in enumerate(default_view['columns'])]
+    modes = [(n+1, '%s' % default_view['headers'][x][0]) for n, x in enumerate(default_view['columns'])]
+    modes.insert(0, (0, 'По умолчанию'))
     sorted_by = default_view['headers'][default_view['columns'][current_sort]]
 
     pagination = {
@@ -1096,14 +1179,19 @@ def _make_page_default(kw):
 
 ## ==================================================== ##
 
-@configurator.route('/', methods = ['GET'])
 @configurator.route('/configurator', methods = ['GET','POST'])
 @login_required
 def index():
     debug, kw = init_response('WebPerso Configurator Page')
     kw['product_version'] = product_version
 
+    is_admin = current_user.is_administrator()
+    is_operator = current_user.is_operator()
+
     command = get_request_item('command')
+
+    file_id = int(get_request_item('file_id') or '0')
+    batch_id = int(get_request_item('batch_id') or '0')
 
     if IsDebug:
         print('--> command:%s, file_id:%s, batch_id:%s' % (
@@ -1112,12 +1200,28 @@ def index():
             kw.get('batch_id')
         ))
 
-    refresh()
+    refresh(file_id=file_id)
 
     errors = []
 
     if command and command.startswith('admin'):
-        pass
+        command = command.split(DEFAULT_HTML_SPLITTER)[1]
+
+        if get_request_item('OK') != 'run':
+            command = ''
+
+        elif not is_admin:
+            flash('You have not permission to run this action!')
+            command = ''
+
+        elif command == 'createscenario':
+            errors = _create_scenario(kw)
+
+        elif command == 'removescenario':
+            errors = _remove_scenario(kw)
+
+        elif command == 'createdesign':
+            errors = _create_design(kw)
 
     kw['errors'] = '<br>'.join(errors)
     kw['OK'] = ''
@@ -1126,37 +1230,49 @@ def index():
         kw = _make_page_default(kw)
 
         if IsTrace:
-            print_to(errorlog, '--> configurator:%s %s %s' % (command, current_user.login, str(kw.get('current_file')),), request=request)
+            print_to(errorlog, '--> configurator:%s %s [%s:%s] %s' % (
+                command, current_user.login, request.remote_addr, kw.get('browser_info'), str(kw.get('current_file')),), 
+                request=request)
     except:
         print_exception()
 
-    kw['vsc'] = (IsDebug or IsIE() or IsForceRefresh) and ('?%s' % str(int(random.random()*10**12))) or ''
+    kw['vsc'] = vsc()
 
-    if command and command.startswith('admin'):
-        pass
+    if command:
+        is_extra = has_request_item(EXTRA_)
 
-    elif command == 'export':
-        columns = kw['config']['files']['export']
-        rows = []
-        for data in kw['files']:
-            row = []
-            for column in columns:
-                if column == 'FinalMessage':
-                    continue
-                v = data[column]
-                if 'Date' in column:
-                    v = re.sub(r'\s+', ' ', re.sub(r'<.*?>', ' ', v))
-                row.append(v)
+        if not command.strip():
+            pass
 
-            rows.append(row)
+        elif command in 'createscenario:removescenario:createdesign':
+            if kw['errors']:
+                flash('Config Generator done with errors!')
+            else:
+                kw['OK'] = gettext('Message: Configuration was %s successfully.' % (
+                    command == 'removescenario' and 'removed' or 'created'))
 
-        rows.insert(0, columns)
+        elif command == 'export':
+            columns = kw['config']['files']['export']
+            rows = []
+            for data in kw['files']:
+                row = []
+                for column in columns:
+                    if column == 'FinalMessage':
+                        continue
+                    v = data[column]
+                    if 'Date' in column:
+                        v = re.sub(r'\s+', ' ', re.sub(r'<.*?>', ' ', v))
+                    row.append(v)
 
-        xls = makeXLSContent(rows, 'Конфигуратор BankPerso', True)
+                rows.append(row)
 
-        response = make_response(xls)
-        response.headers["Content-Disposition"] = "attachment; filename=configurator.xls"
-        return response
+            rows.insert(0, columns)
+
+            xls = makeXLSContent(rows, 'Конфигуратор BankPerso', True)
+
+            response = make_response(xls)
+            response.headers["Content-Disposition"] = "attachment; filename=configurator.xls"
+            return response
 
     return make_response(render_template('configurator.html', debug=debug, **kw))
 
@@ -1224,6 +1340,9 @@ def loader():
     data = ''
     number = ''
     columns = []
+    total = None
+    status = ''
+    path = ''
 
     props = None
 
@@ -1244,73 +1363,73 @@ def loader():
         elif action == '602':
             view = 'configurator-processes'
             columns = _get_view_columns(database_config[view])
-            data = getTabProcesses(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabProcesses(attrs=attrs, view=view, with_selected=True)
 
         elif action == '603':
             view = 'configurator-opers'
             columns = _get_view_columns(database_config[view])
-            data = getTabOpers(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabOpers(attrs=attrs, view=view, with_selected=True)
 
         elif action == '604':
             view = 'configurator-operparams'
             columns = _get_view_columns(database_config[view])
-            data = getTabOperParams(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabOperParams(attrs=attrs, view=view, with_selected=True)
 
         elif action == '605':
             view = 'configurator-filters'
             columns = _get_view_columns(database_config[view])
-            data = getTabFilters(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabFilters(attrs=attrs, view=view, with_selected=True)
 
         elif action == '606':
             view = 'configurator-tags'
             columns = _get_view_columns(database_config[view])
-            data = getTabTags(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabTags(attrs=attrs, view=view, with_selected=True)
 
         elif action == '607':
             view = 'configurator-tagvalues'
             columns = _get_view_columns(database_config[view])
-            data = getTabTagValues(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabTagValues(attrs=attrs, view=view, with_selected=True)
 
         elif action == '608':
             view = 'configurator-tzs'
             columns = _get_view_columns(database_config[view])
-            data = getTabTZs(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabTZs(attrs=attrs, view=view, with_selected=True)
 
         elif action == '609':
             view = 'configurator-erpcodes'
             columns = _get_view_columns(database_config[view])
-            data = getTabERPCodes(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabERPCodes(attrs=attrs, view=view, with_selected=True)
 
         elif action == '610':
             view = 'configurator-materials'
             columns = _get_view_columns(database_config[view])
-            data = getTabMaterials(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabMaterials(attrs=attrs, view=view, with_selected=True)
 
         elif action == '611':
             view = 'configurator-posts'
             columns = _get_view_columns(database_config[view])
-            data = getTabPosts(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabPosts(attrs=attrs, view=view, with_selected=True)
 
         elif action == '612':
             view = 'configurator-processparams'
             columns = _get_view_columns(database_config[view])
-            data = getTabProcessParams(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabProcessParams(attrs=attrs, view=view, with_selected=True)
 
         elif action == '613':
             view = 'configurator-tagopers'
             columns = _get_view_columns(database_config[view])
-            data = getTabTagOpers(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabTagOpers(attrs=attrs, view=view, with_selected=True)
 
         elif action == '614':
             view = 'configurator-tagoperparams'
             columns = _get_view_columns(database_config[view])
-            data = getTabTagOperParams(file_id, attrs=attrs, view=view, with_selected=True)
+            data = getTabTagOperParams(attrs=attrs, view=view, with_selected=True)
 
         elif action == '620':
             data, props, config, columns = runReference(attrs, params)
 
         elif action == '621':
-            data, props, config, columns = runConfigItem(file_id, attrs, params)
+            data, props, config, columns = runConfigItem(attrs, params)
 
     except:
         print_exception()
@@ -1338,6 +1457,8 @@ def loader():
         # --------------------------
         'total'            : len(data),
         'data'             : data,
+        'status'           : status,
+        'path'             : path,
         'props'            : props,
         'columns'          : columns,
     })

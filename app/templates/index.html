@@ -4,9 +4,9 @@
 
 {% block starter %}
 
-<script src="{{ url_for('static', filename='js/db.controller.js') }}"></script>
-<script src="{{ url_for('static', filename='js/log.default.js') }}"></script>
-<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+<script src="{{ url_for('static', filename='js/db.controller.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/log.default.js') }}{{ vsc }}"></script>
+<script src="{{ url_for('static', filename='js/index.js') }}{{ vsc }}"></script>
 
 {% endblock %}
 
@@ -51,7 +51,15 @@
 
   <div class="data-menu block">
     <div class="menu selected" id="data-menu-batches">Партии</div>
-    <div class="menu" id="data-menu-statuses">История заказа</div>
+    <div class="menu" id="data-menu-logs">История заказа</div>
+    <div class="menu" id="data-menu-cardholders">Персонализация</div>
+  {% if current_user.is_owner() %}  
+    <div class="menu" id="data-menu-body">IBODY</div>
+    <div class="menu" id="data-menu-processerrmsg">PROCESS-ERR-MSG</div>
+  {% endif %}
+  {% if current_user.is_administrator() %}
+    <div class="menu" id="data-menu-persolog">Файловый журнал</div>
+  {% endif %}
   </div>
 
   <div id="info-container">
@@ -82,9 +90,7 @@
           </tr>
           {%- endfor %}
           {%- if not batches -%}
-          <tr>
-            <td colspan="{{ config['batches']['columns']|length }}"><div class="nodata">Нет данных!</div></td>
-          </tr>
+          <tr><td colspan="{{ config['batches']['columns']|length }}"><div class="nodata">Нет данных!</div></td></tr>
           {%- endif -%}
           </table>
         </div>
@@ -94,33 +100,38 @@
       </div>
     </div>
     
-    <div class="view-content" id="statuses-content" style="display:none;">
-      <h3>История заказа (хронология смены статусов):</h3>
-      <div class="view-container">
-        <table class="view-data" border="1">
-        <thead>
-        <tr>
-        {%- for column in config['logs']['columns'] -%}
-          <td class="column header">{{ config['logs']['headers'][column] }}</td>
-        {%- endfor -%}
-        </tr>
-        </thead>
+    <div class="view-content" id="logs-content" style="display:none;">
+      <h3>История заказа (хронология смены статусов) <span class="filename">{{ current_file[1] }}</span>:</h3>
+      <div class="view-container" id="logs-container"></div>
+    </div>
 
-        {% for row in logs -%}
-        <tr class="{{ loop.cycle('odd', 'even') }}" id="{{ row['id'] }}">
-          {%- for column in config['logs']['columns'] -%}
-          <td class="column">{{ row[column]|safe }}</td>
-          {%- endfor -%}
-        </tr>
-        {%- endfor %}
-        {%- if not logs -%}
-        <tr>
-          <td colspan="{{ config['logs']['columns']|length }}"><div class="nodata">Нет данных!</div></td>
-        </tr>
-        {%- endif -%}
-        </table>
+    <div class="view-content" id="cardholders-content" style="display:none;">
+      <h3>Лист персонализации <span class="filename">{{ current_file[1] }}</span>:</h3>
+      <div class="view-container" id="cardholders-container"></div>
+    </div>
+
+  {% if current_user.is_owner() %}  
+    <div class="view-content" id="body-content" style="display:none;">
+      <h3>Контент заказа (IBODY) <span class="filename">{{ current_file[1] }}</span>:</h3>
+      <div class="view-container">
+        <pre class="ibody" id="ibody-container"></pre>
       </div>
     </div>
+    <div class="view-content" id="processerrmsg-content" style="display:none;">
+      <h3>Ошибки (PROCESS_ERR_MSG) <span class="filename">{{ current_file[1] }}</span>:</h3>
+      <div class="view-container">
+        <pre class="ibody" id="processerrmsg-container"></pre>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if current_user.is_administrator() %}  
+    <div class="view-content" id="persolog-content" style="display:none;">
+      <h3>Журнал загрузки файла <span class="filename">{{ current_file[1] }}</span>:</h3>
+      <div class="view-container" id="persolog-container"></div>
+    </div>
+  {% endif %}
+  
   </div>
 
 {% endblock %}
@@ -129,8 +140,8 @@
 
   <div id="log-pagination">
     <table border="0">
-    <form action="{{ pagination['link'] }}" id="pagination-form" method="post">
-    <input type="hidden" name="page" value="{{ pagination['current_page'] }}" />
+    <form action="{{ pagination['link'] }}" id="pagination-form" method="GET" onSubmit="return $onPaginationFormSubmit(this);">
+    <input type="hidden" id="page" name="page" value="" />
     <input type="hidden" id="file_id" name="file_id" value="{{ current_file[0] }}" />
     <input type="hidden" id="searched" name="search" value="{{ search }}">
 
@@ -178,17 +189,20 @@
 
   <div id="log-filter">
     <table border="0">
-    <form action="{{ pagination['link'] }}" id="filter-form" method="post">
+    <form action="{{ pagination['link'] }}" id="filter-form" method="POST">
     <input type="hidden" name="page" value="{{ pagination['current_page'] }}">
     <input type="hidden" name="per-page" value="{{ pagination['per_page'] }}">
     <input type="hidden" id="file_id" name="file_id" value="{{ current_file[0] }}">
+    <input type="hidden" id="batch_id" name="batch_id" value="{{ current_file[2] }}">
+    <input type="hidden" id="status_file_id" name="status_file_id" value="">
+    <input type="hidden" id="status_batch_id" name="status_batch_id" value="">
     <input type="hidden" id="searched" name="search" value="{{ search }}">
     <input type="hidden" id="command" name="command" value="">
 
     <tr>
       <td><div class="caption bank">Клиент:</div></td>
       <td>
-        <select class="field popup" id="bank" name="bank" onchange="this.form.submit()">
+        <select class="field popup" id="bank" name="bank" onchange="MakeFilterSubmit()">
           {% for bank in banks -%}
             <option value="{{ bank }}" {% if args['bank'][1] == bank %}selected{% endif %}>{{ bank }}</option>
           {%- endfor %}
@@ -198,7 +212,7 @@
     <tr>
       <td><div class="caption type">Тип файла:</div></td>
       <td>
-        <select class="field popup" id="type" name="type" onchange="this.form.submit()">
+        <select class="field popup" id="type" name="type" onchange="MakeFilterSubmit()">
           {% for type in types -%}
             <option value="{{ type }}" {% if args['type'][1] == type %}selected{% endif %}>{{ type }}</option>
           {%- endfor %}
@@ -208,7 +222,7 @@
     <tr>
       <td><div class="caption status">Статус файла заказа:</div></td>
       <td>
-        <select class="field popup" id="status" name="status" onchange="this.form.submit()">
+        <select class="field popup" id="status" name="status" onchange="MakeFilterSubmit()">
           {% for status in statuses -%}
             <option value="{{ status }}" {% if args['status'][1] == status %}selected{% endif %}>{{ status }}</option>
           {%- endfor %}
@@ -218,9 +232,19 @@
     <tr>
       <td><div class="caption order-date">Дата заказа c:</div></td>
       <td>
-        <input class="field date" type="date" id="order-date-from" name="date_from" value="{{ args['date_from'][1] }}" onchange="this.form.submit()">
+        <input class="field date" type="date" id="order-date-from" name="date_from" value="{{ args['date_from'][1] }}" onchange="MakeFilterSubmit()">
         <span class="caption">по:</span>
-        <input class="field date" type="date" id="order-date-to" name="date_to" value="{{ args['date_to'][1] }}" onchange="this.form.submit()">
+        <input class="field date" type="date" id="order-date-to" name="date_to" value="{{ args['date_to'][1] }}" onchange="MakeFilterSubmit()">
+      </td>
+    </tr>
+    <tr>
+      <td><div class="caption state">Условие отбора:</div></td>
+      <td>
+        <select class="field popup" id="state" name="state" onchange="MakeFilterSubmit()">
+          {% for state in states -%}
+            <option value="{{ state[0] }}" {% if args['state'][1] == state[0] %}selected{% endif %}>{{ state[1] }}</option>
+          {%- endfor %}
+        </select>
       </td>
     </tr>
     </form>
@@ -247,6 +271,26 @@
     </form>
   </div>
 
+  {% if current_user.is_administrator() %}
+  <div class="dropdown" id="admin-panel-container">
+    <a id="admin-panel-dropdown">Панель администрирования</a>
+    <div class="dropdown-content" id="admin-panel">
+      <button class="btn btn-danger" id="admin-create">Перевыгрузить заказ</button>
+      <button class="btn btn-success" id="admin-unload">Выгрузка текущего статуса файла</button>
+      <button class="btn btn-success" id="admin-imageunload">Выгрузка контента файла</button>
+      <button class="btn btn-success" id="admin-fullunload">Полная выгрузка</button>
+      <button class="btn btn-danger" id="admin-delete">Удалить заказ</button>
+      <div class="line"><hr /></div>
+      <button class="btn btn-warning" id="admin-change-filestatus">Сменить статус файла</button>
+      <button class="btn btn-warning" id="admin-change-batchstatus">Сменить статус партии файла</button>
+      <div class="line"><hr /></div>
+      <button class="btn btn-primary last-btn" id="admin-make-report">Пересоздать отчет</button>
+    </div>
+  </div>
+  {% endif %}
+
   </div>
   
 {% endblock %}
+
+

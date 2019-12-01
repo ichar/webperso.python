@@ -8,6 +8,8 @@ function int(x) { return parseInt(x); }
 
 function is_empty(x) { return (is_null(x) || x.toString().length == 0 || (!isNaN(x) && int(x)==0)) ? true : false; }
 
+function is_exist(x) { return !is_null(x) && x.length > 0 ? true : false; }
+
 function mceil(value, multiple) { 
     var x=value % multiple; 
     if (x != 0) value += value > -1 ? multiple-x : -x; 
@@ -23,6 +25,33 @@ function getsplitteditem(value, by_key, item, default_value)
     var x = !is_empty(value) ? value.split(by_key.length > 0 ? by_key : ':') : '';
     return x.length > 1 ? x[1] : (default_value.length > 0 ? default_value : '');
 }
+
+/**
+ * Returns a random number between min (inclusive) and max (exclusive)
+ */
+function getRandomArbitrary(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+/**
+ * Returns a random integer between min (inclusive) and max (inclusive).
+ * The value is no lower than min (or the next integer greater than min
+ * if min isn't an integer) and no greater than max (or the next integer
+ * lower than max if max isn't an integer).
+ * Using Math.round() will give you a non-uniform distribution!
+ */
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Extra Math functions
+ */
+function ctg(x) { return 1 / Math.tan(x); }
+
+function arcctg(x) { return Math.PI / 2 - Math.atan(x); }
 
 // ----------------------------------------
 //  Basic browser identification & version
@@ -533,6 +562,10 @@ Array.prototype.remove = function(value) {
     }
 };
 
+Array.prototype.sum = function() {
+    return this.reduce(function(a, b) { return a + b; }, 0);
+};
+
 // ------------------------
 //  Functions under Objects
 // ------------------------
@@ -549,6 +582,18 @@ function getObjectValueByKey(ob, key) {
 
 function objectKeys(ob) {
     return ob ? Object.keys(ob) : [];
+}
+
+function objectValues(ob) {
+    return ob ? Object.values(ob) : [];
+}
+
+function objectItems(ob) {
+    return ob ? Object.entries(ob) : [];
+}
+
+function objectKeyValues(ob) {
+    return '{'+Object.keys(ob).map(function (key) { return key+':'+(typeof ob[key] === 'object' ? 'Object' : ob[key]); })+'}';
 }
 
 function reprObject(ob) {
@@ -598,10 +643,11 @@ function preloadImages(items, callback) {
     var n = items.length;
     function ok() { 
         --n; 
-        if (!n) callback();
+        if (!n && typeof callback === 'function') 
+            callback();
     }
     for(var i=0; i < n; i++) {
-        if (items[i]) {
+        if (!is_empty(items[i])) {
             var img = document.createElement('img');
             img.onload = img.onerror = ok;
             img.src = items[i];
@@ -635,6 +681,11 @@ function xround(value) {
     return Math.round(value);
 }
 
+function removeClass(ob, c) {
+    if (!is_null(ob) && ob.hasClass(c)) 
+        ob.removeClass(c);
+}
+
 // ----------------
 // Global namespace
 // ----------------
@@ -643,5 +694,6 @@ var self = window;
 
 var $SCRIPT_ROOT = '';
 var $IS_FRAME = true;
+var $IS_DEMO = false;
 
 var n_a = 'n/a';

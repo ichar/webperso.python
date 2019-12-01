@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2013-05-12 18:31+0400\n"
-"PO-Revision-Date: 2018-04-12 21:30+0300\n"
+"PO-Revision-Date: 2019-11-30 09:47+0300\n"
 "Last-Translator: ichar@g2.ru\n"
 "Language-Team: ru <LL@li.org>\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
@@ -12,14 +12,23 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 0.9.6\n"
-"X-Generator: Poedit 2.0.2\n"
+"X-Generator: Poedit 1.5.5\n"
 "Language: ru\n"
 
 msgid "#"
 msgstr "№"
 
+msgid "Access confirmed"
+msgstr "Активен"
+
+msgid "Access enabled"
+msgstr "Доступ разрешен"
+
 msgid "Access to the service is denied!"
 msgstr "Доступ к сервису запрещен"
+
+msgid "Add new design form"
+msgstr "Добавить новый дизайн"
 
 msgid "An unexpected error has occurred"
 msgstr "Неожиданная ошибка"
@@ -36,6 +45,15 @@ msgstr "Партии для обработки"
 msgid "Add"
 msgstr "Добавить"
 
+msgid "Administrator"
+msgstr "Администратор"
+
+msgid "ADMIN"
+msgstr "Администратор"
+
+msgid "Address"
+msgstr "Адрес"
+
 msgid "All"
 msgstr "Все"
 
@@ -45,8 +63,20 @@ msgstr "Все клиенты"
 msgid "All batches"
 msgstr "Все партии"
 
+msgid "Announcement"
+msgstr "Информационное сообщение"
+
+msgid "ASSISTANT"
+msgstr "Заместитель Генерального директора"
+
 msgid "Attention"
 msgstr "ВНИМАНИЕ!"
+
+msgid "Application role"
+msgstr "Функциональная роль"
+
+msgid "Apply code checker"
+msgstr "Выполнить сверку контрольных ключей"
 
 msgid "Apply filter"
 msgstr "Применить фильтр"
@@ -56,6 +86,12 @@ msgstr "Вы действительно собираетесь"
 
 msgid "Are you really going to change the status"
 msgstr "Вы действительно собираетесь изменить статус"
+
+msgid "Assign pay date for the current order."
+msgstr "Укажите дату оплаты заказа."
+
+msgid "Author"
+msgstr "Автор"
 
 msgid "Back"
 msgstr "Вернуться"
@@ -90,11 +126,38 @@ msgstr "Отменить поиск"
 msgid "Caption"
 msgstr "Заголовок"
 
+msgid "CAO"
+msgstr "Главный бухгалтер"
+
+msgid "CEO"
+msgstr "Генеральный директор"
+
+msgid "Change Address form"
+msgstr "Смена адреса филиала доставки"
+
+msgid "Change Address format see in the application documentation."
+msgstr "Укажите требуемый адрес филиала доставки и контрольные ключи."
+
 msgid "change the status of batch"
 msgstr "изменить статус партии"
 
 msgid "change the status of file"
 msgstr "изменить статус файла"
+
+msgid "Change date done with errors!"
+msgstr "Операция смены даты отгрузки выполнена с ошибкой!"
+
+msgid "Change Date format see in the application documentation."
+msgstr "Выберите требуемую дату и нажмите кнопку Выполнить."
+
+msgid "Change Delivery Date form"
+msgstr "Смена даты отгрузки"
+
+msgid "ChangePasswordForm data is invalid."
+msgstr "Пароль введен некорректно. Пожалуйста, повторите"
+
+msgid "CHIEF"
+msgstr "Руководитель подразделения"
 
 msgid "Choice the requested status from the given list"
 msgstr "Выберите требуемый статус из нижеследующего списка"
@@ -102,8 +165,11 @@ msgstr "Выберите требуемый статус из нижеследу
 msgid "Choice the requested item from the given list"
 msgstr "Выберите требуемый элемент из нижеследующего списка"
 
-msgid "Confirm"
-msgstr "Подтвердить"
+msgid "Clean & Reset query"
+msgstr "Сбросить фильтр"
+
+msgid "Click here"
+msgstr "Нажмите здесь"
 
 msgid "Click it to collapse&expand sidebar control"
 msgstr ""
@@ -122,11 +188,32 @@ msgstr "Отобразить панель меню"
 msgid "Client segment"
 msgstr "Клиентский сегмент"
 
+msgid "Clone Provision order form"
+msgstr "Форма регистрации заказа снабжения (копия)"
+
+msgid "Company Details"
+msgstr "Реквизиты компании"
+
+msgid "Company subdivision"
+msgstr "Отдел (Подразделение)"
+
+msgid "Confirm"
+msgstr "Подтвердить"
+
 msgid "Confirm notification form"
 msgstr "ВНИМАНИЕ!"
 
-msgid "Click here"
-msgstr ""
+msgid "Confirmed"
+msgstr "Активен"
+
+msgid "Consultant"
+msgstr "Консультант"
+
+msgid "Contains unread information"
+msgstr "Внимание! Заявка содержит непрочтенные сведения"
+
+msgid "Control panel"
+msgstr "Панель управления"
 
 msgid "Close"
 msgstr "Закрыть"
@@ -137,23 +224,54 @@ msgstr "Закрыть страницу"
 msgid "Code"
 msgstr "Код"
 
+msgid "Config Generator done with errors!"
+msgstr "Генератор конфигурации завершен аварийно!"
+
 msgid "Command: Activate selected batch?"
 msgstr "Отправить партию на производство?"
 
 msgid "Command: Activate selected batches?"
 msgstr "Отправить выбранные партии на производство?"
 
-msgid "Command: Do you really want to remove the config item?"
-msgstr "Вы действительно хотите удалить запись конфигуратора?"
+msgid "Command: Do you really want to clear Provision history?"
+msgstr "Очистить историю согласований по выбранным заказам?"
 
-msgid "Command: Do you really want to remove the reference item?"
-msgstr "Вы действительно хотите удалить запись справочника?"
+msgid "Command: Do you really want to download Provision orders?"
+msgstr "Выгрузить выбранные заказы?"
 
 msgid "Command: Do you really want to reject selected batches?"
-msgstr "Вы действительно хотите отменить активацию для выбранных партий?"
+msgstr "Отменить активацию для выбранных партий?"
+
+msgid "Command: Do you really want to remove the config item?"
+msgstr "Удалить запись конфигуратора?"
+
+msgid "Command: Do you really want to remove the config scenario?"
+msgstr "Удалить сценарий конфигуратора?"
+
+msgid "Command: Do you really want to remove Provision orders?"
+msgstr "Удалить выбранные заказы?"
+
+msgid "Command: Do you really want to remove the reference item?"
+msgstr "Удалить запись справочника?"
+
+msgid "Command: Do you really want to remove Provision order?"
+msgstr "Удалить выбранный заказ?"
+
+msgid "Command: Do you wish to send approval request to the Order author?"
+msgstr "Направить запрос на согласование в подразделение заказчика?"
+
+msgid ""
+"Command: Do you wish to send notification request to the Order reviewers?"
+msgstr "Разослать напоминания о согласовании заказа рецензентам?"
+
+msgid "Command: Do you wish to send notification requests to reviewers?"
+msgstr "Разослать напоминания о незавершенных согласованиях рецензентам?"
 
 msgid "Command: Item was changed. Continue?"
 msgstr "Данные были изменены. Продолжить?"
+
+msgid "Command: Photo item removing. Continue?"
+msgstr "Удалить фотографию?"
 
 msgid "Command: Send request to the warehouse?"
 msgstr "Отправить заявку на склад?"
@@ -161,8 +279,34 @@ msgstr "Отправить заявку на склад?"
 msgid "Command: Reject activation?"
 msgstr "Отменить активацию?"
 
+msgid "CTO"
+msgstr "Главный инженер"
+
+msgid "Create Scenario string format see in the application documentation."
+msgstr ""
+"Сценарий конфигурации для текущего Типа файла. Шаблон конфигурации "
+"определяет Тип сценария. Поля формы регулируют параметры сценария. "
+
+msgid "Create Design string format see in the application documentation."
+msgstr ""
+"Дизайн продукта для текущего Типа файла. Тег дизайна: PlasticType. "
+"Формируются параметры ТЗ для нового дизайна. Значения должны быть определены "
+"для всех полей формы. Исключения - ERP ТЗ, Производственное ТЗ."
+
+msgid "Create Provision order form"
+msgstr "Форма регистрации заказа снабжения"
+
+msgid "Create Scenario settings form"
+msgstr "Создать сценарий конфигурации"
+
 msgid "create selected file"
 msgstr "перевыгрузить файл"
+
+msgid "Data validation types"
+msgstr "Смена адреса при совпадении значения одного из контрольных ключей"
+
+msgid "Data will be filtered accordingly."
+msgstr "Выборка данных соответствует текущему фильтру."
 
 msgid "Date"
 msgstr "Дата"
@@ -170,20 +314,200 @@ msgstr "Дата"
 msgid "Decline"
 msgstr "Отказаться"
 
+msgid "Default URL"
+msgstr "Базовый URL"
+
+msgid "Delete"
+msgstr "Удалить"
+
 msgid "delete selected file"
 msgstr "удалить файл"
+
+msgid "Diamond Product Catalog View"
+msgstr "Каталог продукции Розан Даймонд"
 
 msgid "Do you wish to change password?"
 msgstr "Вы хотите сменить пароль?"
 
+msgid "Do you wish to upload a file of orders? Please, confirm."
+msgstr "Выполнить загрузку файла заявок? Пожалуйста, подтвердите."
+
+msgid "EDITOR"
+msgstr "Редактор"
+
+msgid "EMPLOYEE"
+msgstr "Сотрудник"
+
 msgid "error"
 msgstr "ошибка"
+
+msgid "Enabled"
+msgstr "Доступ разрешен"
 
 msgid "Error information"
 msgstr "Информация об ошибке"
 
 msgid "Error: Unexpected error."
 msgstr "Ошибка!"
+
+msgid "Error: Batch contains empty basic parameters:"
+msgstr "Ошибка. Партия содержит пустые ключевые параметры:"
+
+msgid "Error: Batch SumQty is zero."
+msgstr "Ошибка. Итоговая сумма количества карт равна нулю."
+
+msgid "Error: Client name is not present."
+msgstr "Ошибка. Наименование клента отсутствует."
+
+msgid "Error: Client ID is not unique."
+msgstr "Ошибка. Идентификатор клиента не уникален."
+
+msgid "Error: Client name is not unique."
+msgstr "Ошибка. Выбраны партии нескольких клиентов."
+
+msgid "Error: Clients for selected files are not unique."
+msgstr "Ошибка. Выбраны файлы нескольких клиентов."
+
+msgid "Error: Date is in past!"
+msgstr "Ошибка. Указанная дата в прошлом."
+
+msgid "Error: Download failed"
+msgstr "Исключение. Ошибка выгрузки данных."
+
+msgid "Error: Empty Document ID"
+msgstr "Ошибка. Документ не выбран!"
+
+msgid "Error: Final sum of batches is unmatched."
+msgstr "Не соответствуют итоговая и расчетная сумма количества карт партий."
+
+msgid "Error: Final sum of batches Qty is unmatched."
+msgstr "Не соответствуют итоговая и расчетная сумма количества карт партий."
+
+msgid "Error: File name is not present."
+msgstr "Ошибка. Имя файла не задано."
+
+msgid "Error: Empty or missed responses list."
+msgstr "Ошибка. Не получен ответ сервера."
+
+msgid "Error: Empty Comment ID"
+msgstr "Ошибка. Не определено ID комментария."
+
+msgid "Error: Empty Comment value"
+msgstr "Ошибка. Не определен текст комментария."
+
+msgid "Error: Empty Item ID"
+msgstr "Ошибка. Не определено ID параметра расшифровки."
+
+msgid "Error: Empty Item name"
+msgstr "Ошибка. Не определено наименование."
+
+msgid "Error: Empty Item total value"
+msgstr "Ошибка. Не определено значение суммы."
+
+msgid "Error: Confirmation Note is too long!"
+msgstr "Ошибка. Текст рецензии слишком длинный!"
+
+msgid "Error: Confirmation review rules."
+msgstr ""
+"Правила проведения служебного согласования: Текст служебного уведомления "
+"(рецензии) должен быть кратким и внятным, а также грамматически корректным. "
+"Не допускается использование выражений в грубой и вульгарной форме. "
+"Повторное уведомление с тождественным типом рецензии допускается строго по "
+"истечении 15 минутного интервала. Пожалуйста, соблюдайте данные правила."
+
+msgid ""
+"Error: Seller URL address should be present together with a new company name!"
+msgstr "Ошибка. Не задано название компании ПОСТАВЩИКА."
+
+msgid "Error: Seller Title should be present together with a new company name!"
+msgstr "Ошибка. Не задано название компании ПОСТАВЩИКА."
+
+msgid "Error: Size of uploaded data should be less then"
+msgstr "Максимальный размер файла для загрузки"
+
+msgid "Error: Equipment should be present!"
+msgstr "Ошибка. Поле \"Описание\" обязательно для ввода!"
+
+msgid "Error: Empty confirmation Note"
+msgstr "Введите информацию в поле Ваша рецензия."
+
+msgid "Error: Empty Param ID"
+msgstr "Ошибка. Не определен ID параметра. Сообщите разработчику!"
+
+msgid "Error: Empty Param value"
+msgstr "Ошибка. Не определено значение параметра."
+
+msgid "Error: Empty Payment ID"
+msgstr "Ошибка. Не определен ID платежа. Сообщите разработчику!"
+
+msgid "Error: Empty Payment date"
+msgstr "Ошибка. Не определено значение даты платежа."
+
+msgid "Error: Empty Payment total value"
+msgstr "Ошибка. Не определено значение суммы платежа."
+
+msgid "Error: Materials for the given file is not defined."
+msgstr "Материалы для выбранного файла отсутствуют."
+
+msgid "Error: Message sent with errors!"
+msgstr "Ошибка отправки сообщения!"
+
+msgid "Error: Order cannot be paid until accepted!"
+msgstr "Заказ не может быть оплачен до получения согласования!"
+
+msgid "Error: Order ID is invalid!"
+msgstr "Ошибка. Некорректный ID заказа. Сообщите разработчику!"
+
+msgid "Error: Perhaps, processing of selected orders was finished."
+msgstr "Вероятно, обработка выбранных партий уже завершена."
+
+msgid "Error: Price is not defined"
+msgstr "Ошибка. Не определены ценовые параметры заказа."
+
+msgid "Error: Provision create order error:"
+msgstr "Ошибка создания заказа:"
+
+msgid "Error: Provision order del-seller error:"
+msgstr "Ошибка удаления поставщика по заказу:"
+
+msgid "Error: Provision order register error:"
+msgstr "Ошибка регистрации заказа:"
+
+msgid "Error: Provision order refresh error:"
+msgstr "Ошибка редактирования заказа:"
+
+msgid "Error: Provision order remove error:"
+msgstr "Ошибка удаления заказа"
+
+msgid "Error: Not all batches selected to process the file."
+msgstr "Не все партии файла отобраны для отправки на производство."
+
+msgid "Error: Selected batches with different status."
+msgstr "Выбраны партии с разными статусами."
+
+msgid "Error: SQL broken. See transaction log."
+msgstr "Ошибка исполнения SQL. См. transaction log."
+
+msgid "Error: Status of order cannot be changed."
+msgstr "Ошибка. Статус заказа не может быть изменен."
+
+msgid "Error: Subdivision is underfined:"
+msgstr "Ошибка. Подразделение не определено:"
+
+msgid "Error: There were selected batches from a few Order files."
+msgstr "Выбраны партии нескольких файлов."
+
+msgid "Error: Type of uploaded files are the next"
+msgstr "Разрешенные типы файлов для загрузки в БД"
+
+msgid "Error: Unexpected exception"
+msgstr "Неожиданное исключение. Сообщите разработчику!"
+
+msgid "Error: Upload failed"
+msgstr "Исключение. Ошибка загрузки данных."
+
+msgid "Everybody"
+msgstr "Все"
 
 msgid "Execute"
 msgstr "Исполнить"
@@ -200,71 +524,38 @@ msgstr "Не отправлены партии на производство"
 msgid "Exclamation: Exist materials to send in order"
 msgstr "Заявка на материалы не отправлена"
 
-msgid "Error: Empty or missed responses list."
-msgstr "Не получен ответ сервера."
+msgid "Export view data"
+msgstr "Экспортировать"
 
-msgid "Error: Batch contains empty basic parameters:"
-msgstr "Партия содержит пустые ключевые параметры:"
+msgid "Extra"
+msgstr "Дополнительно"
 
-msgid "Error: Batch SumQty is zero."
-msgstr "Итоговая сумма количества карт равна нулю."
-
-msgid "Error: Client name is not present."
-msgstr "Наименование клента отсутствует."
-
-msgid "Error: Client ID is not unique."
-msgstr "Идентификатор клиента не уникален."
-
-msgid "Error: Client name is not unique."
-msgstr "Выбраны партии нескольких клиентов."
-
-msgid "Error: Final sum of batches is unmatched."
-msgstr "Не соответствуют итоговая и расчетная сумма количества карт партий."
-
-msgid "Error: Final sum of batches Qty is unmatched."
-msgstr "Не соответствуют итоговая и расчетная сумма количества карт партий."
-
-msgid "Error: File name is not present."
-msgstr "Имя файла не задано."
-
-msgid "Error: Materials for the given file is not defined."
-msgstr "Материалы для выбранного файла отсутствуют."
-
-msgid "Error: Perhaps, processing of selected orders was finished."
-msgstr "Вероятно, обработка выбранных партий уже завершена."
-
-msgid "Error: Not all batches selected to process the file."
-msgstr "Не все партии файла отобраны для отправки на производство."
-
-msgid "Error: Selected batches with different status."
-msgstr "Выбраны партии с разными статусами."
-
-msgid "Error: Clients for selected files are not unique."
-msgstr "Выбраны файлы нескольких клиентов."
-
-msgid "Error: There were selected batches from a few Order files."
-msgstr "Выбраны партии нескольких файлов."
+msgid "Family name"
+msgstr "Фамилия"
 
 msgid "Find"
 msgstr "Найти"
 
+msgid "Find (name, login, email)"
+msgstr "Найти (ФИО, логин, email)"
+
+msgid "First name"
+msgstr "Имя"
+
 msgid "Frozen link"
 msgstr "Неизменяемая ссылка"
-
-msgid "of batch"
-msgstr "партии"
-
-msgid "of file"
-msgstr "файла"
 
 msgid "Forward"
 msgstr "Вперёд"
 
+msgid "Forward search"
+msgstr "Поиск вперёд"
+
 msgid "Full screen"
 msgstr "Полный экран"
 
-msgid "Forward search"
-msgstr "Поиск вперёд"
+msgid "Full person name"
+msgstr "ФИО"
 
 msgid "Help"
 msgstr "Помощь"
@@ -275,17 +566,58 @@ msgstr "Справка"
 msgid "Helper keypress guide"
 msgstr "Использование клавиатуры"
 
+msgid "History information rules see in the application documentation."
+msgstr ""
+"Таблица содержит сведения о хронологии изменений параметров, внесенных в "
+"заказ в период его существования."
+
+msgid "HEADOFFICE"
+msgstr "Исполнительный директор"
+
+msgid "HOLDER"
+msgstr "Акционер"
+
+msgid "ID order"
+msgstr "№ заявки"
+
 msgid "Illegal search context"
 msgstr "Недопустимый поисковый контекст"
 
+msgid "Image view"
+msgstr "Просмотр изображения"
+
+msgid "Include greeting to respondents"
+msgstr "Включить в текст письма приветствие"
+
+msgid "Include signature of the author"
+msgstr "Включить в текст письма подпись автора"
+
+msgid "Information mail"
+msgstr "Информационное письмо"
+
 msgid "InfoExchange System"
 msgstr "Модуль инфообмена OutReceiver.exe"
+
+msgid "Input form items to generate a new CardStandard product design."
+msgstr "Введите параметры формы для создания дизайна продукта CardStandard."
+
+msgid "Input form items to generate a new Provision order."
+msgstr "Введите параметры формы для создания заказа."
+
+msgid "Input form items to generate a new Scenario settings."
+msgstr "Введите параметры формы для создания сценария конфигурации."
 
 msgid "Invalid username or password."
 msgstr "Некорректный логин или пароль"
 
 msgid "Invalid password."
 msgstr "Некорректный пароль"
+
+msgid "Invalid password syntax."
+msgstr "Новый пароль слишком простой"
+
+msgid "Last name"
+msgstr "Отчество"
 
 msgid "Link"
 msgstr "Ссылка"
@@ -302,11 +634,66 @@ msgstr ""
 msgid "Log-file types"
 msgstr "Типы файловых журналов"
 
+msgid "Login"
+msgstr "Логин"
+
+msgid "Main menu"
+msgstr "Главное меню"
+
+msgid "Manager"
+msgstr "Менеджер"
+
+msgid "MANAGER"
+msgstr "Менеджер"
+
+msgid "May be omitted"
+msgstr "Необязательно"
+
+msgid "Membership profile"
+msgstr "Профайл пользователя"
+
+msgid "Membership role"
+msgstr "Роль"
+
+msgid "Menu"
+msgstr "Меню"
+
+msgid "Message text"
+msgstr "Текст информационного письма"
+
 msgid "Message: Action was done successfully."
 msgstr "Операция выполнена успешно."
 
 msgid "Message: Activation is perfomed successfully."
 msgstr "Отправка на производство выполнена успешно."
+
+msgid "Message confirmation form"
+msgstr "Форма информационного письма"
+
+msgid "Message confirmation rules see in the application documentation."
+msgstr ""
+"Введите заголовок, текст сообщения (обязателен для заполнения) и опции "
+"рассылки."
+
+msgid "Message: Configuration was created successfully."
+msgstr "Конфигурация создана успешно."
+
+msgid "Message: Configuration was removed successfully."
+msgstr "Конфигурация успешно удалена."
+
+msgid "Message: Delivery address is changed successfully."
+msgstr "Адрес филиала доставки успешно изменен."
+
+msgid "Message: Delivery date is changed successfully."
+msgstr ""
+"Смена даты отгрузки файла выполнена успешно.\n"
+"Отгрузочные документы подготовлены."
+
+msgid "Message: Order was created successfully."
+msgstr "Заявка снабжения создана успешно."
+
+msgid "Message: Order was removed successfully."
+msgstr "Заявка снабжения успешно удалена."
 
 msgid "Message: Reject performed successfully."
 msgstr "Отмена активации выполнена успешно."
@@ -319,6 +706,9 @@ msgstr "Создана новая партия"
 
 msgid "New order created"
 msgstr "Принят новый файл заказа"
+
+msgid "Nick"
+msgstr "Прозвище"
 
 msgid "No"
 msgstr "Нет"
@@ -341,6 +731,12 @@ msgstr "Нет данных или доступ к ресурсу заблоки
 msgid "None"
 msgstr "Нет"
 
+msgid "of batch"
+msgstr "партии"
+
+msgid "of file"
+msgstr "файла"
+
 msgid "OK"
 msgstr "OK"
 
@@ -350,11 +746,23 @@ msgstr "Все партии отправлены на производство"
 msgid "OK: Materials OK"
 msgstr "Обработка материалов выполнена"
 
+msgid "Option: Keep status history"
+msgstr "Сохранить контент статусов (данные текущего статуса будут сохранены)"
+
 msgid "Oper is activated"
 msgstr "Партия отправлена на производство"
 
+msgid "OPERATOR"
+msgstr "Оператор"
+
 msgid "Options"
 msgstr "Опции"
+
+msgid "orders"
+msgstr "заявок"
+
+msgid "Order by"
+msgstr "Сортировка"
 
 msgid "Order/Batch is finished"
 msgstr "Статус заказа или партии завершен"
@@ -368,11 +776,71 @@ msgstr "Файл заказа удален"
 msgid "Order error"
 msgstr "Ошибка заказа"
 
+msgid "Order History information form"
+msgstr "История изменения заказа"
+
 msgid "Order is successfully completed"
 msgstr "Заказ выполнен"
 
+msgid "Order pay date"
+msgstr "Дата оплаты заказа"
+
+msgid "Order pay date assigment see in the application documentation."
+msgstr ""
+"Дата оплаты - фактическая дата проведения платежей по взаиморасчетам с "
+"поставщиком. По умолчанию - текущая календарная дата."
+
+msgid "Page records"
+msgstr "Записей на странице"
+
+msgid "Page Settings"
+msgstr "Настройки интерфейса"
+
+msgid "Pagesize settings"
+msgstr "Размер страницы"
+
+msgid "Pagesize bankperso"
+msgstr "Журнал БанкПерсо"
+
+msgid "Pagesize cards"
+msgstr "Журнал персонализации"
+
+msgid "Pagesize config"
+msgstr "Конфигуратор"
+
+msgid "Pagesize persostation"
+msgstr "Журнал инкассации"
+
+msgid "Pagesize provision"
+msgstr "Журнал снабжения"
+
+msgid "Password"
+msgstr "Пароль"
+
 msgid "Password is incorrect!"
 msgstr "Некорректный пароль"
+
+msgid "password rules"
+msgstr ""
+"Длина пароля не менее 5-ти символов.\n"
+"Пароль содержит буквы, цифры и спец.символы, которые не считаются буквой или "
+"цифрой.\n"
+"Символ подчеркивания считается буквой."
+
+msgid "Password should be matched the next rules:"
+msgstr "Ваш новый пароль должен удовлетворять следующим требованиям:"
+
+msgid "Permissions"
+msgstr "Полномочия"
+
+msgid "Photos"
+msgstr "Фото"
+
+msgid "Persostation Operating Time Register Form"
+msgstr "Учет рабочего времени операторов персонализации"
+
+msgid "Please be care!"
+msgstr "Пожалуйста, обратите внимание!"
 
 msgid "Please log in to access this page."
 msgstr "Пожалуйста, авторизуйтесь для входа в приложение"
@@ -380,11 +848,42 @@ msgstr "Пожалуйста, авторизуйтесь для входа в п
 msgid "Please, confirm"
 msgstr "Пожалуйста, подтвердите"
 
+msgid "Please take care to attract them in time!"
+msgstr "Пожалуйста, ознакомьтесь с информацией своевременно."
+
 msgid "Please, wait the system response"
 msgstr "Пожалуйста, ждите ответа"
 
 msgid "Please, update the page by Ctrl-F5!"
 msgstr "Пожалуйста, обновите страницу командой Ctrl-F5"
+
+msgid "Post"
+msgstr "Должность"
+
+msgid "Print processing info"
+msgstr "Печать информации о статусе файла (Ф103)"
+
+msgid "Privileges"
+msgstr "Привилегии"
+
+msgid "Processing info"
+msgstr "Информация о статусе файла"
+
+msgid "Profile settings"
+msgstr "Административные настройки"
+
+msgid "Provision Order format see in the application documentation."
+msgstr "Заполните поля формы в соответствии с документацией."
+
+msgid "Provision uploader form"
+msgstr "Загрузка файла заказов снабжения"
+
+msgid "Provision uploader file format see in the application documentation."
+msgstr ""
+"Формат файла заказа - CSV (Excel), разделитель ';'. Поля файла: №;"
+"Наименование товара;Количество, шт.;Обоснование;Отдел;Цена за единицу;Валюта "
+"платежа;;;Условия оплаты;Поставщик. Расчет стоимости (СУММА, НДС) "
+"выполняется автоматически."
 
 msgid "Recovery is impossible!"
 msgstr "Восстановление невозможно!"
@@ -392,11 +891,34 @@ msgstr "Восстановление невозможно!"
 msgid "Reference form"
 msgstr "Форма справочника"
 
+msgid "Refresh"
+msgstr "Обновить"
+
 msgid "Reject for the given batch is not done!"
 msgstr "Отмена активации партии не выполнена!"
 
 msgid "Return to the Login page"
 msgstr "Возврат к странице авторизации"
+
+msgid "Review confirmation form"
+msgstr "Форма параметров рецензирования"
+
+msgid "Review confirmation rules see in the application documentation."
+msgstr ""
+"Для проведения согласования Заказчик обязан предоставить дополнительную "
+"информацию. Обоснование проводится в указанный срок."
+
+msgid "Review due date"
+msgstr "Срок обоснования"
+
+msgid "Review options"
+msgstr "Дополнительные опции"
+
+msgid "Role"
+msgstr "Роль"
+
+msgid "ROOT"
+msgstr "Суперпользователь"
 
 msgid "Run"
 msgstr "Выполнить"
@@ -410,6 +932,26 @@ msgstr "SDC"
 msgid "Search"
 msgstr "Найти"
 
+msgid "Search by context"
+msgstr "Поиск по номеру заказа, наименованию, счету и другим поисковым полям"
+
+msgid "Search PAN/BIN"
+msgstr ""
+"Поиск файлов, содержащих заданный PAN, BIN карты или их комбинацию.\n"
+"Разделитель значений - ;, символы маскирования - *,%%"
+
+msgid "Seller Order List"
+msgstr "Информация о контрагенте"
+
+msgid "Send email notifications to author"
+msgstr "Высылать почтовые уведомления должностным лицам"
+
+msgid "Sent message to everybody matched the filter"
+msgstr "Разослать сообщение всем пользователям из текущего списка"
+
+msgid "Sidebar collapse"
+msgstr "Сворачивать панель фильтра"
+
 msgid "Sorry! Its not realized yet."
 msgstr "К сожалению, данный пункт еще не реализован."
 
@@ -419,6 +961,12 @@ msgstr "Статус изменен"
 msgid "Status confirmation form"
 msgstr "Подтверждение смены статуса"
 
+msgid "Subdivision"
+msgstr "Подразделение"
+
+msgid "Subject"
+msgstr "Заголовок"
+
 msgid "Tag Search form"
 msgstr "Выгрузка списка тегов"
 
@@ -427,6 +975,21 @@ msgstr ""
 "Список тегов - имена тегов в формате текущего файла заказа с разделителем "
 "':', например: PLASTIC:PROD_ID:Is_Chip. Идентификаторы тегов контекстно-"
 "зависимы."
+
+msgid "Total"
+msgstr "Всего"
+
+msgid "Total lines"
+msgstr "Всего записей"
+
+msgid "Total orders"
+msgstr "Всего заказов"
+
+msgid "Total records"
+msgstr "Всего записей"
+
+msgid "Total users"
+msgstr "Пользователей"
 
 msgid "The file is processed in the current status."
 msgstr "Файл обрабатывается в текущем статусе."
@@ -438,32 +1001,50 @@ msgstr ""
 msgid "Try to search a given Tag list inside Order-body content."
 msgstr "Введите список тегов для выгрузки из контента текущего файла заказа."
 
-msgid "Total"
-msgstr "Всего"
+msgid "undefined"
+msgstr "не определено"
 
-msgid "Total lines"
-msgstr "Всего записей"
+msgid "Update Provision order form"
+msgstr "Форма редактирования заказа снабжения"
 
-msgid "Yes"
-msgstr "Да"
+msgid "Upload"
+msgstr "Загрузить"
 
-msgid "You cannot access this page!"
-msgstr "У Вас нет доступа к этому приложению!"
+msgid "Upload Image"
+msgstr "Загрузить изображение"
 
-msgid "You have not permission to run this action!"
-msgstr "У Вас нет полномочий на выполнение данной операции!"
+msgid "Upload Photo"
+msgstr "Загрузить фотографию"
 
-msgid "You should change you password!"
-msgstr "Вам необходимо сменить пароль!"
+msgid "Use extra infopanel"
+msgstr "Использовать дополнительные инфопанели"
 
-msgid "You have been logged out."
-msgstr "Вы вышли из приложения"
+msgid "USER"
+msgstr "Пользователь"
 
-msgid "Your password has been updated."
-msgstr "Ваш пароль был успешно обновлен"
+msgid "VISITOR"
+msgstr "Гость"
 
 msgid "Warning: All batches for the given file are already activated."
 msgstr "Все партии выбранного файла уже активированы."
+
+msgid "Warning: Form is empty!"
+msgstr "Форма не заполнена!"
+
+msgid "Warning: Design already exists:"
+msgstr "Дизайн уже зарегистрирован:"
+
+msgid "Warning: Design should be a number:"
+msgstr "Номер дизайна должен быть числом:"
+
+msgid "Warning: Error on TagValue generation:"
+msgstr "Ошибка генерации значения TagValue:"
+
+msgid "Warning: FileTypeID is not exist:"
+msgstr "Не существует FileTypeID:"
+
+msgid "Warning: Invalid BIN:"
+msgstr "Некорректный БИН:"
 
 msgid "Warning: Missing parameter:"
 msgstr "Отсутствует параметр:"
@@ -471,11 +1052,26 @@ msgstr "Отсутствует параметр:"
 msgid "Warning: No report data."
 msgstr "Нет информации для формирования отчета."
 
+msgid "Warning: Order cannot be removed!"
+msgstr "Удаление заказа запрещено."
+
 msgid "Warning: Parameter is empty:"
 msgstr "Значение параметра не определено:"
 
 msgid "Warning: Please, select items to execute before."
 msgstr "Партии для обработки не выбраны."
+
+msgid "Warning: Provision form is empty!"
+msgstr "Форма заказа снабжения не заполнена!"
+
+msgid "Warning: Strings should be unique"
+msgstr "Текст должен быть уникальным"
+
+msgid "Warning: Tag is not exist:"
+msgstr "Тег не найден:"
+
+msgid "Warning: This operation may take a long time. Are you sure?"
+msgstr "Эта операция может потребовать продолжительного времени. Вы уверены?"
 
 msgid "WebPerso Administrator View"
 msgstr "Администратор WebPerso"
@@ -485,6 +1081,12 @@ msgstr "Авторизация WebPerso"
 
 msgid "WebPerso Login"
 msgstr "Вход в WebPerso"
+
+msgid "WebPerso Persostation BatchTime View"
+msgstr "Журнал инкассации БанкПерсо"
+
+msgid "WebPerso CardPrice Calculator View"
+msgstr "Калькулятор себестоимости продукции"
 
 msgid "WebPerso Cards Batch View"
 msgstr "Администратор персонализации"
@@ -504,5 +1106,62 @@ msgstr "Менеджер заказов БанкПерсо"
 msgid "WebPerso Preloading View"
 msgstr "Журнал предобработки БанкПерсо"
 
+msgid "WebPerso Provision Orders View"
+msgstr "Журнал заказов Отдела снабжения"
+
 msgid "WebPerso Reset Password"
 msgstr "Смена пароля WebPerso"
+
+msgid "with price"
+msgstr "на сумму"
+
+msgid "X1"
+msgstr ""
+
+msgid "X2"
+msgstr ""
+
+msgid "X3"
+msgstr ""
+
+msgid "X4"
+msgstr ""
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "You can change the order delivery address."
+msgstr "Вы можете сменить адрес филиала доставки для текущего файла. "
+
+msgid "You can change the order delivery date."
+msgstr "Вы можете сменить дату отгрузки файла. "
+
+msgid "You can email a message for the sellected addresses."
+msgstr "Вы можете выслать информационное сообщение по электронной почте."
+
+msgid "You can inspect parameters changes of the order."
+msgstr "Вы можете проинспектировать значения параметров заказа."
+
+msgid "You have unread orders total"
+msgstr "ВНИМАНИЕ! У Вас всего непрочтенных заявок"
+
+msgid "Your resolution"
+msgstr "Ваша рецензия"
+
+msgid "You cannot access this page!"
+msgstr "У Вас нет доступа к этому приложению!"
+
+msgid "You have to assign due date for confirmation of the order."
+msgstr "Установите предельный срок окончания рецензирования заказа."
+
+msgid "You have not permission to run this action!"
+msgstr "У Вас нет полномочий на выполнение данной операции!"
+
+msgid "You should change you password!"
+msgstr "Вам необходимо сменить пароль!"
+
+msgid "You have been logged out."
+msgstr "Вы вышли из приложения"
+
+msgid "Your password has been updated."
+msgstr "Ваш пароль был успешно обновлен"

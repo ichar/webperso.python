@@ -5,9 +5,26 @@
     {% else %}
     <title>Welcome to BankPerso connector!</title>
     {% endif %}
+    <style type="text/css">
+
+    .mainmenu {
+        background:rgba(40, 20, 220, 1.0);
+        padding:10px;
+        margin:20px;
+        color:white;
+        float:right;
+    }
+
+    </style>
   </head>
   <body>
+    <section id="header-section">
 
+      <a class="mainmenu" href="/auth/logout">Выход</a>
+
+    </section>
+
+    {#
     <h2>Connection:</h2>
     {% if connection %}
     Server: {{ connection['server'] }}
@@ -15,7 +32,7 @@
     Password: {{ connection['password'] }}
     Database: {{ connection['database'] }}
     {% endif %}
-
+    #}
     <h2>Total orders:</h2>
     {{ total }}
 

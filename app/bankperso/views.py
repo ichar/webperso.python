@@ -2,34 +2,34 @@
 
 import os
 import re
-import zlib
-import random
 from operator import itemgetter
-
-from lxml import etree
+from shutil import copy2
 
 from config import (
      CONNECTION, BP_ROOT, 
      IsDebug, IsDeepDebug, IsTrace, IsUseDecodeCyrillic, IsUseDBLog, IsForceRefresh, IsPrintExceptions, IsDecoderTrace, LocalDebug,
      basedir, errorlog, print_to, print_exception,
      default_print_encoding, default_unicode, default_encoding, default_iso, image_encoding, cr,
-     LOCAL_EXCEL_TIMESTAMP, LOCAL_EASY_DATESTAMP, LOCAL_EXPORT_TIMESTAMP, UTC_FULL_TIMESTAMP,
-     email_address_list
+     LOCAL_EXCEL_TIMESTAMP, LOCAL_EASY_DATESTAMP, LOCAL_EXPORT_TIMESTAMP, UTC_FULL_TIMESTAMP, DATE_STAMP, 
+     INDIGO_IMAGE_PATH, POSTONLINE_DATA_PATH, email_address_list
      )
+
+from flask_log_request_id import current_request_id
 
 from . import bankperso
 
 from ..settings import *
 from ..database import database_config, BankPersoEngine
 from ..utils import (
-     getToday, getDate, getDateOnly, checkDate, cdate, indentXMLTree, isIterable, 
-     makeXLSContent, makeIDList,
-     checkPaginationRange, getMaskedPAN, getParamsByKeys, decoder, pickupKeyInLine,
-     default_indent, Capitalize, sint
+     getToday, getDate, getDateOnly, checkDate, del_file, spent_time, cdate, indentXMLTree, isIterable, 
+     makeCSVContent, makeXLSContent, makeIDList,
+     checkPaginationRange, getMaskedPAN, getEANDBarcode, getParamsByKeys, pickupKeyInLine,
+     default_indent, Capitalize, sint, image_base64, normpath, fromtimestamp, daydelta, rfind
      )
 from ..worker import getClientConfig, getPersoLogInfo, getSDCLogInfo, getExchangeLogInfo, getBOM
 from ..booleval import new_token
 from ..barcodes import genBarcode
+from ..decoders import FileImageDecoder
 from ..reporter import make_materials_attachment
 from ..mails import send_materials_order
 
@@ -42,10 +42,15 @@ from ..semaphore.views import initDefaultSemaphore
 
 default_page = 'bankperso'
 default_action = '300'
+default_log_action = '301'
 default_template = 'orders'
 engine = None
+decoder = None
 
+# Локальный отладчик
 IsLocalDebug = LocalDebug[default_page]
+# Использовать OFFSET в SQL запросах
+IsApplyOffset = 1
 
 _views = {
     'orders'             : 'orders',
@@ -67,14 +72,18 @@ _views = {
     'batchstatuslist'    : 'batchstatuslist',
 }
 
+_extra_action = ('313',)
+
 requested_object = {}
 
 def before(f):
     def wrapper(**kw):
-        global engine
+        global engine, decoder
         if engine is not None:
             engine.close()
-        engine = BankPersoEngine(current_user, connection=CONNECTION[kw.get('engine') or 'bankperso'])
+        name = kw.get('engine') or 'bankperso'
+        engine = BankPersoEngine(name=name, user=current_user, connection=CONNECTION[name])
+        decoder = FileImageDecoder(engine)
         return f(**kw)
     return wrapper
 
@@ -82,8 +91,524 @@ def before(f):
 def refresh(**kw):
     global requested_object
 
-    if 'file_id' in kw and kw.get('file_id'):
-        requested_object = _get_order(kw['file_id']).copy()
+    file_id = kw.get('file_id')
+    if file_id is None:
+        return
+
+    requested_object = _get_order(file_id).copy()
+
+    decoder._init_state(requested_object, 
+        tags={
+            'cardholders' : database_config['cardholders']['tags'][2],
+            'PAN'         : PAN_TAGS.split(':'),
+            'cyrillic'    : IMAGE_TAGS_DECODE_CYRILLIC,
+        }
+    )
+
+def printInfo(mode):
+    if IsTrace:
+        print_to(errorlog, '%s[%s: %s]' % (mode, requested_object.get('BankName'), requested_object.get('FileID')))
+
+def html_flash(message):
+    return message.replace('\n', '<br>').strip()
+
+def _search_double_pan():
+    file_id = requested_object.get('FileID')
+
+    parser = decoder.chooseBodyParser(tag=FILEBODY_RECORD)
+
+    if parser is None:
+        return [], []
+
+    cards = {}
+    no_value = []
+    
+    for node in parser:
+        pan = parser.find(node, 'PAN') or None
+        recno = parser.find(node, 'FileRecNo') or None
+        with_pin = parser.find(node, 'doPrintPin')
+
+        if pan is None:
+            no_value.append(recno)
+            continue
+        if not pan in cards:
+            cards[pan] = []
+        cards[pan].append('%s:%s' % (recno, with_pin or '-'))
+        
+        parser.clear(node)
+
+    decoder.flash()
+
+    return [[x]+cards[x] for x in cards if len(cards[x]) > 1], no_value
+
+def _get_history_logs(file_id):
+    """
+        Makes History log content
+    """
+    logs = []
+    
+    cursor = engine.runQuery('logs', where='TID=%s' % file_id, order='LID', as_dict=True)
+    if cursor:
+        for n, row in enumerate(cursor):
+            if 'LID' in row:
+                row['id'] = row['LID']
+            row['Status'] = row['Status'].encode(default_iso).decode(default_encoding)
+            row['ModDate'] = getDate(row['ModDate'], DEFAULT_DATETIME_INLINE_FORMAT)
+            logs.append(row)
+    
+    return logs
+
+def _get_cardholders(view, limit=MAX_CARDHOLDER_ITEMS, **kw):
+    """
+        Makes cardholders data list
+    """
+    file_id = requested_object.get('FileID')
+
+    parser = decoder.chooseBodyParser(tag=view['root'])
+
+    if parser is None:
+        return [], []
+
+    client = requested_object.get('BankName')
+    clients = view.get('clients') or {}
+
+    columns = _get_view_columns(view)
+
+    items = []
+    exists = set()
+
+    encoding = kw.get('encoding') or None
+
+    for node in parser:
+        if node is None or (limit and len(items) > limit):
+            break
+
+        item = {}
+
+        for n, tags in enumerate(view['tags']):
+            column = view['columns'][n]
+
+            if clients and column in clients:
+                if client not in clients[column]:
+                    continue
+
+            exists.add(column)
+
+            for tag in tags:
+                value = ''
+                if isIterable(tag):
+                    for key in tag:
+                        if value:
+                            value += ' '
+                        value += parser.find(node, key, encoding=encoding) or ''
+                else:
+                    value = parser.find(node, tag, encoding=encoding) or ''
+
+                if value:
+                    item[column] = column in view['func'] and view['func'][column](value) or value
+                    break
+
+        parser.clear(node)
+
+        if 'FileRecNo' in item:
+            item['id'] = item['FileRecNo']
+
+        items.append(item)
+
+    decoder.flash()
+
+    return items, [x for x in columns if x['name'] in exists]
+
+def _get_process_info(**kw):
+    """
+        Return file process info
+    """
+    is_run = False
+    if requested_object.get('FileType') in PROCESS_INFO['filetypes']:
+        is_run = True
+
+    if not is_run:
+        for client in PROCESS_INFO['clients']:
+            key = None
+            if ':' in client:
+                client, key = client.split(':')
+            if requested_object.get('BankName') == client and (not key or key in requested_object.get('FName')):
+                is_run = True
+                break
+
+    if not is_run:
+        return None, None
+
+    tag = kw.get('tag')
+    parser = decoder.chooseBodyParser(tag=tag)
+
+    if parser is None:
+        return None, None
+
+    encoding = kw.get('encoding') or None
+
+    tags = {
+        'ProcessedRecordQty' : 'Карт', 
+        'PostOnlineBatches'  : 'ПочтаРоссии',
+        'ProcessDateTime'    : 'Дата процессинга'
+    }
+
+    info = []
+    
+    postonline_data = None
+    postonline_data_path = []
+
+    for node in parser:
+        if node is None:
+            break
+
+        for tag in sorted(list(tags.keys())):
+            value = parser.find(node, tag, encoding=encoding) or None
+            if value:
+                info.append('%s: %s' % (tags[tag], value))
+                if tag == 'PostOnlineBatches':
+                    postonline_data = value
+
+        parser.clear(node)
+
+    decoder.flash()
+    #
+    #   Clean destination folder
+    #
+    today = getDateOnly(getToday())
+    destination = normpath(os.path.join(basedir, 'app/static/files'))
+
+    for x in os.listdir(destination):
+        filename = os.path.join(destination, x)
+        if not os.path.isfile(filename):
+            continue
+        ctime = fromtimestamp(os.path.getctime(filename))
+        ext = x.split('.')[-1]
+        if ext == 'pdf' and ctime  < today:
+            del_file(filename)
+    #
+    #   Copy F103
+    #
+    if postonline_data:
+        for post in postonline_data.split(';'):
+            data = post.split(':')
+            if len(data) > 1:
+                src = '%s/%s/postonline/%s/%s/F103.pdf' % ( 
+                    POSTONLINE_DATA_PATH, 
+                    requested_object.get('BankName'),
+                    getDate(requested_object.get('ReadyDate'), DATE_STAMP),
+                    data[1],
+                    )
+                if os.path.exists(src) and os.path.isfile(src):
+                    filename = '%s_%s_F103.pdf' % (current_request_id(), data[1])
+
+                    try:
+                        copy2(src, '%s/%s' % (destination, filename))
+                        postonline_data_path.append('/static/files/%s' % filename)
+                    except:
+                        pass
+
+    return info and '[%s]' % ', '.join(info) or '', postonline_data_path
+
+def _get_indigo(view):
+    """
+        Makes indigo data list
+    """
+    parser = decoder.chooseBodyParser(tag=view['root'])
+
+    if parser is None:
+        return [], []
+
+    image_path = INDIGO_IMAGE_PATH.get(requested_object['FileType'])
+    default_image = INDIGO_DEFAULT_IMAGE
+    default_mode = INDIGO_DEFAULT_MODE
+    default_size = INDIGO_DEFAULT_SIZE
+    default_dump = 'dump'
+    default_index = 0
+    image_type = INDIGO_IMAGE_TYPE
+
+    columns = _get_view_columns(view)
+
+    items = {}
+
+    unique_key = view['unique']
+
+    n = 0
+    for node in parser:
+        if n > MAX_INDIGO_ITEMS:
+            break
+
+        tags = {}
+        for tag in view['tags']:
+            value = parser.find(node, tag) or ''
+            tags[tag] = tag in view['func'] and view['func'][tag](value) or value
+
+        tags['ImagePosition'] = 'X'
+        tags['ImageType'] = image_type
+        tags['SRC'] = image_path
+
+        values = {}
+        for column in view['columns']:
+            values[column] = (view['values'].get(column)) % tags
+
+        u = values.get(unique_key)
+        if not u in items:
+            items[u] = []
+
+        v = values.get('Value') or ''
+        if v not in items[u]:
+            items[u].append(v)
+
+        n += 1
+
+        parser.clear(node)
+
+    def get_image_path(src, name=None):
+        if src.startswith('/static/'):
+            src = normpath(os.path.join(basedir, 'app', src.startswith('/') and src[1:] or src))
+        return name and ('%s/%s' % (src, name)) or src
+
+    def collect_images(p, name, key, ext):
+        images = {}
+
+        src = get_image_path(p, name=name)
+
+        if not (os.path.exists(src) and os.path.isdir(src)):
+            return images
+
+        obs = sorted([x for x in os.listdir(src) if x.startswith(key) and os.path.isfile(os.path.join(src, x)) and x.endswith(ext)])
+
+        for ob in obs:
+            name = ob.split('_' in ob and '_' or '.')[0]
+            if name not in images:
+                images[name] = []
+            images[name].append(ob)
+
+        return images
+
+    def get_image(name, mode, with_base64=False):
+        image = None
+        is_base64 = 0
+
+        if mode == 'base64':
+            src = '%s/%s' % (get_image_path(image_path, name=default_dump), name)
+            if os.path.exists(src):
+                with open(src, 'r') as fi:
+                    image = fi.read()
+                is_base64 = 1
+
+            if not image:
+                src = '%s/%s' % (get_image_path(image_path), name)
+                if os.path.exists(src):
+                    image = image_base64(src, image_type, size=default_size)
+                    is_base64 = 2
+        else:
+            image = name and '%s/%s' % (image_path, name)
+
+        if not image:
+            image = mode == 'default' and default_image or None
+
+        if with_base64:
+            return image, is_base64
+
+        return image
+
+    def html(key, mode='default'):
+        item = {}
+
+        images = collect_images(image_path, None, key, image_type)
+        images.update(collect_images(image_path, default_dump, key, 'base64'))
+
+        name = key in images.keys() and images[key] and len(images[key]) > 0 and images[key][default_index]
+        image, is_base64 = get_image(name, mode, with_base64=True)
+
+        for column in view['columns']:
+            value = ''
+            if column == 'Design':
+                if image is not None:
+                    value = '<img class="indigo_design" src="%s" title="Indigo Design" alt>' % image
+                else:
+                    value = '<div class="indigo_no_image"><span>IMAGE NOT FOUND</span></div>'
+            elif column == 'ImageName':
+                value = '<span class="indigo_image_name">%s</span>' % key
+            elif column == 'Value':
+                value = '<ul class="indigo_value">%s</ul>' % ('\n'.join([
+                    '<li class="indigo_value_item">%s</li>' % v
+                        for v in items[key]]))
+            elif column == 'Count':
+                value = '<span class="indigo_count">%s</span>' % len(items[key])
+            elif column == 'Files':
+                if image is not None:
+                    value = '<ul class="indigo_value">%s</ul>' % ('\n'.join([
+                            '<a class="indigo_link" onclick="javascript:indigo(\'%s\');"><li class="indigo_file_item">%s</li></a>' % (
+                                n == default_index and (image, is_base64 == 1 and '*.base64' or filename) or (
+                                    get_image(images[key][n], mode),
+                                    filename
+                                )
+                            ) for n, filename in enumerate(images[key])
+                        ]))
+                else:
+                    value = ''
+
+            item[column] = value
+
+        return item
+
+    decoder.flash()
+
+    return [html(key, default_mode) for key in sorted(items)], [column for column in columns]
+
+def _get_ibody(limit, **kw):
+    """
+        Makes body file content
+    """
+    file_id = requested_object.get('FileID')
+
+    xml = ''
+
+    is_extra = kw.get('is_extra') and True or False
+    params = kw.get('params')
+
+    statuses = _get_filestatuses(file_id)
+
+    status = '[лимит %sMb], статусы: %s [%s]' % (round(limit / (1024*1024), 2), ','.join([str(x) for x in statuses]), decoder.file_status)
+
+    if not (SETTINGS_PARSE_XML and current_user.is_administrator()):
+        return xml, 0, status
+
+    parser = decoder.chooseBodyParser(tag=[FILEINFO, FILEBODY_RECORD, PROCESSINFO])
+
+    if parser is None:
+        return xml, 0, status
+
+    recno = None
+
+    if params:
+        x = params.split(':')
+        recno = x and len(x) > 2 and x[1] or None
+
+    for node in parser:
+        if recno:
+            value = parser.find(node, 'FileRecNo')
+            if value != recno:
+                continue
+            else:
+                xml += cr + '...' + cr + default_indent
+
+        decoder.makeNodeContent(node, level=2, is_extra=is_extra)
+
+        xml += parser.upload(node)
+
+        parser.clear(node)
+
+        if limit and len(xml) > limit:
+            n = rfind(xml, '>', limit)
+            xml = xml[:limit+n+1] + cr + '...' + cr
+            break
+
+        if recno:
+            xml += '...' + cr
+            break
+
+    decoder.flash()
+
+    header = '%s<%s>%s%s' % (decoder.header(parser=parser.info()), FILEDATA, cr, default_indent)
+    footer = '%s</%s>' % (cr, FILEDATA)
+
+    return '%s%s%s' % (header, xml.strip(), footer), len(xml), status
+
+def _get_process_err_msg():
+    """
+        Makes file error messages
+    """
+    xml = ''
+    total = None
+
+    tags = ('PROCESS_ERR_MSG', 'error',)
+
+    if not SETTINGS_PARSE_XML: # and current_user.is_administrator():
+        return xml, total
+
+    for tag in tags:
+        parser = decoder.chooseBodyParser(tag=tag)
+
+        if parser is None:
+            return [], []
+
+        items = [x for x in parser]
+        total = len(items)
+
+        for item in items:
+            decoder.decodeCyrillic(item, key='errors')
+            decoder.maskContent(item, mask='/')
+            indentXMLTree(item, limit=MAX_XML_TREE_NODES)
+            xml += '...' + cr + parser.upload(item)
+
+    decoder.flash()
+
+    return xml, total
+
+def _get_db_log(source_type, view, **kw):
+    """
+        Makes DB log content
+    """
+    client = kw.get('client') or None
+    file_id = kw.get('file_id') or None
+
+    data = []
+
+    columns = view['columns']
+    keys, dates, client, filename = _get_file_keywords(file_id)
+    date_format = DEFAULT_DATETIME_FORMAT
+
+    if file_id is not None:
+        where = "FileID = %s and SourceType = '%s'" % (file_id, source_type)
+
+        refresh(engine='orderlog')
+
+        # ---------------------------------------------
+        # Get OrderLog for given source type and FileID
+        # ---------------------------------------------
+
+        cursor = engine.runQuery('orderlog-messages', where=where, order='EventDate', as_dict=True)
+        if cursor:
+            for n, row in enumerate(cursor):
+                """
+                ob = dict(zip(columns, [row[x] for x in columns if x in row]))
+                ob['Error'] = row['IsError']
+                """
+                ob = { \
+                    'filename' : '[%s] %s' % (row['IP'], row['LogFile']),
+                    'Date'     : cdate(row['EventDate'], date_format),
+                    'Code'     : row['Code'],
+                    'Module'   : '%s%s' % (row['Module'], row['Count'] > 1 and '[%d]' % row['Count'] or ''),
+                }
+
+                message = row['Message']
+
+                if not kw.get('no_span'):
+                    s = ''
+                    for key in keys:
+                        if key in s:
+                            continue
+                        s += ':%s' % key
+                        message = pickupKeyInLine(message, key)
+
+                ob['Message'] = message
+
+                data.append(ob)
+
+    return data
+    
+def _get_top(per_page, page):
+    if IsApplyOffset:
+        top = per_page
+    else:
+        top = per_page * page
+    offset = page > 1 and (page - 1) * per_page or 0
+    return top, offset
+
+##
 
 def _get_columns(name):
     return ','.join(database_config[name]['columns'])
@@ -112,6 +637,9 @@ def _get_page_args():
             'batchstatus' : ['BatchStatusID', int(get_request_item('batchstatus') or '0')],
             'date_from'   : ['RegisterDate', get_request_item('date_from') or ''],
             'date_to'     : ['RegisterDate', get_request_item('date_to') or ''],
+            'yesterday'   : ['RegisterDate', get_request_item('yesterday') or 0],
+            'tomorrow'    : ['RegisterDate', get_request_item('tomorrow') or 0],
+            'today'       : ['RegisterDate', get_request_item('today') or 0],
             'id'          : ['FileID', int(get_request_item('_id') or '0')],
         })
     except:
@@ -123,11 +651,17 @@ def _get_page_args():
             'batchstatus' : ['BatchStatusID', 0],
             'date_from'   : ['RegisterDate', ''],
             'date_to'     : ['RegisterDate', ''],
+            'yesterday'   : ['RegisterDate', 0],
+            'tomorrow'    : ['RegisterDate', 0],
+            'today'       : ['RegisterDate', 0],
             'id'          : ['FileID', 0],
         })
         flash('Please, update the page by Ctrl-F5!')
 
     return args
+
+def _get_client(file_id):
+    return file_id and engine.getReferenceID(default_template, key='FileID', value=file_id, tid='BankName') or None
 
 def _get_order(file_id):
     columns = database_config[default_template]['export']
@@ -135,9 +669,6 @@ def _get_order(file_id):
     encode_columns = ('BankName', 'FileStatus',)
     cursor = engine.runQuery(default_template, columns=columns, top=1, where=where, as_dict=True, encode_columns=encode_columns)
     return cursor and cursor[0] or {}
-
-def _get_client(file_id):
-    return file_id and engine.getReferenceID(default_template, key='FileID', value=file_id, tid='BankName') or None
 
 def _get_batches(file_id, **kw):
     batches = []
@@ -147,15 +678,18 @@ def _get_batches(file_id, **kw):
     batchstatus = kw.get('batchstatus') or None
     selected_id = None
 
+    if not (file_id and str(file_id).isdigit()):
+        return batches, selected_id
+
     where = 'FileID=%s%s%s' % (
         file_id, 
         batchtype and (' and BatchTypeID=%s' % batchtype) or '',
         batchstatus and (' and BatchStatusID=%s' % batchstatus) or ''
         )
 
-    cursor = engine.runQuery('batches', where=where, order='TID', as_dict=True)
+    cursor = engine.runQuery(_views['batches'], where=where, order='TID', as_dict=True)
     if cursor:
-        IsSelected = False
+        is_selected = False
         
         for n, row in enumerate(cursor):
             row['BatchType'] = row['BatchType'].encode(default_iso).decode(default_encoding)
@@ -165,299 +699,21 @@ def _get_batches(file_id, **kw):
             row['Found'] = pers_tz and row['TZ'] == pers_tz
             row['id'] = row['TID']
 
-            if (batch_id and batch_id == row['TID']) or (pers_tz and pers_tz == row['TZ'] and not IsSelected):
+            if (batch_id and batch_id == row['TID']) or (pers_tz and pers_tz == row['TZ'] and not is_selected):
                 row['selected'] = 'selected'
                 selected_id = batch_id
-                IsSelected = True
+                is_selected = True
             else:
                 row['selected'] = ''
 
             batches.append(row)
 
-        if not IsSelected:
+        if not is_selected:
             row = batches[0]
             selected_id = row['id']
             row['selected'] = 'selected'
 
     return batches, selected_id
-
-def _get_logs(file_id):
-    logs = []
-    
-    cursor = engine.runQuery('logs', where='TID=%s' % file_id, order='LID', as_dict=True)
-    if cursor:
-        for n, row in enumerate(cursor):
-            if 'LID' in row:
-                row['id'] = row['LID']
-            row['Status'] = row['Status'].encode(default_iso).decode(default_encoding)
-            row['ModDate'] = getDate(row['ModDate'], DEFAULT_DATETIME_INLINE_FORMAT)
-            logs.append(row)
-    
-    return logs
-
-def _decode_image(data, file_id, encoding=None):
-    #
-    # Get$Decompress `Image` body content
-    #
-    image = None
-
-    is_trace = IsDecoderTrace
-
-    if data is not None:
-        client = requested_object.get('BankName')
-        file_type = requested_object.get('FileType')
-        #
-        # Picking up convenient encoding from 'config.image_encoding' dictionary
-        #
-        if encoding is None:
-            if file_type in image_encoding:
-                encodings = image_encoding.get(file_type)
-            else:
-                encodings = client and image_encoding.get(client) or image_encoding['default']
-        else:
-            encodings = (encoding,)
-
-        try:
-            data = zlib.decompress(data)
-        except:
-            if IsTrace:
-                print_to(errorlog, '>>> _decompress error:%s client:%s' % (file_id, client), request=request)
-            data = None
-
-        return decoder(data, encodings, info='%s %s' % (file_id, client), 
-                       is_trace=is_trace, 
-                       limit=MAX_XML_BODY_LEN
-                       )
-
-    return image, encoding
-
-def _mask_image_content(item, mask='//', **kw):
-    """
-        Hide security fields (make masked confidential keys: PAN, etc.)
-    """
-    forced_tag = kw.get('tag')
-
-    for tag in PAN_TAGS.split(':'):
-        if forced_tag:
-            if tag != forced_tag:
-                continue
-            item.text = getMaskedPAN(item.text)
-            return
-        else:
-            for pan in item.xpath('%s%s' % (mask, tag)):
-                pan.text = getMaskedPAN(pan.text)
-
-    for x in database_config['cardholders']['tags'][2]:
-        for name in (isinstance(x, str) and [x] or x):
-            if forced_tag:
-                if name != forced_tag:
-                    continue
-                item.text = getMaskedPAN(item.text)
-                return
-            else:
-                for tag in item.xpath('%s%s' % (mask, name)):
-                    if tag.text is not None:
-                        tag.text = '*' * len(tag.text)
-
-def _decode_cyrillic(item, key='default', client=None, **kw):
-    """
-        Try to decode cyrillic from `image_tags_todecode_cyrillic` tags for given `client`
-        
-        IMAGE_TAGS_DECODE_CYRILLIC:
-        
-            -- Dict, list of schemes to apply while decoding by Client or FileType:
-            
-               <client> : <settings>
-            
-        Settings to apply:
-
-            -- Tuple, (<fyletypes>, <schemes>)
-
-        FyleTypes:
-
-            -- Tuple, applied to given FileTypes or if empty applied to everyone
-
-        Schemes:
-
-            -- Tuple, list of `modes-scheme` pairs:
-
-               (<mode>, <scheme>), ...
-
-        Mode:
-        
-            -- String, decoder fuction mode name: <dostowin|wintodos|iso>, look at the code `_decode`
-
-        Scheme:
-
-            -- Dict, lists of tags by type of scheme declaration, types: <default|record|image>:
-            
-               <type> : <records>
-        
-        Records:
-
-            -- Dict, records to decode such as <AREP_Record>, <BANKOFFICE_Record>: 
-            
-               <record> : <tags>
-
-        Tags:
-
-            -- String, tag names string with separator ':' to decode: 'TAG1:TAG2:...'
-        
-    """
-    if not IsUseDecodeCyrillic:
-        return
-
-    if client is None:
-        client = requested_object.get('BankName')
-    
-    default = IMAGE_TAGS_DECODE_CYRILLIC.get('default') or (None, None)
-    filetypes, schemes = client and IMAGE_TAGS_DECODE_CYRILLIC.get(client) or \
-                         default
-
-    if not schemes:
-        return
-
-    if filetypes and requested_object.get('FileType') not in filetypes:
-        return
-
-    splitter = '||'
-    max_len = 8000
-
-    def _decode(text, mode):
-        if not mode:
-            pass
-        elif mode == 'dostowin':
-            text = text.encode(default_print_encoding).decode(default_encoding)
-        elif mode == 'wintodos':
-            text = text.encode(default_encoding).decode(default_print_encoding)
-        elif mode == 'iso':
-            try:
-                text = text.encode(default_print_encoding).decode(default_encoding)
-            except:
-                text = text.encode(default_unicode).decode(default_unicode)
-        return text
-
-    is_string_type = isinstance(item, str)
-    forced_tag = kw.get('tag')
-
-    for mode, scheme in schemes:
-        if key not in scheme:
-            continue
-
-        tags = []
-        values = []
-        s = ''
-
-        for parent in scheme[key].keys():
-            for name in scheme[key][parent].split(':'):
-                if is_string_type or not name:
-                    break
-                else:
-                    if forced_tag:
-                        if name != forced_tag:
-                            continue
-                        tags = [item]
-                        s = item.text
-                        break
-                    else:
-                        mask = parent == '.' and ('./%s' % name) or ('//%s//%s' % (parent, name))
-                        for tag in item.xpath(mask):
-                            if tag.text is not None and len(tag.text.strip()):
-                                tags.append(tag)
-                                if len(s) > 0:
-                                    s += splitter
-                                s += tag.text
-
-        while s:
-            n = len(s) > max_len and s.rfind(splitter, 0, max_len) or -1
-            values += _decode(n > 0 and s[0:n] or s, mode).split(splitter)
-            s = n > -1 and s[n+len(splitter):] or ''
-
-        for n, tag in enumerate(tags):
-            if is_string_type:
-                break
-            else:
-                tag.text = values[n]
-
-def _image_fromstring(image, encoding):
-    size = image is not None and len(image) or 0
-    if size == 0:
-        return None, encoding
-    limit = max(size, MAX_XML_BODY_LEN)
-    n = image.find('<FileData>')
-    return n > -1 and etree.fromstring(image[n:limit+n]) or image, encoding
-
-def _get_image(file_id, encoding=None):
-    #
-    # Get original file body (FBody:OrderFilesBodyImage_tb)
-    #
-    if not file_id:
-        return None, encoding
-
-    image = None
-
-    params = "%s" % file_id
-    cursor = engine.runQuery('image', as_dict=True, params=params)
-    if cursor:
-        image, encoding = _decode_image(cursor[0]['FBody'], file_id, encoding)
-        cursor = None
-
-    try:
-        return _image_fromstring(image, encoding)
-    except:
-        print_to(errorlog, '>>> _get_image xml error:%s %s' % (file_id, current_user.login), request=request)
-        if IsPrintExceptions:
-            print_exception()
-        image = None
-
-    return image, encoding
-
-def _get_body(file_id, file_status=None, encoding=None):
-    #
-    # Get file body (IBody:OrderFilesBody_tb) in given status
-    #
-    if not file_id:
-        return None, encoding
-
-    body = None
-
-    params = "%s, %s" % (file_id, file_status or 'null')
-    cursor = engine.runQuery('body', as_dict=True, params=params)
-    if cursor:
-        body, encoding = _decode_image(cursor[0]['IBody'], file_id, encoding)
-        cursor = None
-
-    try:
-        return _image_fromstring(body, encoding)
-    except:
-        print_to(errorlog, '>>> _get_body xml error:%s %s' % (file_id, current_user.login), request=request)
-        if IsPrintExceptions:
-            print_exception()
-        body = None
-
-    return body, encoding
-
-def _get_bodystate(file_id, file_status=None, limit=None, is_extra=False):
-    #
-    # Get$Make readable file body content
-    #
-    xml = ''
-
-    try:
-        root, encoding = _get_body(file_id, file_status)
-        xml = '%s<?xml version="1.0" encoding="%s"?>%s' % (getBOM(default_unicode), encoding, cr)
-
-        if root is not None:
-            _decode_cyrillic(root)
-            if not is_extra:
-                _mask_image_content(root)
-            indentXMLTree(root, limit=limit and MAX_XML_TREE_NODES or None)
-            xml += etree.tostring(root, encoding='unicode')
-
-    except Exception as e:
-        print_exception()
-
-    return xml
 
 def _get_filestatuses(file_id, order='TID'):
     statuses = []
@@ -468,63 +724,6 @@ def _get_filestatuses(file_id, order='TID'):
             statuses.append(row['FileStatusID'])
 
     return statuses
-
-def _get_cardholders(file_id, view):
-    root, encoding = _get_body(file_id)
-
-    client = requested_object.get('BankName')
-    clients = view.get('clients') or {}
-
-    columns = _get_view_columns(view)
-
-    def xml_tag_value(node, tag):
-        try:
-            return node.find(tag).text.strip()
-        except:
-            return ''
-
-    items = []
-    
-    if root is None or len(root) == 0:
-        return items
-
-    exists = set()
-
-    records = root.findall('.//%s' % view['root'])
-    for record in records:
-        item  = {}
-        if len(items) > MAX_CARDHOLDER_ITEMS:
-            break
-
-        for n, tags in enumerate(view['tags']):
-            column = view['columns'][n]
-
-            if clients and column in clients:
-                if client not in clients[column]:
-                    continue
-
-            exists.add(column)
-
-            for tag in tags:
-                value = ''
-                if isIterable(tag):
-                    for key in tag:
-                        if value:
-                            value += ' '
-                        value += xml_tag_value(record, key) or ''
-                else:
-                    value = xml_tag_value(record, tag)
-
-                if value:
-                    item[column] = column in view['func'] and view['func'][column](value) or value
-                    break
-
-        if 'FileRecNo' in item:
-            item['id'] = item['FileRecNo']
-
-        items.append(item)
-
-    return items, [x for x in columns if x['name'] in exists]
 
 def _get_file_keywords(file_id, no_batch=False):
     keys = []
@@ -567,7 +766,7 @@ def _get_file_keywords(file_id, no_batch=False):
         # -------------------
 
         if not no_batch:
-            cursor = engine.runQuery('batches', where='FileID=%s' % file_id, order='TID', as_dict=True)
+            cursor = engine.runQuery(_views['batches'], where='FileID=%s' % file_id, order='TID', as_dict=True)
             if cursor:
                 for n, row in enumerate(cursor):
                     keys.append(str(row['TID']))
@@ -631,6 +830,42 @@ def _get_materials(file_id, show=1, order=None):
     errors = [x[1] for x in sorted(errors, key=itemgetter(0), reverse=True)]
 
     return data, props, errors
+
+def _check_extra_tabs(row):
+    tabs = {}
+    if row and row.get('FileType') in INDIGO_FILETYPES:
+        tabs['indigo'] = '313'
+    return tabs
+
+def _check_subprocess(res):
+    stdout, stderr = [], []
+
+    if res and len(res) > 1:
+        if IsDeepDebug:
+            print('errors:', res[1].decode(default_encoding))
+            print('result:', res[0].decode(default_encoding))
+
+        stdout = [x for x in res[0].decode(default_encoding).split('\n') if x]
+        stderr = [x for x in res[1].decode(default_encoding).split('\n') if x]
+
+        errors = [x.split(',')[0] for x in stderr]
+
+    code = 0
+
+    if errors:
+        code = len(errors)
+
+    if IsTrace:
+        for x in stdout:
+            print_to(errorlog, '... stdout: %s' % x)
+        for x in stderr:
+            print_to(errorlog, '... stderr: %s' % x)
+
+    return code, '\n'.join(stdout), errors
+
+def _valid_extra_action(action, row=None):
+    tabs = _check_extra_tabs(row or requested_object)
+    return (action not in _extra_action or action in list(tabs.values())) and action
 
 ## ==================================================== ##
 
@@ -787,7 +1022,7 @@ def getTabParams(file_id, batch_id, param_name=None, format=None, **kw):
             # Информация о партии
             # -------------------
 
-            view = 'batches'
+            view = _views['batches']
             columns = database_config[view]['export']
             encode_columns = ('BatchType','Status')
             where = 'TID=%s' % batch_id
@@ -863,104 +1098,69 @@ def getTabParams(file_id, batch_id, param_name=None, format=None, **kw):
     return number and data or [], props
 
 def getTabLogs(file_id):
-    return _get_logs(file_id)
+    """
+        Returns History Tab content
+    """
+    return _get_history_logs(file_id)
 
-def getTabCardholders(file_id):
-    return _get_cardholders(file_id, database_config['cardholders'])
+def getTabProcessInfo(tag):
+    """
+        Returns Process Info for History Tab content
+    """
+    try:
+        return _get_process_info(tag=tag)
+    finally:
+        printInfo('process_info')
 
-def getTabIBody(file_id, limit=MAX_XML_BODY_LEN, **kw):
-    xml = ''
-    total = None
-    is_extra = kw.get('is_extra') and True or False
+def getTabCardholders():
+    """
+        Returns Cardholders Tab content
+    """
+    try:
+        return _get_cardholders(database_config['cardholders'])
+    finally:
+        printInfo('cardholders')
 
-    if SETTINGS_PARSE_XML and current_user.is_administrator():
-        xml = _get_bodystate(file_id, limit=limit, is_extra=is_extra)
+def getTabIndigo():
+    """
+        Returns Indigo Tab content
+    """
+    try:
+        return _get_indigo(database_config['indigo'])
+    finally:
+        printInfo('indigo')
 
-        total = len(xml)
+def getTabIBody(limit=MAX_XML_BODY_LEN, **kw):
+    """
+        Returns IBODY Tab content
+    """
+    try:
+        return _get_ibody(limit, **kw)
+    finally:
+        printInfo('ibody')
 
-        if xml is not None and limit and total > limit:
-            xml = xml[:limit] + cr + '...'
-
-    return xml, total
-
-def getTabProcessErrMsg(file_id):
-    xml = ''
-    total = None
-
-    tag = 'PROCESS_ERR_MSG'
-
-    if SETTINGS_PARSE_XML: # and current_user.is_administrator():
-        try:
-            root, encoding = _get_body(file_id)
-            if root is not None:
-                items = root.xpath('.//RPT_Record[descendant::%s]' % tag)
-            else:
-                items = []
-
-            total = len(items)
-
-            for item in items:
-                _decode_cyrillic(item, key='errors')
-                _mask_image_content(item, mask='./')
-                indentXMLTree(item, limit=MAX_XML_TREE_NODES)
-                xml += '...' + cr + etree.tostring(item, encoding="unicode")
-
-        except Exception as e:
-            if IsPrintExceptions:
-                print_exception()
-
-    return xml, total
+def getTabProcessErrMsg():
+    """
+        Returns PROCESS-ERR-MSG Tab content
+    """
+    try:
+        return _get_process_err_msg()
+    finally:
+        printInfo('process_err_msg')
 
 def getTabDBLog(source_type, view, **kw):
-    client = kw.get('client') or None
-    file_id = kw.get('file_id') or None
-
-    data = []
-
-    columns = view['columns']
-    keys, dates, client, filename = _get_file_keywords(file_id)
-    date_format = DEFAULT_DATETIME_FORMAT
-
-    if file_id is not None:
-        where = "FileID = %s and SourceType = '%s'" % (file_id, source_type)
-
-        refresh(engine='orderlog')
-
-        # ---------------------------------------------
-        # Get OrderLog for given source type and FileID
-        # ---------------------------------------------
-
-        cursor = engine.runQuery('orderlog-messages', where=where, order='EventDate', as_dict=True)
-        if cursor:
-            for n, row in enumerate(cursor):
-                """
-                ob = dict(zip(columns, [row[x] for x in columns if x in row]))
-                ob['Error'] = row['IsError']
-                """
-                ob = { \
-                    'filename' : '[%s] %s' % (row['IP'], row['LogFile']),
-                    'Date'     : cdate(row['EventDate'], date_format),
-                    'Code'     : row['Code'],
-                    'Module'   : '%s%s' % (row['Module'], row['Count'] > 1 and '[%d]' % row['Count'] or ''),
-                }
-
-                message = row['Message']
-
-                if not kw.get('no_span'):
-                    s = ''
-                    for key in keys:
-                        if key in s:
-                            continue
-                        s += ':%s' % key
-                        message = pickupKeyInLine(message, key)
-
-                ob['Message'] = message
-
-                data.append(ob)
-
-    return data
+    """
+        Returns Log Tab content used DBLog
+    """
+    try:
+        return _get_db_log(source_type, view, **kw)
+    finally:
+        printInfo('%s_log' % source_type.lower())
 
 def getTabPersoLog(columns, **kw):
+    """
+        Returns BankPerso Log
+    """
     file_name = ''
     client = kw.get('client') or None
 
@@ -984,6 +1184,9 @@ def getTabPersoLog(columns, **kw):
                            )
 
 def getTabSDCLog(columns, **kw):
+    """
+        Returns SDC Log
+    """
     file_name = ''
     client = kw.get('client') or None
 
@@ -1026,6 +1229,9 @@ def getTabSDCLog(columns, **kw):
                          )
 
 def getTabExchangeLog(columns, **kw):
+    """
+        Returns Exchange Log
+    """
     file_name = ''
     client = kw.get('client') or None
     split_by = '\t'
@@ -1041,7 +1247,7 @@ def getTabExchangeLog(columns, **kw):
     if file_id is not None:
         keys, dates, client, filename = _get_file_keywords(file_id, no_batch=True)
     else:
-        keys, dates = kw.get('keys') or [], kw.get('dates')
+        keys, dates = kw.get('keys') or [], kw.get('dates') or (date_from, date_to,)
 
     if client:
         aliases.append(client)
@@ -1073,34 +1279,83 @@ def getTabExchangeLog(columns, **kw):
                               no_span=kw.get('no_span'),
                               )
 
-def getBodyState(file_id, with_image=False, no_body=False, limit=None, **kw):
-    statuses = _get_filestatuses(file_id) #, order=None
+def getCurrentState(limit=None, **kw):
+    """
+        Returns current status Order body content
+    """
     is_extra = kw.get('is_extra') and True or False
+
+    if not (SETTINGS_PARSE_XML and current_user.is_administrator()):
+        return
+
+    parser = decoder.chooseBodyParser(tag=[FILEINFO, FILEBODY_RECORD, PROCESSINFO])
+
+    if parser is None:
+        return
+
+    yield '%s<%s>%s%s' % (decoder.header(parser=parser.info()), FILEDATA, cr, default_indent)
+
+    for node in parser:
+        decoder.makeNodeContent(node, level=2, is_extra=is_extra)
+
+        yield parser.upload(node)
+
+        parser.clear(node)
+
+    decoder.flash()
+
+    yield '%s</%s>' % (cr, FILEDATA)
+
+def getFullState(with_image=False, no_body=False, limit=None, **kw):
+    """
+        Returns full Order body content
+    """
+    file_id = requested_object.get('FileID')
+    statuses = _get_filestatuses(file_id)
+
+    is_extra = kw.get('is_extra') and True or False
+    no_cyrillic = kw.get('no_cyrillic') and True or False
 
     spacer = '# %s' % ('-' * 30)
     xml = getBOM(default_unicode)
 
     if with_image:
-        image, encoding = _get_image(file_id)
-        if IsUseDecodeCyrillic:
-            _decode_cyrillic(image, key='image')
-        s = '--> BODY_IMAGE[%s]' % encoding
+        decoder.decodeImage()
+
+        if IsUseDecodeCyrillic and not no_cyrillic:
+            decoder.decodeCyrillic(decoder.image, key='image')
+
+        s = '--> BODY_IMAGE[%s]' % decoder.encoding
         spacer = '# %s' % ('-' * len(s))
-        xml += '%s%s# %s%s%s%s%s' % (spacer, cr, s, cr, spacer, cr, cr)
-        xml += str(image or '')
-        xml += cr
 
-    if no_body:
-        return xml
+        yield '%s%s# %s%s%s%s%s%s%s' % (spacer, cr, s, cr, spacer, cr, cr, str(decoder.image or ''), cr)
 
-    for status in statuses:
-        xml += '%s%s# --> FileStatusID=%s%s%s%s%s' % (spacer, cr, status, cr, spacer, cr, cr)
-        xml += _get_bodystate(file_id, file_status=status, limit=limit, is_extra=is_extra)
-        xml += cr
+        decoder.flash()
 
-    return xml
+    if not no_body:
+        for file_status in statuses:
+            parser = decoder.chooseBodyParser(file_status=file_status, tag=[FILEINFO, FILEBODY_RECORD, PROCESSINFO])
+
+            yield '%s%s# --> FileStatusID=%s%s%s%s%s%s<%s>%s%s' % (
+                spacer, cr, file_status, cr, spacer, cr, cr,
+                decoder.header(parser=parser.info()), FILEDATA, cr, default_indent
+                )
+
+            for node in parser:
+                decoder.makeNodeContent(node, level=2, is_extra=is_extra)
+
+                yield parser.upload(node)
+
+                parser.clear(node)
+
+            decoder.flash()
+
+            yield '%s</%s>%s%s' % (cr, FILEDATA, cr, cr)
 
 def getLogSearchDump(logsearch):
+    """
+        Log context search
+    """
     context, apply_filter, log_exchange, log_perso, log_sdc, log_infoexchange = ('',0,0,0,0,0)
     args = _get_page_args()
 
@@ -1198,7 +1453,7 @@ def getLogSearchDump(logsearch):
     # Dump Logs
     # ---------
 
-    items = ( \
+    items = (
         (log_exchange, 'exchangelog', getTabExchangeLog, 'Exchange Logs',),
         (log_perso, 'persolog', getTabPersoLog, 'BankPerso Logs',),
         (log_sdc, 'sdclog', getTabSDCLog, 'SDC Logs',),
@@ -1236,50 +1491,54 @@ def getTagSearchDump(file_id, tagsearch, **kw):
         Output from given Order body selected Tags list
     """
     xml = ''
+
     is_extra = kw.get('is_extra') and True or False
 
-    if tagsearch:
-        try:
-            root, encoding = _get_body(file_id)
-            xml = '%s<?xml version="1.0" encoding="%s"?>%s' % (getBOM(default_unicode), encoding, cr)
+    if not tagsearch:
+        return ''
 
-            if root is None:
-                return xml
+    parser = decoder.chooseBodyParser(tag=FILEBODY_RECORD)
 
-            level1 = '%s%s' % (cr, default_indent)
-            level2 = '%s%s' % (cr, default_indent * 2)
-            spacer = '%s...' % level2
+    if parser is None:
+        return ''
 
-            for record in root.xpath('//FileBody_Record'):
-                recno = record.xpath('./FileRecNo')[0]
+    level1 = '%s%s' % (cr, default_indent)
+    level2 = '%s%s' % (cr, default_indent * 2)
+    spacer = '%s...' % level2
 
-                items = [x for tag in tagsearch.split(DEFAULT_HTML_SPLITTER) 
-                           for x in record.xpath('.//%s' % tag)]
+    tags = tagsearch.split(DEFAULT_HTML_SPLITTER)
 
-                content = ''
+    for node in parser:
+        recno = parser.find(node, FILERECNO)
 
-                for item in items:
-                    tag = item.tag
-                    #_decode_cyrillic(item, key='record', tag=tag)
-                    if not is_extra:
-                        _mask_image_content(item, tag=tag)
-                    content += '%s%s' % (level2, etree.tostring(item, encoding="unicode").strip())
+        items = [x for tag in tags for x in parser.findall(node, tag) if tag]
 
-                xml += '%s<FileBody_Record>%s<FileRecNo>%s</FileRecNo>%s%s%s%s</FileBody_Record>' % (
-                    level1,
-                    level2,
-                    recno.text,
-                    spacer,
-                    content,
-                    spacer,
-                    level1,
-                )
+        content = ''
 
-        except Exception as e:
-            if IsPrintExceptions:
-                print_exception()
+        for item in items:
+            if not is_extra:
+                decoder.maskContent(item, tag=item.tag)
+            content += '%s%s' % (level2, parser.upload(item).strip())
 
-    return xml
+        xml += '%s<%s>%s<%s>%s</%s>%s%s%s%s</%s>' % (
+            level1,
+            FILEBODY_RECORD,
+            level2,
+            FILERECNO, 
+            recno, 
+            FILERECNO,
+            spacer,
+            content,
+            spacer,
+            level1,
+            FILEBODY_RECORD,
+        )
+
+        parser.clear(node)
+
+    decoder.flash()
+
+    return '%s%s' % (decoder.header(parser=parser.info(), tags=','.join(tags)), xml)
 
 def calculateMaterials(file_id, order=None):
     """
@@ -1313,8 +1572,10 @@ def sendMaterialsOrder(file_id, order=None):
             errors.append((_ERROR, gettext('Error: Materials request email error.'),))
         else:
             rows, error_msg = engine.runProcedure('materials.approval', 
-                                                  file_id=file_id, file_status_ids='', 
-                                                  no_cursor=True, with_error=True
+                                                  file_id=file_id, 
+                                                  file_status_ids='', 
+                                                  no_cursor=True, 
+                                                  with_error=True
                                                   )
             if error_msg:
                 errors.append(error_msg)
@@ -1414,9 +1675,9 @@ def calculateContainerList(file_id, is_group=False, **kw):
     finally:
         props = {
             'items'      : [x[1] for x in sorted(items, key=itemgetter(0))],
-            'ClientName' : requested_object['BankName'],
-            'FileName'   : requested_object['FName'],
-            'FQty'       : requested_object['FQty'],
+            'ClientName' : requested_object.get('BankName') or '',
+            'FileName'   : requested_object.get('FName') or '',
+            'FQty'       : requested_object.get('FQty') or 0,
             'TZ'         : ', '.join([str(x) for x in TZ]),
             'Now'        : getDate(getToday(), LOCAL_EXCEL_TIMESTAMP),
             'Today'      : getDate(getToday(), DEFAULT_DATETIME_TODAY_FORMAT),
@@ -1482,6 +1743,113 @@ def calculateGroupContainerList(file_ids=None):
 
     return data, props, errors
 
+def changeDeliveryDate(changedate):
+    import subprocess
+    from subprocess import Popen, PIPE
+
+    code, errors = 0, []
+
+    client = requested_object['BankName'].lower()
+
+    if client.lower() not in ('postbank',):
+        errors.append("Для клиента '%s' данная операция не поддерживается." % client)
+        return 0, None, errors
+
+    attrs = {
+        'client'     : client,
+        'filetype'   : requested_object['FileType'],
+        'status'     : requested_object['FileStatusID'],
+        'forced'     : requested_object['FileID'],
+        'changedate' : changedate,
+    }
+
+    cwd = "C:/apps/perso"
+    config = "perso.config.default"
+    command = "CSD::%(filetype)s::%(status)d-0-0::[everything,ext.order_generate.%(client)s.change_delivery_date,\'%(changedate)s\',%(forced)d]" % attrs
+
+    args = [os.path.join(cwd, "run.exe"), cwd, config, command]
+
+    if IsTrace:
+        print_to(errorlog, '--> subprocess: %s' % args)
+
+    res = None
+
+    try:
+        proc = Popen(args, cwd=cwd, shell=False, stdout=PIPE, stderr=PIPE)
+        proc.wait(180)
+
+        res = proc.communicate()
+
+    except Exception as ex:
+        if IsPrintExceptions:
+            print_exception()
+
+        errors.append(str(ex))
+
+        code = -1
+
+    if IsDebug:
+        print('code:', code)
+
+    return _check_subprocess(res)
+
+def changeDeliveryAddress(changeaddress):
+    import subprocess
+    from subprocess import Popen, PIPE
+
+    code, errors = 0, []
+
+    client = requested_object['BankName'].lower()
+
+    if client.lower() not in ('postbank',):
+        errors.append("Для клиента '%s' данная операция не поддерживается." % client)
+        return 0, None, errors
+
+    address, recno, branch = changeaddress.split('::')
+
+    if not recno.isdigit():
+        recno = None
+
+    attrs = {
+        'client'    : client,
+        'filetype'  : requested_object['FileType'],
+        'status'    : requested_object['FileStatusID'],
+        'forced'    : requested_object['FileID'],
+        'address'   : ','.join([x.strip() for x in address.split(',')]),
+        'recno'     : recno, 
+        'branch'    : branch,
+    }
+
+    cwd = "C:/apps/perso"
+    config = "perso.config.default"
+    command = "CDA::%(filetype)s::%(status)d-0-0::[everything,ext.order_generate.%(client)s.change_delivery_address,\'%(address)s\',%(recno)s,\'%(branch)s\',%(forced)d]" % attrs
+
+    args = [os.path.join(cwd, "run.exe"), cwd, config, command]
+
+    if IsTrace:
+        print_to(errorlog, '--> subprocess: %s' % args)
+
+    res = None
+
+    try:
+        proc = Popen(args, cwd=cwd, shell=False, stdout=PIPE, stderr=PIPE)
+        proc.wait(180)
+
+        res = proc.communicate()
+
+    except Exception as ex:
+        if IsPrintExceptions:
+            print_exception()
+
+        errors.append(str(ex))
+
+        code = -1
+
+    if IsDebug:
+        print('code:', code)
+
+    return _check_subprocess(res)
+
 ## ==================================================== ##
 
 def _make_report_kp(kw):
@@ -1526,51 +1894,74 @@ def _make_report_kp(kw):
 
 def _make_report_branch_list(kw):
     """
-        Отчет: Статистика КП БинБанка
+        Отчет: Статистика отгрузки по филиалам (Левобережный)
     """
-    headers = ['Тип карты', 'Филиал', 'Кол-во',]
+    headers = ['Код филиала', 'Тип карты', 'Адрес доставки (Филиал)', 'Кол-во',]
     rows = []
 
     _BRANCH = 'Доставка'
     _CARD_TYPE = 'PlasticType'
     _ID_VSP = 'ID_VSP'
+    
+    separator = ','
 
-    for order in kw['orders']:
-        if order.get('selected', '') != 'selected':
-            continue
+    parser = decoder.chooseBodyParser(tag=FILEBODY_RECORD)
 
-        row = []
-        file_id = order['FileID']
+    def _get_item(node, tags, default=None, encoding=None):
+        value = None
+        for tag in tags:
+            value = parser.find(node, tag, encoding=encoding)
+            if value:
+                break
+        return value or default
 
+    if parser is not None:
         items = {}
-        batches, selected_id = _get_batches(file_id, batchtype=BATCH_TYPE_PERSO)
-        for batch in batches:
-            batch_id = batch['id']
 
-            data, props = getTabParams(file_id, batch_id)
-            ps = getParamsByKeys(data, [_BRANCH, _CARD_TYPE, _ID_VSP])
+        for node in parser:
+            decoder.decodeCyrillic(node)
 
-            if ps and len(ps.keys()) == 3:
+            id_vsp = _get_item(node, ('ID_VSP', 'DEST_CODE', 'BRANCH_SEND_TO', 'ADD1_BRANCH', 'BranchID'))
+            if not id_vsp:
+                continue
+
+            branch_name = _get_item(node, ('BRANCH', 'DEST_BRANCH', 'DEST_NAME', 'DeliveryAddress', 'FACTADRESS', 'FactAddress', 'CompanyName', 'CardholderAddress'), 
+                                    encoding=default_encoding)
+
+            if branch_name:
+                pass #branch_name = branch_name.encode(default_encoding, 'ignore').decode()
+            else:
+                branch_name = gettext('undefined')
+
+            card_type = _get_item(node, ('PlasticType', 'CardType', 'PLASTIC_CODE', 'PROD_ID'), default='OTHER')
+            """
+            if separator in branch_name:
                 try:
-                    branch_name = ps[_BRANCH]['PValue']
-                    card_type = ps[_CARD_TYPE]['PValue']
-                    id_vsp = ps[_ID_VSP]['PValue']
+                    branch_name = [x.strip() for x in branch_name.split(separator) if not x.isdigit()][0]
                 except:
-                    continue
+                    pass
+            """
+            if id_vsp not in items:
+                items[id_vsp] = {}
+            if card_type not in items[id_vsp]:
+                items[id_vsp][card_type] = {}
+            if branch_name not in items[id_vsp][card_type]:
+                items[id_vsp][card_type][branch_name] = 0
 
-                if id_vsp not in items:
-                    items[id_vsp] = [card_type, branch_name, 0]
+            items[id_vsp][card_type][branch_name] += 1
 
-                items[id_vsp][2] += props['no']
+            parser.clear(node)
 
         for key in sorted(items.keys()):
-            rows.append([
-                items[key][0],
-                items[key][1],
-                items[key][2],
-            ])
+            for card in sorted(items[key].keys()):
+                for branch in sorted(items[key][card].keys()):
+                    rows.append([
+                        key, card, branch, items[key][card][branch],
+                    ])
 
-    rows = sorted(rows, key=itemgetter(1))
+    decoder.flash()
+
+    rows = sorted(rows, key=itemgetter(0))
 
     rows.insert(0, headers)
     return rows
@@ -1605,10 +1996,15 @@ def _make_export(kw):
 def _make_response_name(name=None):
     return '%s-%s' % (getDate(getToday(), LOCAL_EXPORT_TIMESTAMP), name or 'perso')
 
-def _make_xls_content(rows, title, name=None):
-    xls = makeXLSContent(rows, title, True)
-    response = make_response(xls)
-    response.headers["Content-Disposition"] = "attachment; filename=%s.xls" % _make_response_name(name)
+def _make_xls_content(rows, title, name=None, ctype=None):
+    if len(rows) > MAX_CARDHOLDER_ITEMS or ctype == 'csv':
+        output = makeCSVContent(rows, title, True)
+        ext = 'csv'
+    else:
+        output = makeXLSContent(rows, title, True)
+        ext = 'xls'
+    response = make_response(output)
+    response.headers["Content-Disposition"] = "attachment; filename=%s.%s" % (_make_response_name(name), ext)
     return response
 
 def _make_page_default(kw):
@@ -1648,15 +2044,14 @@ def _make_page_default(kw):
     # -----------------------------------
 
     page, per_page = get_page_params(default_page)
-    top = per_page * page
-    offset = page > 1 and (page - 1) * per_page or 0
+    top, offset = _get_top(per_page, page)
 
     # ------------------------
     # Поиск контекста (search)
     # ------------------------
 
-    search = get_request_item('search')
-    IsSearchBatch = False
+    search = get_request_search()
+    is_search_batch = False
     items = []
     preview_items = []
     TZ = None
@@ -1669,7 +2064,7 @@ def _make_page_default(kw):
         try:
             FileID = TZ = int(search)
             items.append('(FileID=%s OR TZ=%s)' % (FileID, TZ))
-            IsSearchBatch = True
+            is_search_batch = True
             pers_tz = TZ
         except:
             TZ = 0
@@ -1691,9 +2086,47 @@ def _make_page_default(kw):
     BatchTypeID = args['batchtype'][1]
     BatchStatusID = args['batchstatus'][1]
 
+    is_yesterday = is_tomorrow = is_today = False
+    
+    default_date_format = DEFAULT_DATE_FORMAT[1]
+    today = getDate(getToday(), default_date_format)
+    date_from = None
+
+    def _evaluate_date(s, x, format=default_date_format):
+        d = getDate(s, format, is_date=True)
+        return getDate(daydelta(d, x), format)
+
     if args:
+
+        # -------------------
+        # Фильтр текущего дня
+        # -------------------
+
+        date_from = args.get('date_from')[1]
+        if date_from:
+            is_yesterday = args['yesterday'][1] and True or False
+            is_tomorrow = args['tomorrow'][1] and True or False
+
+        if is_yesterday:
+            args['date_from'][1] = args['date_to'][1] = date_from = _evaluate_date(date_from, -1)
+        if is_tomorrow:
+            args['date_from'][1] = args['date_to'][1] = date_from = _evaluate_date(date_from, 1)
+
+        is_today = (args['today'][1] or (date_from == today and not is_yesterday)) and True or False
+
+        if is_today:
+            args['date_from'][1] = date_from = today
+            args['date_to'] = ['', None]
+
+        if not (is_yesterday or is_tomorrow or is_today):
+            date_from = None
+
+        # -----------------
+        # Параметры фильтра
+        # -----------------
+
         for key in args:
-            if key in (EXTRA_,):
+            if key == EXTRA_ or key in DATE_KEYWORDS:
                 continue
             name, value = args[key]
             if value:
@@ -1758,7 +2191,7 @@ def _make_page_default(kw):
     # ----------------------
 
     state = get_request_item('state')
-    IsState = state and state != 'R0' and True or False
+    is_state = state and state != 'R0' and True or False
 
     args.update({
         'state' : ('State', state)
@@ -1771,12 +2204,6 @@ def _make_page_default(kw):
     if state and state in 'R4:R5':
         rows = engine.runQuery('batches.preview', where='BatchStatusID=1', distinct=True)
         ids = [x[0] for x in rows]
-        """
-        rows = engine.runProcedure('materials.check',
-                                   file_id='null', file_status_ids=makeIDList(COMPLETE_STATUSES), check=2, 
-                                   no_cursor=False, distinct=True
-                                   )
-        """
         if state == 'R4':
             exec_params = {'file_id' : 'null', 'file_status_ids' : makeIDList(COMPLETE_STATUSES), 'check' : 2}
             rows = engine.runQuery('materials.check', exec_params=exec_params)
@@ -1795,6 +2222,7 @@ def _make_page_default(kw):
                 )
 
     confirmed_file_id = 0
+    selected_row = {}
 
     # ======================
     # Выборка данных журнала
@@ -1803,13 +2231,13 @@ def _make_page_default(kw):
     if engine != None:
 
         # ------------------------------------------------
-        # Поиск заказа по ID или номеру ТЗ (IsSearchBatch)
+        # Поиск заказа по ID или номеру ТЗ (is_search_batch)
         # ------------------------------------------------
         
-        if IsSearchBatch:
+        if is_search_batch:
             file_id = 0
 
-            cursor = engine.runQuery('batches', columns=('FileID',), where=where)
+            cursor = engine.runQuery(_views['batches'], columns=('FileID',), where=where)
             for n, row in enumerate(cursor):
                 file_id = row[0]
 
@@ -1832,8 +2260,8 @@ def _make_page_default(kw):
             if total_cards is None:
                 total_cards = 0
 
-        if IsState:
-            top = 1000
+        if is_state:
+            top, offset = 1000, None
         if command == 'export':
             top = 10000
 
@@ -1841,25 +2269,35 @@ def _make_page_default(kw):
         # Заказы (orders)
         # ===============
 
-        cursor = engine.runQuery(default_template, top=top, where=where, order='%s' % order, as_dict=True,
+        cursor = engine.runQuery(default_template, top=top, offset=offset, where=where, order='%s' % order, as_dict=True,
                                  encode_columns=('BankName','FileStatus'))
         if cursor:
-            IsSelected = False
-            
+            is_selected = False
+
+            if is_state:
+                top, offset = _get_top(per_page, page)
+
             for n, row in enumerate(cursor):
+                #if is_state and len(orders) > per_page:
+                #    continue
+
                 x = row['FileStatus'].lower()
 
-                state_error = 'ошибка' in x or 'отбраков' in x
+                state_stop = 'приостановлена' in x
+                state_error = 'ошибка' in x or 'отбраков' in x or 'неверный формат' in x
                 state_ready = 'заказ обработан' in x or 'готов к отгрузке' in x
+                state_wait = 'ожидание' in x
+                state_archive = 'архивация' in x
 
-                if state == 'R1' and (state_ready or state_error):
+                if state == 'R1' and (state_ready or state_archive or state_wait):
                     continue
                 if state == 'R2' and not state_ready:
                     continue
-                if state == 'R3' and not state_error:
+                if state == 'R3' and not (state_error or state_stop):
                     continue
-
-                if not IsState and offset and n < offset:
+                if state == 'R6' and not state_wait:
+                    continue
+                if state == 'R7' and not state_archive:
                     continue
 
                 if file_id:
@@ -1870,7 +2308,8 @@ def _make_page_default(kw):
 
                     if file_id == row['FileID']:
                         row['selected'] = 'selected'
-                        IsSelected = True
+                        selected_row = row
+                        is_selected = True
                 else:
                     row['selected'] = ''
 
@@ -1878,25 +2317,28 @@ def _make_page_default(kw):
                     if not row[x] or str(row[x]).lower() == 'none':
                         row[x] = ''
 
+                row['Stop'] = state_stop
                 row['Error'] = state_error
                 row['Ready'] = state_ready
+                row['Wait'] = state_wait
+                row['Archive'] = state_archive
                 row['StatusDate'] = getDate(row['StatusDate'])
                 row['RegisterDate'] = getDate(row['RegisterDate'])
                 row['ReadyDate'] = getDate(row['ReadyDate'])
                 row['FQty'] = str(row['FQty']).isdigit() and int(row['FQty']) or 0
                 row['id'] = row['FileID']
 
-                #total_cards += row['FQty']
                 orders.append(row)
 
             if line > len(orders):
                 line = 1
 
-            if not IsSelected and len(orders) >= line:
+            if not is_selected and len(orders) >= line:
                 row = orders[line-1]
                 confirmed_file_id = file_id = row['id'] = row['FileID']
                 file_name = row['FName']
                 row['selected'] = 'selected'
+                selected_row = row
 
         if len(orders) == 0:
             file_id = 0
@@ -1910,26 +2352,28 @@ def _make_page_default(kw):
             file_id = 0
             file_name = ''
 
-        if IsState and orders:
+        if is_state and orders:
             total_orders = len(orders)
             total_cards = 0
             orders = orders[offset:offset+per_page]
-            IsSelected = False
+            is_selected = False
 
             for n, row in enumerate(orders):
                 if file_id == row['FileID']:
                     row['selected'] = 'selected'
                     file_name = row['FName']
-                    IsSelected = True
+                    selected_row = row
+                    is_selected = True
                 else:
                     row['selected'] = ''
                 total_cards += row['FQty']
 
-            if not IsSelected and orders:
+            if not is_selected and orders:
                 row = orders[0]
                 row['selected'] = 'selected'
                 file_id = row['FileID']
                 file_name = row['FName']
+                selected_row = row
 
         if total_orders:
             pages = int(total_orders / per_page)
@@ -1977,13 +2421,15 @@ def _make_page_default(kw):
     states = [
         ('R0', DEFAULT_UNDEFINED),
         ('R1', 'Файлы "В работе"'),
+        ('R6', 'Файлы "В ожидании"'),
         ('R2', 'Завершено'),
         ('R3', 'Ошибки'),
+        ('R7', 'Архив'),
     ]
 
     if is_operator:
         states.insert(1, ('R4', 'Файлы "На обработку"'))
-        states.insert(3, ('R5', 'Активно'))
+        states.insert(4, ('R5', 'Активно'))
 
     # --------------------------------------
     # Нумерация страниц журнала (pagination)
@@ -2022,13 +2468,19 @@ def _make_page_default(kw):
                                              (search and "&search=%s" % search) or '',
                                              (current_sort and "&sort=%s" % current_sort) or '',
                                              (state and "&state=%s" % state) or '',
-                                             ),
+                                              ),
         'sort'              : {
             'modes'         : modes,
             'sorted_by'     : sorted_by,
             'current_sort'  : current_sort,
         },
         'position'          : '%d:%d:%d:%d' % (page, pages, per_page, line),
+        'today'             : {
+            'selected'      : is_today,
+            'date_from'     : date_from,
+            'has_prev'      : is_today or is_yesterday,
+            'has_next'      : date_from and date_from < today and True or False,
+        },
     }
 
     loader = '/bankperso/loader'
@@ -2046,6 +2498,7 @@ def _make_page_default(kw):
         'semaphore'         : initDefaultSemaphore(),
         'args'              : args,
         'current_file'      : (file_id, file_name, batch_id, pers_tz),
+        'tabs'              : _check_extra_tabs(selected_row).keys(),
         'navigation'        : get_navigation(),
         'config'            : database_config,
         'pagination'        : pagination,
@@ -2093,6 +2546,9 @@ def demo(**kw):
     file_id = 218107
     batch_id = 1184030
 
+    def encode(value):
+        return value and isinstance(value, str) and value.encode(default_iso).decode(default_encoding) or value or ''
+
     try:
         cursor = engine.runQuery('banks', order='BankName', distinct=True)
         c1 = cursor
@@ -2109,16 +2565,16 @@ def demo(**kw):
         cursor = engine.runQuery('params', as_dict=True, params="%s, %s, '', 0, ''" % (file_id, batch_id))
         c4 = cursor
         for row in c4:
-            row['PName'] = row['PName'].encode(default_iso).decode(default_encoding)
-            row['PValue'] = row['PValue'].encode(default_iso).decode(default_encoding)
-            row['TValue'] = row['TValue'].encode(default_iso).decode(default_encoding)
+            row['PName'] = encode(row['PName'])
+            row['PValue'] = encode(row['PValue'])
+            row['TValue'] = encode(row.get('TValue'))
             params.append(row)
         
         cursor = engine.runQuery('TZ', as_dict=True, params="%s, %s, '', 1, ''" % (file_id, batch_id))
         c5 = cursor
         for row in c5:
-            row['PName'] = row['PName'].encode(default_iso).decode(default_encoding)
-            row['PValue'] = row['PValue'].encode(default_iso).decode(default_encoding)
+            row['PName'] = encode(row['PName'])
+            row['PValue'] = encode(row['PValue'])
             key = row['PName']
             if key in database_config['TZ']['rename']:
                 x = database_config['TZ']['rename'][key]
@@ -2136,7 +2592,7 @@ def demo(**kw):
         if IsDebug:
             print_to(None, '--> demo check: %s' % 'OK')
 
-    kw = { \
+    kw = { 
         'title'        : 'demo',
         'connection'   : connection,
         'config'       : database_config,
@@ -2150,8 +2606,16 @@ def demo(**kw):
     return render_template('demo.html', **kw)
 
 @bankperso.route('/', methods = ['GET'])
+@bankperso.route('/index', methods = ['GET','POST'])
 @bankperso.route('/bankperso', methods = ['GET','POST'])
 @login_required
+def start():
+    try:
+        return index()
+    except:
+        if IsPrintExceptions:
+            print_exception()
+
 def index():
     debug, kw = init_response('WebPerso Main Page')
     kw['product_version'] = product_version
@@ -2170,16 +2634,18 @@ def index():
     refresh(file_id=file_id)
 
     IsMakePageDefault = True
-    logsearch = ''
-    tagsearch = ''
+    specified = ''
     info = ''
 
-    errors = []
+    code, stdout, errors = -1, '', []
 
     if command.startswith('admin'):
         command = command.split(DEFAULT_HTML_SPLITTER)[1]
 
-        if not is_operator:
+        if get_request_item('OK') != 'run':
+            command = ''
+
+        elif not is_operator:
             flash('You have not permission to run this action!')
             command = ''
 
@@ -2197,6 +2663,26 @@ def index():
 
                 if error_msg:
                     errors.append(error_msg)
+
+        elif command == 'changedate':
+            specified = get_request_item('specified') or ''
+            info = 'changedate:%s' % specified
+
+            # --------------------------
+            # Change Delivery Date items
+            # --------------------------
+
+            code, stdout, errors = changeDeliveryDate(specified)
+
+        elif command == 'changeaddress':
+            specified = get_request_item('specified') or ''
+            info = 'changeaddress:%s' % specified
+
+            # -----------------------------
+            # Change Delivery Address items
+            # -----------------------------
+
+            code, stdout, errors = changeDeliveryAddress(specified)
 
         elif not is_admin:
             flash('You have not permission to run this action!')
@@ -2222,6 +2708,7 @@ def index():
 
         elif command == 'change-filestatus':
             new_file_status = int(get_request_item('status_file_id') or '0')
+            keep_history = get_request_item('status_keep_history') or '0'
             check_file_status = 'null'
             info = 'new_file_status:%s' % new_file_status
 
@@ -2231,14 +2718,18 @@ def index():
 
             statuses = _get_filestatuses(file_id)
 
+            run_batch = 0
+
             if statuses:
                 if new_file_status in statuses:
                     check_file_status = new_file_status
                 elif new_file_status < statuses[-1]:
                     check_file_status = new_file_status
+                if new_file_status < 6:
+                    run_batch = 1
 
             engine.runProcedure('changefilestatus', file_id=file_id, new_file_status=new_file_status, 
-                                check_file_status=check_file_status, no_cursor=True)
+                                check_file_status=check_file_status, run_batch=run_batch, keep_history=keep_history, no_cursor=True)
 
         elif command == 'change-batchstatus':
             new_batch_status = int(get_request_item('status_batch_id') or '0')
@@ -2252,8 +2743,8 @@ def index():
                                 new_batch_status=new_batch_status, no_cursor=True)
 
         elif command == 'logsearch':
-            logsearch = get_request_item('logsearch') or ''
-            info = 'logsearch:%s' % logsearch
+            specified = get_request_item('specified') or ''
+            info = 'logsearch:%s' % specified
 
             # --------------------
             # Dump LogSearch items
@@ -2262,8 +2753,8 @@ def index():
             IsMakePageDefault = False
 
         elif command == 'tagsearch':
-            tagsearch = get_request_item('tagsearch') or ''
-            info = 'tagsearch:%s' % tagsearch
+            specified = get_request_item('specified') or ''
+            info = 'tagsearch:%s' % specified
 
             # --------------------
             # Dump TagSearch items
@@ -2288,13 +2779,13 @@ def index():
             kw = _make_page_default(kw)
 
         if IsTrace:
-            print_to(errorlog, '--> bankperso:%s %s %s %s' % ( \
-                     command, current_user.login, str(kw.get('current_file')), info,), 
+            print_to(errorlog, '--> bankperso:%s %s [%s:%s] %s %s' % (
+                     command, current_user.login, request.remote_addr, kw.get('browser_info'), str(kw.get('current_file')), info,), 
                      request=request)
     except:
         print_exception()
 
-    kw['vsc'] = (IsDebug or IsIE() or IsForceRefresh) and ('?%s' % str(int(random.random()*10**12))) or ''
+    kw['vsc'] = vsc()
 
     if command:
         is_extra = has_request_item(EXTRA_)
@@ -2306,37 +2797,56 @@ def index():
             if kw['errors']:
                 flash('Batch activation done with errors!')
             else:
-                kw['OK'] = gettext('Message: Activation is perfomed successfully.')
+                kw['OK'] = html_flash(gettext('Message: Activation is perfomed successfully.'))
 
         elif command == 'unload':
-            dump, total = getTabIBody(int(kw.get('file_id')), limit=None, is_extra=is_extra)
-            response = make_response(dump)
-            response.headers["Content-Disposition"] = "attachment; filename=body%s.dump" % kw.get('file_id')
-            return response
+            filename = 'body%s.dump' % file_id
+            return Response(
+                stream_with_context(getCurrentState(is_extra=is_extra)),
+                headers={"Content-Disposition" : "attachment; filename=" + filename}
+            )
 
         elif command == 'imageunload':
-            dump = getBodyState(int(kw.get('file_id')), with_image=True, no_body=True, limit=None, is_extra=is_extra)
-            response = make_response(dump)
-            response.headers["Content-Disposition"] = "attachment; filename=image%s.dump" % kw.get('file_id')
-            return response
+            filename = 'image%s.dump' % file_id
+            return Response(
+                getFullState(with_image=True, no_body=True, limit=None, is_extra=is_extra, no_cyrillic=True),
+                headers={"Content-Disposition" : "attachment; filename=" + filename}
+            )
 
         elif command == 'fullunload':
-            dump = getBodyState(int(kw.get('file_id')), with_image=True, limit=None, is_extra=is_extra)
-            response = make_response(dump)
-            response.headers["Content-Disposition"] = "attachment; filename=full%s.dump" % kw.get('file_id')
-            return response
+            filename = 'full%s.dump' % file_id
+            return Response(
+                getFullState(with_image=True, limit=None, is_extra=is_extra, no_cyrillic=True),
+                headers={"Content-Disposition" : "attachment; filename=" + filename}
+            )
 
         elif command == 'logsearch':
-            dump = getLogSearchDump(logsearch)
+            dump = getLogSearchDump(specified)
             response = make_response(dump)
             response.headers["Content-Disposition"] = "attachment; filename=%s.dump" % _make_response_name('logsearch')
             return response
 
         elif command == 'tagsearch':
-            dump = getTagSearchDump(file_id, tagsearch, is_extra=is_extra)
+            dump = getTagSearchDump(file_id, specified, is_extra=is_extra)
             response = make_response(dump)
             response.headers["Content-Disposition"] = "attachment; filename=%s.dump" % _make_response_name('tagsearch')
             return response
+
+        elif command == 'changedate':
+            if kw['errors']:
+                pass
+            elif code:
+                flash('Change date done with errors!')
+            else:
+                kw['OK'] = html_flash(gettext('Message: Delivery date is changed successfully.'))
+
+        elif command == 'changeaddress':
+            if kw['errors']:
+                pass
+            elif code:
+                flash('Change address done with errors!')
+            else:
+                kw['OK'] = html_flash('%s\n%s' % (gettext('Message: Delivery address is changed successfully.'), stdout))
 
         elif command == 'kp':
             return _make_xls_content(_make_report_kp(kw), 'Статистика КП', 'kp')
@@ -2346,10 +2856,33 @@ def index():
                 filename = kw.get('current_file')[1] or ''
             except:
                 filename = ''
-            return _make_xls_content(_make_report_branch_list(kw), filename or 'Статистика доставки по филиалам', 'branch_list')
+            return _make_xls_content(_make_report_branch_list(kw), filename or 'Статистика отгрузки по филиалам', 'branch_list', ctype='csv')
+
+        elif command == 'search-double':
+            try:
+                filename = kw.get('current_file')[1] or ''
+            except:
+                filename = ''
+            cards, no_value = _search_double_pan()
+            cards.insert(0, ['PAN', 'FileRecNo:with PIN'])
+            if no_value:
+                cards.append([])
+                cards.append(['No PAN...'])
+                cards = cards + no_value
+            return _make_xls_content(cards, filename or 'Дубли PAN', 'Double PAN')
+
+        elif command == 'cardholders':
+            try:
+                filename = kw.get('current_file')[1] or ''
+            except:
+                filename = ''
+            data, columns = _get_cardholders(database_config['cardholders'], limit=None) #, encoding=default_encoding
+            cardholders = [[item.get(x['name']) or '' for x in columns] for item in data]
+            cardholders.insert(0, [x.get('header') for x in columns])
+            return _make_xls_content(cardholders, filename or 'Лист персонализации', 'Cardholders')
 
         elif command == 'export':
-            return _make_xls_content(_make_export(kw), 'Журнал заказов')
+            return _make_xls_content(_make_export(kw), 'Журнал заказов', ctype='csv')
 
     return make_response(render_template('bankperso.html', debug=debug, **kw))
 
@@ -2363,12 +2896,14 @@ def changelog():
         if IsPrintExceptions:
             print_exception()
 
-    response = make_response('\r\n'.join(output))
+    response = make_response('\r\n'.join([x.rstrip() for x in output]))
     response.headers["Content-Disposition"] = "attachment; filename=changelog.%s.txt" % product_version.replace(',', '')
     return response
 
 @bankperso.after_request
 def make_response_no_cached(response):
+    if decoder is not None:
+        decoder.flash()
     if engine is not None:
         engine.close()
     # response.cache_control.no_store = True
@@ -2385,7 +2920,7 @@ def loader():
     is_extra = has_request_item(EXTRA_)
 
     action = get_request_item('action') or default_action
-    selected_menu_action = get_request_item('selected_menu_action') or action != default_action and action or '301'
+    selected_menu_action = get_request_item('selected_menu_action') or action != default_action and action or default_log_action
 
     response = {}
 
@@ -2418,17 +2953,21 @@ def loader():
     data = ''
     number = ''
     columns = []
-    total = None
+    total = 0
+    status = ''
+    path = None
 
     props = None
     errors = None
+
+    tabs = _check_extra_tabs(requested_object)
 
     try:
         if action == default_action:
             batches, batch_id = _get_batches(file_id, batchtype=batchtype, batchstatus=batchstatus)
             currentfile = [requested_object.get('FileID'), requested_object.get('FName'), batch_id]
             config = _get_view_columns(database_config['batches'])
-            action = selected_menu_action
+            action = _valid_extra_action(selected_menu_action) or default_log_action
 
         if not action:
             pass
@@ -2448,16 +2987,16 @@ def loader():
             view = database_config['logs']
             columns = _get_view_columns(view)
             data = getTabLogs(file_id)
+            status, path = getTabProcessInfo(tag='ProcessInfo')
 
         elif action == '303':
-            view = database_config['cardholders']
-            data, columns = getTabCardholders(file_id)
+            data, columns = getTabCardholders()
 
         elif action == '304':
-            data, total = getTabIBody(file_id, is_extra=is_extra)
+            data, total, status = getTabIBody(is_extra=is_extra, params=params)
 
         elif action == '305':
-            data, total = getTabProcessErrMsg(file_id)
+            data, total = getTabProcessErrMsg()
 
         elif action == '306':
             view = database_config['persolog']
@@ -2498,6 +3037,9 @@ def loader():
             file_ids = [int(x) for x in params.split(DEFAULT_HTML_SPLITTER)]
             data, props, errors = calculateGroupContainerList(file_ids=file_ids)
 
+        elif action == '313':
+            data, columns = getTabIndigo()
+
     except:
         print_exception()
 
@@ -2519,15 +3061,17 @@ def loader():
         'currentfile'      : currentfile,
         'sublines'         : batches,
         'config'           : config,
+        'tabs'             : list(tabs.keys()),
         # --------------------------
         # Results (Log page content)
         # --------------------------
         'total'            : total or len(data),
         'data'             : data,
+        'status'           : status,
+        'path'             : path,
         'props'            : props,
         'columns'          : columns,
         'errors'           : errors,
     })
 
     return jsonify(response)
-

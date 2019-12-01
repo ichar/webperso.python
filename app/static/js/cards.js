@@ -26,35 +26,26 @@ function sidebar_callback() {
     $onInfoContainerChanged();
 }
 
+function subline_refresh(filename) {
+    $(".filename").each(function() { 
+        $(this).html(filename);
+    });
+}
+
 // --------------
 // Page Functions
 // --------------
 
 function $Init() {
-    $SidebarControl.init(sidebar_callback);
+    $SidebarControl.init(sidebar_callback, []);
 
     page_sort_title = $("#sort_icon").attr('title');
 
     SelectedReset();
 
     $LineSelector.init();
-    /*
-    var parent = $("#line-content");
-    var ob = $("tr[class~='selected']", parent);
-    $onToggleSelectedClass(LINE, ob, 'add', null);
-
-    $LineSelector.set_current(ob);
-    */
-    $SublineSelector.init();
-    /*
-    var parent = $("#subline-content");
-    var ob = $("tr[class~='selected']", parent);
-    $onToggleSelectedClass(SUBLINE, ob, 'add', null);
-
-    $SublineSelector.set_current(ob);
-    */
-    $ShowMenu('data-menu-opers');
-
+    //$SublineSelector.init();
+    $ShowMenu(default_menu_item);
     $TabSelector.init();
 
     // ------------------------
@@ -466,11 +457,9 @@ jQuery(function($)
             return;
         }
 
-        //alert('is_noprogress:'+is_noprogress);
-
         var ob = $(this);
         var parent = ob.parents("*[class*='line']").first();
-        if (!is_null(parent) && !parent.hasClass("tabline"))
+        if (!is_null(parent) && !parent.hasClass("tabline") && !ob.hasClass("header"))
             $InProgress(ob, 1);
     });
 
@@ -509,17 +498,6 @@ jQuery(function($)
     // -----------------
 
     $(".view-lines").on('click', '.tabline', function(e) {
-        /*
-        var ob = $(this);
-
-        if (!is_null(current_tabline))
-            $onToggleSelectedClass(TABLINE, current_tabline, 'remove', null);
-        
-        current_tabline = ob;
-        SelectedSetItem(TABLINE, 'ob', current_tabline);
-
-        $onToggleSelectedClass(TABLINE, current_tabline, 'add', null);
-        */
         $TablineSelector.onRefresh($(this));
     });
 
@@ -530,12 +508,6 @@ jQuery(function($)
     function $activateFileBatches() {
         $Handle('705', function(x) { selectFileBatches(x); });
     }
-
-    /*
-    $("#status-confirm-container").on('click', '.change-status-item', function(e) {
-        $StatusChangeDialog.toggle($(this));
-    });
-    */
 
     $("button[id^='admin']", this).click(function(e) {
         var ob = $(this);
@@ -600,6 +572,9 @@ jQuery(function($)
             if (focused != sid && !is_search_focused)
                 $addSelection(SelectedGetItem(LINE, 'ob'));
 
+        if (is_search_focused)
+            return;
+
         if (e.keyCode==46)                               // Del
             if (focused == sid)
                 $removeSelection();
@@ -657,7 +632,3 @@ $(function()
 
     $_init();
 });
-
-
-
-

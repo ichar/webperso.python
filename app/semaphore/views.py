@@ -8,7 +8,7 @@ from config import (
      UTC_FULL_TIMESTAMP
      )
 
-from flask.ext.login import login_required, current_user
+#from flask.ext.login import login_required, current_user
 
 from . import semaphore
 
@@ -30,7 +30,7 @@ IsLocalDebug = LocalDebug[default_page]
 def before(f):
     def wrapper(**kw):
         global engine
-        engine = BankPersoEngine()
+        engine = BankPersoEngine(name='semaphore')
         return f(**kw)
     return wrapper
 
@@ -191,7 +191,7 @@ def after_request(response):
     return response
 
 @semaphore.route('/loader', methods = ['GET','POST'])
-@login_required
+#@login_required
 def loader():
     exchange_error = ''
     exchange_message = ''
@@ -210,7 +210,7 @@ def loader():
         print('--> action:%s %s lid:%s' % (action, template, lid))
 
     if IsSemaphoreTrace:
-        print_to(errorlog, '--> loader:%s %s [%s:%s:%s] %s' % (action, current_user.login, template, lid, selected_menu_action, 
+        print_to(errorlog, '--> loader:%s [%s:%s:%s] %s' % (action, template, lid, selected_menu_action, 
             getTime(UTC_FULL_TIMESTAMP)))
 
     state = {}

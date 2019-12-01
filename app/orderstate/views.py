@@ -27,7 +27,10 @@ engine = None
 def before(f):
     def wrapper(**kw):
         global engine
-        engine = BankPersoEngine(current_user, connection=CONNECTION['orderstate'])
+        if engine is not None:
+            engine.close()
+        name = kw.get('engine') or 'orderstate'
+        engine = BankPersoEngine(name=name, user=current_user, connection=CONNECTION[name])
         return f(**kw)
     return wrapper
 
@@ -738,7 +741,7 @@ def _make_page_default(kw):
 
 ## ==================================================== ##
 
-@orderstate.route('/', methods = ['GET'])
+#@orderstate.route('/', methods = ['GET'])
 @orderstate.route('/orderstate', methods = ['GET','POST'])
 @login_required
 def index():

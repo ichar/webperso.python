@@ -1,6 +1,6 @@
-﻿// *******************************************
-// BANKPERSO PAGE DECLARATION: /bankperso.html
-// -------------------------------------------
+﻿// *****************************************
+// BANKPERSO PAGE DECLARATION: /bankperso.js
+// -----------------------------------------
 // Version: 1.50
 // Date: 08-12-2017
 
@@ -14,6 +14,7 @@ LINE    = 'order';
 SUBLINE = 'batch';
 
 var batch_can_be_activated = 0;
+var postonline_path = null;
 
 // ----------------------
 // Dialog Action Handlers
@@ -23,8 +24,35 @@ function sidebar_callback() {
     $onInfoContainerChanged();
 }
 
+function subline_refresh(filename) {
+    $(".filename").each(function() { 
+        $(this).html(filename);
+    });
+}
+
 function log_callback(current_action, data, props) {
     batch_can_be_activated = 'activate' in props ? props['activate'] : 0;
+}
+
+function indigo(s) {
+    $NotificationDialog.open('<img class="indigo_design" src="'+s+'" title="Indigo Design" alt>', 0, 0, keywords['Image view']);
+}
+
+function show_process_info(status, path) {
+    var info = status.match( /\[(.*?)\]/i );
+    var msg = info.length > 1 ? info[1] : info;
+    var width = msg.length*9;
+    var height = 155;
+    var title = keywords['Processing info'];
+
+    if (!is_empty(path)) {
+        confirm_action = 'print_postonline';
+        postonline_path = path;
+
+        $ConfirmDialog.open(msg, width, height+30, keywords['Print processing info']);
+    }
+    else
+        $NotificationDialog.open(msg, width, height, keywords['Processing info']);
 }
 
 // --------------
@@ -32,30 +60,15 @@ function log_callback(current_action, data, props) {
 // --------------
 
 function $Init() {
-    $SidebarControl.init(sidebar_callback);
+    $SidebarControl.init(sidebar_callback, ['type', 'status', 'batchtype']);
 
     page_sort_title = $("#sort_icon").attr('title');
 
     SelectedReset();
 
     $LineSelector.init();
-    /*
-    var parent = $("#line-content");
-    var ob = $("tr[class~='selected']", parent);
-    $onToggleSelectedClass(LINE, ob, 'add', null);
-
-    $LineSelector.set_current(ob);
-    */
-    $SublineSelector.init();
-    /*
-    var parent = $("#subline-content");
-    var ob = $("tr[class~='selected']", parent);
-    $onToggleSelectedClass(SUBLINE, ob, 'add', null);
-
-    $SublineSelector.set_current(ob);
-    */
-    $ShowMenu('data-menu-batches');
-
+    //$SublineSelector.init();
+    $ShowMenu(default_menu_item);
     $TabSelector.init();
 
     // ------------------------
@@ -94,9 +107,29 @@ function $Confirm(mode, ob) {
 
                 $onParentFormSubmit();
             }
-            else if (confirm_action == 'materials')
+            else if (confirm_action == 'materials') {
                 $Handle('310', _check);
-            break;
+            }
+            else if (confirm_action == 'data-menu-exchangelog') {
+                var ob = $("#"+confirm_action);
+
+                $TabSelector.onClick(ob);
+            }
+            else if (confirm_action == 'print_postonline') {
+                var left = 80;
+                var top = 80;
+                var height = 800;
+
+                for (var i=0; i < postonline_path.length; i++) {
+                    var params = 'left='+left.toString()+',top='+top.toString()+',width=800,height='+height.toString()+',resizable,scrollbars=yes'; //fullscreen=yes,
+                    
+                    window.open(postonline_path[i], '_blank', params);
+
+                    left += 40;
+                    top += 20;
+                    height -= 60;
+                }
+            }
     }
 }
 
@@ -109,10 +142,12 @@ function $Notification(mode, ob) {
     }
 }
 
-function $ShowMenu(id) {
-    //
+function $ShowMenu(id, status, path) {
+
+    // -----------------------------------------
     // Show (open) selected DataMenu item (Tabs)
-    //
+    // -----------------------------------------
+
     var batches = $("#subline-content");
     var logs = $("#logs-content");
     var cardholders = $("#cardholders-content");
@@ -121,6 +156,7 @@ function $ShowMenu(id) {
     var persolog = $("#persolog-content");
     var sdclog = $("#sdclog-content");
     var exchangelog = $("#exchangelog-content");
+    var indigo = $("#indigo-content");
 
     var tab = $("#"+id);
 
@@ -138,6 +174,7 @@ function $ShowMenu(id) {
     persolog.hide();
     sdclog.hide();
     exchangelog.hide();
+    indigo.hide();
 
     if (id == 'data-menu-batches')
         batches.show();
@@ -155,6 +192,8 @@ function $ShowMenu(id) {
         sdclog.show();
     else if (id == 'data-menu-exchangelog')
         exchangelog.show();
+    else if (id == 'data-menu-indigo')
+        indigo.show();
 
     if (id == default_menu_item)
         $SublineSelector.init();
@@ -168,6 +207,9 @@ function $ShowMenu(id) {
 
     selected_data_menu.addClass('selected');
     selected_data_menu_id = id;
+
+    if (!is_empty(status) && id == 'data-menu-logs' && IsOperator)
+        show_process_info(status, path);
 }
 
 function $onPaginationFormSubmit(frm) {
@@ -191,8 +233,9 @@ function $onTabSelect(ob) {
         id == 'data-menu-processerrmsg' ? '305' : (
         id == 'data-menu-persolog' ? '306' : (
         id == 'data-menu-sdclog' ? '307' : (
-        id == 'data-menu-exchangelog' ? '308' : null
-        ))))));
+        id == 'data-menu-exchangelog' ? '308' : (
+        id == 'data-menu-indigo' ? '313' : null
+        )))))));
 
     selected_menu_action = action;
 
@@ -371,9 +414,6 @@ jQuery(function($)
         if (is_show_error)
             return;
 
-        //var ob = $(this);
-        //$LineSelector.set_current(ob);
-        //$onToggleSelectedClass(LINE, ob, 'submit', null);
         $LineSelector.onRefresh($(this));
     });
 
@@ -395,7 +435,7 @@ jQuery(function($)
     $("#data-section").on('click', '.column', function(e) {
         var ob = $(this);
         var parent = ob.parents("*[class*='line']").first();
-        if (!is_null(parent) && !parent.hasClass("tabline"))
+        if (!is_null(parent) && !parent.hasClass("tabline") && !ob.hasClass("header"))
             $InProgress(ob, 1);
     });
 
@@ -403,19 +443,30 @@ jQuery(function($)
     // Tabline selection
     // -----------------
 
+    function $openRecordNode(ob) {
+        is_scroll_top = true;
+        $Handle('304', null, ob.attr('id'));
+    }
+
     $(".view-lines").on('click', '.tabline', function(e) {
-        /*
-        var ob = $(this);
+        is_noprogress = true;
 
-        if (!is_null(current_tabline))
-            $onToggleSelectedClass(TABLINE, current_tabline, 'remove', null);
-        
-        current_tabline = ob;
-        SelectedSetItem(TABLINE, 'ob', current_tabline);
-
-        $onToggleSelectedClass(TABLINE, current_tabline, 'add', null);
-        */
-        $TablineSelector.onRefresh($(this));
+        $DblClickAction.click(
+            function(ob) {
+                is_noprogress = false;
+                $TablineSelector.onRefresh(ob);
+            },
+            function(ob) {
+                var parent = ob.parents("*[class^='view-container']").first();
+                if (parent.attr('id') == 'cardholders-container' && !is_null($("#data-menu-body").html())) {
+                    $openRecordNode(ob);
+                }
+            },
+            $(this)
+        );
+    })
+    .on("dblclick", function(e){
+        e.preventDefault();
     });
 
     // ------------------------
@@ -441,11 +492,11 @@ jQuery(function($)
             return;
         }
         if (['admin:logsearch'].indexOf(command) > -1) {
-            $LogSearchDialog.open();
+            $BankpersoSubmitDialog.open('logsearch');
             return;
         }
         if (['admin:tagsearch'].indexOf(command) > -1) {
-            $TagSearchDialog.open();
+            $BankpersoSubmitDialog.open('tagsearch');
             return;
         }
 
@@ -466,6 +517,22 @@ jQuery(function($)
         $("#command").val(command);
         $onParentFormSubmit('filter-form');
         e.preventDefault();
+    });
+
+    $("button[id^='action']", this).click(function(e) {
+        var ob = $(this);
+        var command = ob.attr('id');
+
+        $onControlPanelClick($("#actions-dropdown"));
+        
+        if (command == 'action:changedate') {
+            $BankpersoSubmitDialog.open('changedate');
+            return;
+        }
+        if (command == 'action:changeaddress') {
+            $BankpersoSubmitDialog.open('changeaddress');
+            return;
+        }
     });
 
     // --------------------------
@@ -516,7 +583,16 @@ jQuery(function($)
     // --------------
 
     $("div[id^='data-menu']", this).click(function(e) {
-        $TabSelector.onClick($(this));
+        var ob = $(this);
+        var id = ob.attr('id');
+
+        if (id == 'data-menu-exchangelog') {
+            confirm_action = id;
+            $ConfirmDialog.open(keywords['Warning:This operation may take a long time'], 600);
+            return;
+        }
+
+        $TabSelector.onClick(ob);
     });
 
     // -------------
@@ -525,7 +601,6 @@ jQuery(function($)
 
     $(window).on("resize", function() {
         $PageScroller.reset(false);
-        //$onInfoContainerChanged();
     });
 
     $(window).scroll(function(e){
@@ -552,49 +627,66 @@ jQuery(function($)
         if (is_show_error)
             return;
 
-        if (e.keyCode==13) {                             // Enter
-            // ----------------
-            // LogSearch Events
-            // ----------------
-            if ($LogSearchDialog.is_focused()) {
-                $LogSearchDialog.confirmed();
-                e.preventDefault();
-                return false;
-            }
-            // ----------------
-            // TagSearch Events
-            // ----------------
-            if ($TagSearchDialog.is_focused()) {
-                $TagSearchDialog.confirmed();
+        if (e.keyCode==13) {                                     // Enter
+            // ------------------------------------
+            // Bankpesro Submit Dialog Class Events
+            // ------------------------------------
+            if ($BankpersoSubmitDialog.is_focused()) {
+                $BankpersoSubmitDialog.confirmed();
                 e.preventDefault();
                 return false;
             }
         }
 
-        if ($LogSearchDialog.is_focused() || $TagSearchDialog.is_focused())
+        if ($BankpersoSubmitDialog.is_focused() || is_search_focused)
             return;
 
         var exit = false;
 
         //alert(e.ctrlKey+':'+e.shiftKey+':'+e.altKey+':'+e.keyCode);
 
-        if (e.shiftKey && e.keyCode==80) {               // Shift-P
+        if (e.shiftKey && e.keyCode==80) {                       // Shift-P
             activateBatch();
             exit = true;
         }
 
-        else if (e.shiftKey && e.keyCode==76) {          // Shift-L
-            $LogSearchDialog.open();
+        else if (e.shiftKey && e.keyCode==76) {                  // Shift-L
+            $BankpersoSubmitDialog.open('logsearch');
             exit = true;
         }
 
-        else if (e.shiftKey && e.keyCode==81) {          // Shift-Q
-            $TagSearchDialog.open();
+        else if (e.shiftKey && e.keyCode==81) {                  // Shift-Q
+            $BankpersoSubmitDialog.open('tagsearch');
             exit = true;
         }
 
-        else if (e.shiftKey && e.keyCode==84) {          // Shift-T
+        else if (e.shiftKey && e.keyCode==87) {                  // Shift-W
+            $BankpersoSubmitDialog.open('changedate');
+            exit = true;
+        }
+
+        else if (e.shiftKey && e.keyCode==65) {                  // Shift-A
+            $BankpersoSubmitDialog.open('changeaddress');
+            exit = true;
+        }
+
+        else if (e.shiftKey && e.keyCode==84) {                  // Shift-T
             makeTodayRequest();
+            exit = true;
+        }
+
+        else if (e.shiftKey && e.keyCode==68) {                  // Shift-D
+            $OrderDialog.open('admin:delete');
+            exit = true;
+        }
+
+        else if (e.shiftKey && e.keyCode==70) {                  // Shift-F
+            $StatusChangeDialog.confirmation('admin:change-filestatus');
+            exit = true;
+        }
+
+        else if (e.shiftKey && e.keyCode==66) {                  // Shift-B
+            $StatusChangeDialog.confirmation('admin:change-batchstatus'); 
             exit = true;
         }
 
@@ -606,7 +698,7 @@ jQuery(function($)
 });
 
 function page_is_focused(e) {
-    return $LogSearchDialog.is_focused() || $TagSearchDialog.is_focused();
+    return $BankpersoSubmitDialog.is_focused();
 }
 
 // =======

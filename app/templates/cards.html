@@ -2,6 +2,12 @@
 
 {% import 'forms.html' as Forms %}
 
+{% block page_styles %}
+
+<link href="{{ url_for('static', filename='css/style') }}.cards.css{{ vsc }}" rel="stylesheet" type="text/css">
+
+{% endblock %}
+
 {% block starter %}
 
 <script src="{{ url_for('static', filename='js/db.controller.min.js') }}{{ vsc }}"></script>
@@ -45,24 +51,11 @@
         {{ Forms.sublines('cards.pers-batch-opers', opers, config) }}
 
       </div></div>
-      <div class="cell p50 exdata">
-{#
-        <div id="info-data" style="display:block;">
-
-          <h3>Параметры операции <span class="filename" id="ex_data">{{ current_file[2] }}</span>:</h3>
-          <div class="view-container inline" id="EXDATA"></div>
-
-          <div id="ex_printable_area">
-            <div class="view-container inline" id="EXFORM"></div>
-          </div>
-        </div>
-        <div id="buttons-box"></div>  
-#}
-      </div>
+      <div class="cell p50 exdata"></div>
     </div>
     
     <div class="view-content tab" id="logs-content" style="display:none;">
-      <h3>История партии (хронология смены статусов) <span class="filename">{{ current_file[1] }}</span>:</h3>
+      <h3>?стория партии (хронология смены статусов) <span class="filename">{{ current_file[1] }}</span>:</h3>
       <div class="view-container view-lines" id="logs-container"></div> <!-- {{ view_class }} -->
     </div>
 
@@ -93,6 +86,7 @@
     <input type="hidden" name="date_from" value="{{ args['date_from'][1] }}" />
     <input type="hidden" name="date_to" value="{{ args['date_to'][1] }}" />
     <input type="hidden" name="state" value="{{ args['state'][1] }}" />
+    <input type="hidden" name="pan" value="{{ args['pan'][1] }}" />
     <input type="hidden" id="searched" name="search" value="{{ search }}">
 
 {% endblock %}
@@ -100,6 +94,7 @@
 {% block filter %}
 
   <div id="log-filter" class="cards-filter common-filter">
+    <div id="sidebar-filter-scroller">
     <form action="{{ pagination['link'] }}" id="filter-form" method="POST">
     
     <input type="hidden" name="page" value="{{ pagination['current_page'] }}">
@@ -108,11 +103,12 @@
     <input type="hidden" id="oper_id" name="oper_id" value="{{ current_file[2] }}">
     <input type="hidden" id="selected_pers_ids" name="selected_pers_ids" value="">
     <input type="hidden" id="searched" name="search" value="{{ search }}">
+    <input type="hidden" id="reset_search" name="reset_search" value="0">
     <input type="hidden" id="sort" name="sort" value="{{ pagination['sort']['current_sort'] }}">
     <input type="hidden" id="position" name="position" value="{{ pagination['position'] }}">
     <input type="hidden" id="sidebar" name="sidebar" value="{{ sidebar['state'] }}">
     <input type="hidden" id="errors" value="{{ errors }}">
-    <input type="hidden" id="OK" value="{{ OK }}">
+    <input type="hidden" id="OK" name="OK" value="{{ OK }}">
     <input type="hidden" id="command" name="command" value="">
     {% if 'extra' in pagination %}<input type="hidden" name="__" value="1">{% endif %}
 
@@ -179,7 +175,14 @@
           {%- endfor %}
         </select>
     </dd>
+
+    <dt><div class="caption pan">PAN/BIN:</div></dt>
+    <dd>
+        <input class="field" type="text" id="pan" name="pan" value="{{ args['pan'][1] }}" title="{{ _('Search PAN/BIN') }}" 
+         onchange="javascript:MakeFilterSubmit(5);">
+    </dd>
     </form>
+    </div>
   </div>
 
 {% endblock %}
@@ -220,7 +223,4 @@
 {% block dialogs_content %}
 
 {% endblock %}
-
-
-
 

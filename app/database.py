@@ -6,40 +6,40 @@ from copy import deepcopy
 import pymssql
 
 from config import (
-     CONNECTION, IsDebug, IsDeepDebug,
+     CONNECTION, IsDebug, IsDeepDebug, IsTrace, IsPrintExceptions,
      default_unicode, default_encoding, default_iso,
      print_to, print_exception
      )
 
-from .utils import splitter, worder, getMaskedPAN
+from .utils import out, splitter, worder, getMaskedPAN, getEANDBarcode, isIterable
 
 default_connection = CONNECTION['bankperso']
 
-database_config = { \
+database_config = { 
     # =========
     # BANKPERSO
     # =========
-    'orders' : { \
+    'orders' : { 
         'columns' : ('FileID', 'FName', 'FQty', 'BankName', 'FileType', 'StatusDate', 'FileStatus', 'RegisterDate', 'ReadyDate',),
         'view'    : '[BankDB].[dbo].[WEB_OrdersStatus_vw]',
-        'headers' : { \
-            'FileID'       : ('ID файла',                   '',),
-            'FName'        : ('ФАЙЛ',                       'nowrap',),
-            'FQty'         : ('Кол-во',                     '',),
-            'BankName'     : ('КЛИЕНТ',                     'nowrap',),
-            'FileType'     : ('Тип файла',                  '',),
-            'StatusDate'   : ('Дата статуса',               '',),
-            'FileStatus'   : ('СТАТУС',                     'breakable',),
-            'RegisterDate' : ('Дата регистрации',           '',),
-            'ReadyDate'    : ('Ожидаемая дата готовности',  '',),
+        'headers' : { 
+            'FileID'       : ('ID файла',          '',),
+            'FName'        : ('ФАЙЛ',              'nowrap',),
+            'FQty'         : ('Кол-во',            '',),
+            'BankName'     : ('КЛИЕНТ',            'nowrap',),
+            'FileType'     : ('Тип файла',         '',),
+            'StatusDate'   : ('Дата статуса',      '',),
+            'FileStatus'   : ('СТАТУС',            'breakable',),
+            'RegisterDate' : ('Дата регистрации',  '',),
+            'ReadyDate'    : ('Дата отгрузки',     '',),
         },
         'clients' : 'ClientID',
         'export'  : ('FileID', 'FileTypeID', 'ClientID', 'FileStatusID', 'FName', 'FQty', 'BankName', 'FileType', 'StatusDate', 'FileStatus', 'RegisterDate', 'ReadyDate',),
     },
-    'batches' : { \
+    'batches' : { 
         'columns' : ('TZ', 'TID', 'BatchType', 'BatchNo', 'ElementQty', 'Status', 'StatusDate',),
         'view'    : '[BankDB].[dbo].[WEB_OrdersBatchList_vw]',
-        'headers' : { \
+        'headers' : { 
             'TZ'           : 'ТЗ',
             'TID'          : 'ID партии',
             'BatchType'    : 'Тип',
@@ -50,15 +50,15 @@ database_config = { \
         },
         'export'  : ('TZ', 'TID', 'BatchType', 'BatchNo', 'ElementQty', 'Status', 'StatusDate', 'FileID', 'FileStatusID', 'BatchStatusID', 'BatchTypeID',) #  'ERP_TZ', 'ClientID', 'FileTypeID', 'FileStatusID', 'FName', 'FQty', 'RegisterDate', 'BankName'
     },
-    'batches.preview' : { \
+    'batches.preview' : { 
         'columns' : ('TID',),
         'view'    : '[BankDB].[dbo].[WEB_OrdersBatchPreview_vw]',
         'export'  : ('TID', 'IsPrintMaterialOrder', 'BatchStatusID', 'FileStatusID', 'RegisterDate',),
     },
-    'logs' : { \
+    'logs' : { 
         'columns' : ('LID', 'ModDate', 'FileStatusID', 'Status', 'Oper', 'HostName', 'ApplName', 'UserName',), # 'LID', 'TID',
         'view'    : '[BankDB].[dbo].[WEB_OrdersLog_vw]',
-        'headers' : { \
+        'headers' : { 
             'LID'          : 'ID',
             'TID'          : 'ID файла',
             'ModDate'      : 'Дата статуса',
@@ -70,77 +70,77 @@ database_config = { \
             'UserName'     : 'Оператор',
         },
     },
-    'banks' : { \
+    'banks' : { 
         'columns' : ('ClientID', 'BankName',),
         'view'    : '[BankDB].[dbo].[WEB_OrdersStatus_vw]',
-        'headers' : { \
+        'headers' : { 
             'BankName'     : 'Клиент',
         },
         'clients' : 'ClientID',
     },
-    'clients' : { \
+    'clients' : { 
         'columns' : ('TID', 'CName'),
         'view'    : '[BankDB].[dbo].[DIC_Clients_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'CName'        : 'Наименование',
         },
         'clients' : 'TID',
     },
-    'types' : { \
+    'types' : { 
         'columns' : ('TID', 'CName', 'ClientID',),
         'view'    : '[BankDB].[dbo].[DIC_FileType_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'ClientID'     : 'ID клиента',
             'CName'        : 'Тип файла',
         },
         'clients' : 'ClientID',
     },
-    'statuses' : { \
+    'statuses' : { 
         'columns' : ('TID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_FileStatus_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'Status'       : 'Статус файла',
         },
     },
-    'filestatuses' : { \
+    'filestatuses' : { 
         'columns' : ('FileID', 'FileStatusID',),
         'view'    : '[BankDB].[dbo].[OrderFilesBody_tb]',
-        'headers' : { \
+        'headers' : { 
             'Status'       : 'Статус файла',
         },
     },
-    'filestatuslist' : { \
+    'filestatuslist' : { 
         'columns' : ('TID', 'StatusTypeID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_FileStatus_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'StatusTypeID' : 'Тип cтатуса',
             'CName'        : 'Наименование',
         },
     },
-    'batchstatuslist' : { \
+    'batchstatuslist' : { 
         'columns' : ('TID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_BatchStatus_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'CName'        : 'Наименование',
         },
     },
-    'batchtypelist' : { \
+    'batchtypelist' : { 
         'columns' : ('TID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_BatchType_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'CName'        : 'Наименование',
         },
     },
-    'params' : { \
+    'params' : { 
         'columns' : ('TID', 'PName', 'PValue', 'PSortIndex', 'TName', 'TValue', 'FTVLinkID', 'TagParamID', 'FileTypeID', 'FileID', 'BatchID', 'PERS_TZ', 'BatchTypeID', 'ElementQty',),
         'exec'    : '[BankDB].[dbo].[WEB_GetBatchParamValues_sp]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID параметра',
             'PName'        : 'Название параметра',
             'PValue'       : 'Значение',
@@ -157,27 +157,27 @@ database_config = { \
             'ElementQty'   : 'Количество элементов в партии',
         },
     },
-    'image': { \
+    'image': { 
         'columns' : ('FileID', 'FBody',),
         'exec'    : '[BankDB].[dbo].[WEB_GetOrderFileBodyImage_sp]',
-        'headers' : { \
+        'headers' : { 
             'FileID'       : 'ID файла',
             'FBody'        : 'Контент заказа',
         },
     },
-    'body': { \
+    'body': { 
         'columns' : ('FileID', 'FileStatusID', 'IBody',),
         'exec'    : '[BankDB].[dbo].[WEB_GetOrderFileBody_sp]',
-        'headers' : { \
+        'headers' : { 
             'FileID'       : 'ID файла',
             'FileStatusID' : 'ID статуса файла',
             'IBody'        : 'Контент заказа',
         },
     },
-    'TZ' : { \
+    'TZ' : { 
         'columns' : ('PName', 'PValue', 'PSortIndex', 'PType', 'ElementQty',),
         'exec'    : '[BankDB].[dbo].[WEB_GetBatchParamValues_sp]',
-        'headers' : { \
+        'headers' : { 
             'PName'        : 'Название параметра',
             'PValue'       : 'Значение',
             'ElementQty'   : 'Количество элементов в партии',
@@ -185,15 +185,20 @@ database_config = { \
             'PType'        : 'Тип параметра',
         },
         'exclude' : ('CLIENTID', 'DeliveryType', 'PackageCode',),
-        'rename'  : { \
+        'rename'  : { 
             'PlasticType'  : ('', 25),
         },
     },
-    'materials.order' : { \
+    'search.batch_by_param' : { 
+        'columns' : ('PERS_TZ', 'Comment', 'TagValue', 'ElementQty',),
+        'params'  : "%(tz)s,%(batchtype_id)s,'%(param_name)s'",
+        'exec'    : '[BankDB].[dbo].[WEB_SearchBatchForBlanks_sp]',
+    },
+    'materials.order' : { 
         'columns' : ('BatchType', 'ERP_TZ', 'MName', 'BatchQty', 'Qty',),
         'params'  : "%(file_id)s,%(show)s",
         'exec'    : '[BankDB].[dbo].[WEB_MaterialForFile_sp]',
-        'headers' : { \
+        'headers' : { 
             'BatchType'    : 'Тип партии',
             'ERP_TZ'       : 'ЕРП ТЗ',
             'MName'        : 'Наименование материала',
@@ -201,26 +206,26 @@ database_config = { \
             'Qty'          : 'Зарезервировать на складе',
         },
     },
-    'materials.approval' : { \
+    'materials.approval' : { 
         'params'  : "%(file_id)s,'%(file_status_ids)s',0",
         'exec'    : '[BankDB].[dbo].[WEB_ApprovalMaterialOrder_sp]',
     },
-    'materials.check' : { \
+    'materials.check' : { 
         'params'  : "%(file_id)s,'%(file_status_ids)s',%(check)s",
         'exec'    : '[BankDB].[dbo].[WEB_ApprovalMaterialOrder_sp]',
     },
-    'persolog': { \
+    'persolog': { 
         'columns' : ('Date', 'Code', 'Message',),
-        'headers' : { \
+        'headers' : { 
             'Date'         : 'Дата Время',
             'Code'         : 'Результат',
             'Message'      : 'Текст сообщения',
         },
         'export'  : ('Date', 'Code', 'Message',),
     },
-    'infoexchangelog': { \
+    'infoexchangelog': { 
         'columns' : ('Date', 'Code', 'Message',),
-        'headers' : { \
+        'headers' : { 
             'Date'         : 'Дата Время',
             'Time'         : 'Время',
             'Code'         : 'Результат',
@@ -228,9 +233,9 @@ database_config = { \
         },
         'export' : ('Date', 'Code', 'Message',), # , 'Time'
     },
-    'sdclog': { \
+    'sdclog': { 
         'columns' : ('Date', 'Code', 'Message',),
-        'headers' : { \
+        'headers' : { 
             'Date'         : 'Дата Время',
             'Time'         : 'Время',
             'Code'         : 'Результат',
@@ -238,9 +243,9 @@ database_config = { \
         },
         'export'  : ('Date', 'Time', 'Code', 'Message',),
     },
-    'exchangelog': { \
+    'exchangelog': { 
         'columns' : ('Date', 'Module', 'Code', 'Message',),
-        'headers' : { \
+        'headers' : { 
             'Date'         : 'Дата Время',
             'Time'         : 'Время',
             'Module'       : 'Модуль',
@@ -249,7 +254,7 @@ database_config = { \
         },
         'export'  : ('Date', 'Time', 'Module', 'Code', 'Message',),
     },
-    'bankperso.semaphore': { \
+    'bankperso.semaphore': { 
         'columns' : ('LID', 'Status', 'Oper',),
         'params'  : "%(mode)s,%(oid)s,%(bid)s,null,''",
         'exec'    : '[BankDB].[dbo].[WEB_SemaphoreEvents_sp]',
@@ -257,25 +262,32 @@ database_config = { \
     # --------------------------------
     # Представления на контенте заказа
     # --------------------------------
-    'cardholders' : { \
+    'cardholders' : { 
         'root'    : 'FileBody_Record',
         'tags'    : ( \
             ('FileRecNo',),
             ('PAN', 'PANWIDE',),
-            ('EMBNAME1', 'FIO', 'ClientName', 'CardholderName', 'EMBNAME', ('FIRSTNAME', 'SECONDNAME', 'LASTNAME'), 
-                ('LSTN', 'FRSN'), ('FirstName', 'SurName', 'SecondName'), 'EmbName', 'TRACK1NAME',),
-            ('ExpireDate', 'EDATE', 'EDATE_YYMM', 'EXPDATE', 'EDATE_YYYYMM',),
-            ('PLASTIC_CODE', 'PlasticType', 'PLASTIC_TYPE', 'PlasticID',),
-            ('CardType', 'CLIENT_ID', 'CHIP_ID',),
-            ('KIND',),
-            ('FactAddress', 'BRANCH_NAME', 'DEST_NAME',),
-            ('BarCode', 'LoyaltyBarcode', 'Barcode', 'BarcodeNum',),
+            ('EMBNAME1', 'FIO', 'ClientName', 'CardholderName', 'CardholderFIO', 'Cardholder', 'EMBNAME', ('FIRSTNAME', 'SECONDNAME', 'LASTNAME'), 
+                ('LSTN', 'FRSN'), ('FirstName', 'SurName', 'SecondName', 'LastName'), 'EmbName', 'TRACK1NAME',),
+            ('ExpireDate', 'ExpiryDate', 'EDATE', 'EDATE_YYMM', 'EXPDATE', 'EDATE_YYYYMM',),
+            ('PLASTIC_CODE', 'PLASTIC_TYPE', 'PlasticID', 'ProductDesign',),
+            ('CardType', 'CLIENT_ID', 'CHIP_ID', 'Card_Type',),
+            ('KIND', 'PlasticType',),
+            ('DeliveryType',),
+            ('BRANCH_SEND_TO', 'FactAddress', 'BRANCH_NAME', 'DEST_NAME', 'DEST_BRANCH', 'DeliveryAddress', 'FACTADRESS',),
+            ('EAND', 'BarCode', 'LoyaltyBarcode', 'Barcode', 'BarcodeNum', 'MPR_Barcode',),
+            ('StampCode',),
+            ('PackageType',),
+            ('PackageCode',),
         ),
-        'columns' : ('FileRecNo', 'PAN', 'Cardholder', 'ExpireDate', 'PLASTIC_CODE', 'CardType', 'KIND', 'FactAddress', 'Barcode',),
+        'columns' : ('FileRecNo', 'PAN', 'Cardholder', 'ExpireDate', 'PLASTIC_CODE', 'CardType', 'KIND', 'DeliveryType', 'FactAddress', 'Barcode', 'StampCode', 'PackageType', 'PackageCode',),
         'clients' : {
-            'Barcode'      : 'VBRR:CITI_BANK:BIN_BANK',
+            'Barcode'      : 'VBRR:CITI_BANK:BIN_BANK:PostBank',
+            'StampCode'    : 'PostBank',
+            'PackageCode'  : 'PostBank',
+            'PackageType'  : 'PostBank',
         },
-        'headers' : { \
+        'headers' : { 
             'FileRecNo'    : '#',
             'PAN'          : 'PAN',
             'Cardholder'   : 'ФИО клиента',
@@ -283,56 +295,83 @@ database_config = { \
             'PLASTIC_CODE' : 'Код пластика',
             'CardType'     : 'Тип карты',
             'KIND'         : 'Вид',
-            'FactAddress'  : 'Фактический адрес',
-            'Barcode'      : 'Штрих-код',
+            'DeliveryType' : 'Тип доставки',
+            'FactAddress'  : 'Адрес доставки',
+            'Barcode'      : 'Штрих-код карты',
+            'StampCode'    : 'Пломба',
+            'PackageCode'  : 'Код упаковки',
+            'PackageType'  : 'Упаковка',
         },
-        'func'    : {'PAN' : getMaskedPAN },
+        'func'    : {'PAN' : getMaskedPAN},
+    },
+    'indigo' : { 
+        'root'    : 'FileBody_Record',
+        'tags'    : ( \
+            'FileRecNo', 'ImageName', 'PAN', 'CardholderName', 'EAND',
+        ),
+        'unique'  : 'ImageName',
+        'values'  : { 
+            'Design'       : '%(ImageName)s_%(ImagePosition)s.%(ImageType)s',
+            'ImageName'    : '%(ImageName)s',
+            'Value'        : '%(FileRecNo)s: %(PAN)s %(EAND)s - %(CardholderName)s',
+            'Count'        : '0',
+            'Files'        : '',
+        },
+        'columns' : ('Design', 'ImageName', 'Value', 'Count', 'Files',),
+        'headers' : { 
+            'Design'       : 'Дизайн карты',
+            'ImageName'    : 'Идентификатор',
+            'Value'        : 'Список карт (FileRecNo: PAN { BARCODE } - CardholderName)',
+            'Count'        : 'Кол-во',
+            'Files'        : 'Файлы изображений',
+        },
+        'func'    : {'PAN' : getMaskedPAN, 'EAND' : getEANDBarcode },
     },
     # ---------------
     # Операции BankDB
     # ---------------
-    'activate' : { \
+    'activate' : { 
         'params'  : '%(batch_id)s',
         'exec'    : '[BankDB].[dbo].[WEB_BatchActivate_sp]',
     },
-    'changefilestatus' : { \
-        'params'  : "null,null,0,%(file_id)s,%(check_file_status)s,%(new_file_status)s,null,null,null,1,0,0,0",
+    'changefilestatus' : { 
+        'params'  : "null,null,0,%(file_id)s,%(check_file_status)s,%(new_file_status)s,null,null,null,1,%(run_batch)s,0,0,%(keep_history)s",
         'exec'    : '[BankDB].[dbo].[WEB_ChangeOrderState_sp]',
     },
-    'changebatchstatus' : { \
+    'changebatchstatus' : { 
         'params'  : "null,null,0,%(file_id)s,null,null,%(batch_id)s,null,%(new_batch_status)s,0,1,0,0",
         'exec'    : '[BankDB].[dbo].[WEB_ChangeOrderState_sp]',
     },
-    'deletefile' : { \
+    'deletefile' : { 
         'params'  : "null,null,0,%(file_id)s,null,0,null,null,0,1,1,1,1",
         'exec'    : '[BankDB].[dbo].[WEB_ChangeOrderState_sp]',
     },
-    'createfile'  : { \
+    'createfile'  : { 
         'params'  : "null,null,0,%(file_id)s,1,1,null,null,0,1,1,1,0",
         'exec'    : '[BankDB].[dbo].[WEB_ChangeOrderState_sp]',
     },
-    'dostowin' : { \
+    'dostowin' : { 
         'params'  : "0,'%s'",
         'exec'    : '[BankDB].[dbo].[WEB_DecodeCyrillic_sp]',
     },
-    'wintodos' : { \
+    'wintodos' : { 
         'params'  : "1,'%s'",
         'exec'    : '[BankDB].[dbo].[WEB_DecodeCyrillic_sp]',
     },
     # ==================
     # CARDS PERSOSTATION
     # ==================
-    'cards.batches' : { \
-        'columns' : ('TID', 'Client', 'FName', 'TZ', 'BQty', 'PQty', 'PersType', 'PersStatus', 'Status',), # 'StatusDate', 'BatchID'
+    'cards.batches' : { 
+        'columns' : ('TID', 'Client', 'FName', 'TZ', 'BQty', 'PQty', 'PersType', 'PersStatus', 'Status',), # 'BatchID', 'StatusDate'
         'view'    : '[Cards].[dbo].[WEB_Batches_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : ('ID партии',       '',),
             'BatchID'      : ('ID ТЗ',           '',),
-            'Client'       : ('КЛИЕНТ',          '',),
+            'Client'       : ('КЛИЕНТ',          'nowrap',),
             'FName'        : ('ФАЙЛ ЗАКАЗА',     'breakable',),
             'TZ'           : ('№ ТЗ',            '',),
-            'BQty'         : ('Кол-во в ТЗ',     '',),
-            'PQty'         : ('Кол-во в партии', '',),
+            'BQty'         : ('Кол-во в ТЗ',     'BQty',),
+            'PQty'         : ('Кол-во в партии', 'PQty',),
             'PersType'     : ('Тип партии',      '',),
             'Status'       : ('Статус ТЗ',       'nowrap',),
             'PersStatus'   : ('Статус партии',   'nowrap',),
@@ -340,10 +379,10 @@ database_config = { \
         },
         'export'  : ('TID', 'BatchID', 'Client', 'FName', 'TZ', 'BQty', 'PQty', 'PersType', 'Status', 'PersStatus', 'StatusDate', 'StatusID', 'PersTypeID',),
     },
-    'cards.batches-log' : { \
+    'cards.batches-log' : { 
         'columns' : ('LID', 'Status', 'StatusID', 'StatusDate', 'Oper', 'HostName', 'ApplName', 'UserName', 'ModDate'),
         'view'    : '[Cards].[dbo].[WEB_BatchesLog_vw]',
-        'headers' : { \
+        'headers' : { 
             'LID'          : 'ID',
             'BatchID'      : 'ID ТЗ',
             'FName'        : 'ФАЙЛ ЗАКАЗА',
@@ -360,10 +399,10 @@ database_config = { \
         },
         'export'  : ('LID', 'BatchID', 'TZ', 'Client', 'FName', 'FQty', 'Status', 'StatusID', 'StatusDate', 'Oper', 'HostName', 'ApplName', 'UserName', 'ModDate'),
     },
-    'cards.batch-opers' : { \
+    'cards.batch-opers' : { 
         'columns' : ('TID', 'CName', 'Status', 'StatusDate',),
         'view'    : '[Cards].[dbo].[WEB_BatchOpers_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID операции',
             'CName'        : 'Тип операции',
             'Status'       : 'Статус операции',
@@ -371,10 +410,10 @@ database_config = { \
         },
         'export'  : ('TID', 'CName', 'Status', 'StatusDate', 'BatchID', 'StatusID', 'PersOperTypeID',),
     },
-    'cards.batch-opers-log' : { \
+    'cards.batch-opers-log' : { 
         'columns' : ('LID', 'PersOperType', 'Status', 'StatusID', 'StatusDate', 'Oper', 'HostName', 'ApplName', 'UserName', 'ModDate'),
         'view'    : '[Cards].[dbo].[WEB_PersBatchOpersLog_vw]',
-        'headers' : { \
+        'headers' : { 
             'LID'          : 'ID',
             'BatchOperID'  : 'ID операции',
             'PersBatchID'  : 'ID партии',
@@ -390,10 +429,10 @@ database_config = { \
         },
         'export'  : ('LID', 'BatchOperID', 'PersBatchID', 'Status', 'StatusID', 'StatusDate', 'PersOperTypeID', 'PersOperType', 'Oper', 'HostName', 'ApplName', 'UserName', 'ModDate'),
     },
-    'cards.batch-params' : { \
+    'cards.batch-params' : { 
         'columns' : ('TID', 'PType', 'PName', 'PValue',),
         'view'    : '[Cards].[dbo].[WEB_BatchParams_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID параметра',
             'PType'        : 'Тип параметра',
             'PName'        : 'Наименование параметра',
@@ -401,10 +440,10 @@ database_config = { \
         },
         'export'  : ('TID', 'BatchID', 'TZ', 'PType', 'PName', 'PValue',),
     },
-    'cards.pers-batch-opers' : { \
+    'cards.pers-batch-opers' : { 
         'columns' : ('TID', 'Oper', 'Status', 'StatusDate',),
         'view'    : '[Cards].[dbo].[WEB_PersBatchOpers_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID операции',
             'Oper'         : 'Тип операции',
             'Status'       : 'Статус операции',
@@ -412,20 +451,20 @@ database_config = { \
         },
         'export'  : ('TID', 'Oper', 'Status', 'StatusDate', 'PersBatchID', 'PersOperTypeID', 'PersBatchOperStatusID',),
     },
-    'cards.batch-oper-params' : { \
+    'cards.batch-oper-params' : { 
         'columns' : ('TID', 'PName', 'PValue',),
         'view'    : '[Cards].[dbo].[WEB_BatchOperParams_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID параметра',
             'PName'        : 'Наименование параметра',
             'PValue'       : 'Значение',
         },
         'export'  : ('TID', 'PName', 'PValue', 'BatchID', 'PersBatchID', 'BatchOperID', 'BatchOperTypeID',),
     },
-    'cards.batch-units' : { \
+    'cards.batch-units' : { 
         'columns' : ('TID', 'FileRecNo', 'PAN', 'Status', 'StatusDate',), #, 'BatchStatus'
         'view'    : '[Cards].[dbo].[WEB_BatchUnits_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID карты',
             'FileRecNo'    : 'Номер записи',
             'PAN'          : 'PAN',
@@ -435,27 +474,27 @@ database_config = { \
         },
         'export'  : ('TID', 'FileRecNo', 'PAN', 'Status', 'BatchStatus', 'StatusDate', 'BatchID', 'StatusID'),
     },
-    'cards.clients' : { \
+    'cards.clients' : { 
         'columns' : ('Client',),
         'view'    : '[Cards].[dbo].[WEB_Clients_vw]',
     },
-    'cards.files' : { \
+    'cards.files' : { 
         'columns' : ('Client', 'FileName',),
         'view'    : '[Cards].[dbo].[WEB_Files_vw]',
     },
-    'cards.perstypes' : { \
+    'cards.perstypes' : { 
         'columns' : ('TID', 'CName',),
         'view'    : '[Cards].[dbo].[WEB_PersTypes_vw]',
     },
-    'cards.statuses' : { \
+    'cards.statuses' : { 
         'columns' : ('TID', 'CName',),
         'view'    : '[Cards].[dbo].[WEB_Statuses_vw]',
     },
-    'cards.persstatuses' : { \
+    'cards.persstatuses' : { 
         'columns' : ('CName',),
         'view'    : '[Cards].[dbo].[WEB_GetPersBatchStatuses_fn]()',
     },
-    'cards.semaphore': { \
+    'cards.semaphore': { 
         'columns' : ('LID', 'Status', 'Oper',),
         'params'  : "%(mode)s,%(oid)s,%(bid)s,null,''",
         'exec'    : '[Cards].[dbo].[WEB_SemaphoreEvents_sp]',
@@ -463,21 +502,21 @@ database_config = { \
     # --------------
     # Операции Cards
     # --------------
-    'cards.activate' : { \
+    'cards.activate' : { 
         'params'  : "%(pers_id)s",
         'exec'    : '[Cards].[dbo].[WEB_PersBatch_Activate_sp]',
     },
-    'cards.reject' : { \
+    'cards.reject' : { 
         'params'  : "%(pers_id)s",
         'exec'    : '[Cards].[dbo].[WEB_PersBatch_Reject_sp]',
     },
     # -------------------------------
     # Параметры партий персонализации
     # -------------------------------
-    'cards.plastic-params' : { \
+    'cards.plastic-params' : { 
         'exec'    : '[Cards].[dbo].[WEB_BatchFreeParams_For_PlasticOrder_sp]',
         'params'  : "'%(pers_ids)s'",
-        'fields'  : { \
+        'fields'  : { 
             'BatchID'      : (0,  'BatchID',       'ID партии',               0, None),
             'ClientIDStr'  : (1,  'ClientIDStr',   'Идентификатор клиента',   0, ''),
             'BQty'         : (2,  'Qty',           'Кол-во (в партии/ТЗ)',    0, 0),
@@ -496,17 +535,17 @@ database_config = { \
             'FQty'         : (16, 'Column9',       'Кол-во (в файле)',        0, 0),
             'SumQty'       : (17, 'Column11',      'Сумма',                   0, 0),
         },
-        'TZ' : { \
+        'TZ' : { 
             'Column1'      : 'Клиент',
             'Column2'      : 'Тип карт',
             'Column3'      : 'Тип пластика',
             'Column4'      : 'ERP ТЗ',
         },
     },
-    'cards.plastic-params-new' : { \
+    'cards.plastic-params-new' : { 
         'exec'    : '[Cards].[dbo].[WEB_BatchFreeParams_For_PlasticOrderNew_sp]',
         'params'  : "'%(pers_ids)s'",
-        'fields'  : { \
+        'fields'  : { 
             'Qty'          : (0, 'Qty',     'Кол-во',                         0, 0),
             'CardsName'    : (1, 'Column1', 'Наименование карт',              1, ''),
             'CardsType'    : (2, 'Column2', 'Вид карт',                       0, ''),
@@ -517,17 +556,17 @@ database_config = { \
             'ReadyDate'    : (7, 'Column7', 'Ожидаемая дата отгрузки',        0, ''),
             'ClientName'   : (8, 'Column8', 'Имя клиента',                    1, ''),
         },
-        'TZ' : { \
+        'TZ' : { 
             'Column1'      : 'Клиент',
             'Column2'      : 'Тип карт',
             'Column3'      : 'Тип пластика',
             'Column4'      : 'ERP ТЗ',
         },
     },
-    'cards.plastic-params-info' : { \
+    'cards.plastic-params-info' : { 
         'exec'    : '[Cards].[dbo].[W_GetClientIDStr_fn]',
         'params'  : "%(pers_id)s",
-        'fields'  : { \
+        'fields'  : { 
             'ClientIDStr'  : (0, 'ClientIDStr',         'Идентификатор клиента',   0, ''),
             'SysBatchID'   : (1, 'SysBatchID',          '№ ТЗ',                    0, None),
             'BQty'         : (2, 'BatchElementQty',     'Кол-во (в ТЗ)',           0, 0),
@@ -539,10 +578,10 @@ database_config = { \
     # ==================
     # PRELOADER HANDLERS
     # ==================
-    'preloads' : { \
+    'preloads' : { 
         'columns' : ('PreloadID', 'FName', 'FQty', 'BankName', 'StartedDate', 'FinishedDate', 'ErrorCode', 'OrderNum', 'FinalMessage', 'RegisterDate',),
         'view'    : '[BankDB].[dbo].[WEB_OrdersPreload_vw]',
-        'headers' : { \
+        'headers' : { 
             'PreloadID'    : ('ID загрузки',                    '',),
             'FName'        : ('ФАЙЛ',                           '',),
             'FQty'         : ('Кол-во',                         '',),
@@ -557,10 +596,10 @@ database_config = { \
         'clients' : 'ClientID',
         'export'  : ('PreloadID', 'FName', 'FQty', 'BankName', 'StartedDate', 'FinishedDate', 'ErrorCode', 'OrderNum', 'RegisterDate',),
     },
-    'articles' : { \
+    'articles' : { 
         'columns' : ('[#]', 'Article', 'BIN', 'V', 'Q', 'unavailable',),
         'view'    : '[BankDB].[dbo].[WEB_OrdersPreloadArticleList_vw]',
-        'headers' : { \
+        'headers' : { 
             '[#]'          : '№',
             'Article'      : 'Артикул',
             'BIN'          : 'БИН',
@@ -572,10 +611,10 @@ database_config = { \
     # =======================================
     # BANKPERSO ORDER STATE MANAGEMENT SYSTEM
     # =======================================
-    'orderstate-orders' : { \
+    'orderstate-orders' : { 
         'columns' : ('TID', 'Client', 'BP_FileID', 'PackageName', 'Qty', 'Host', 'BaseFolder', 'ArchiveFolder', 'RD',),
         'view'    : '[OrderState].[dbo].[SHOW_Orders_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : ('ID заказа',              '',),
             'ClientID'     : ('ID клиента',             '',),
             'Client'       : ('КЛИЕНТ',                 '',),
@@ -592,7 +631,7 @@ database_config = { \
         'clients' : 'ClientID',
         'export'  : ('TID', 'ClientID', 'Client', 'Aliases', 'BP_FileID', 'PackageName', 'Qty', 'Host', 'BaseFolder', 'ArchiveFolder', 'RD', 'HasError',),
     },
-    'orderstate-orders:by-type' : { \
+    'orderstate-orders:by-type' : { 
         'columns' : 'self',
         'params'  : "%(client_id)s,%(config_id)s,%(action_id)s,'%(type)s','%(date_from)s','%(date_to)s',%(sort)s,''",
         'exec'    : '[OrderState].[dbo].[WEB_GetOrdersByConfigType_sp]',
@@ -600,10 +639,10 @@ database_config = { \
         'clients' : 'ClientID',
         'export'  : 'self',
     },
-    'orderstate-events' : { \
+    'orderstate-events' : { 
         'columns' : ('TID', 'Action', 'Type', 'ToFolder', 'Result',), #, 'Started', 'Finished', 'Duration', 'Weight', 'RD',
         'view'    : '[OrderState].[dbo].[SHOW_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID события',
             'ClientID'     : 'ID клиента',
             'ConfigID'     : 'ID сценария',
@@ -623,10 +662,10 @@ database_config = { \
         },
         'export'  : ('TID', 'ClientID', 'ConfigID', 'ActionID', 'OrderID', 'DestinationFileID', 'Address', 'Action', 'Type', 'ToFolder', 'Started', 'Finished', 'Duration', 'Weight', 'Result', 'ErrorMessage', 'RD'),
     },
-    'orderstate-files' : { \
+    'orderstate-files' : { 
         'columns' : ('TID', 'Address', 'Name', 'IsError'), #, 'ConfigID', 'OrderID'
         'view'    : '[OrderState].[dbo].[SHOW_Files_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID файла',
             'ConfigID'     : 'ID сценария',
             'OrderID'      : 'ID заказа',
@@ -636,10 +675,10 @@ database_config = { \
         },
         'export'  : ('TID', 'ConfigID', 'OrderID', 'Address', 'Name', 'IsError'),
     },
-    'orderstate-errors' : { \
+    'orderstate-errors' : { 
         'columns' : ('SourceFileID', 'OrderID', 'Address', 'Started', 'Finished', 'Result', 'ErrorMessage', 'RD',),
         'view'    : '[OrderState].[dbo].[SHOW_Errors_vw]',
-        'headers' : { \
+        'headers' : { 
             'SourceFileID' : 'ID файла', 
             'OrderID'      : 'ID заказа',
             'Address'      : 'Событие',
@@ -653,10 +692,10 @@ database_config = { \
         },
         'export'  : ('SourceFileID', 'OrderID', 'Address', 'Started', 'Finished', 'Duration', 'Weight', 'Result', 'ErrorMessage', 'RD'),
     },
-    'orderstate-certificates' : { \
+    'orderstate-certificates' : { 
         'columns' : ('Event', 'Info', 'RD',),
         'view'    : '[OrderState].[dbo].[SHOW_OrderCertificates_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID сертификата',
             'OrderID'      : 'ID заказа',
             'FileID'       : 'ID файла',
@@ -668,10 +707,10 @@ database_config = { \
         },
         'export'  : ('TID', 'OrderID', 'FileID', 'Address', 'Name', 'Info', 'RD',),
     },
-    'orderstate-aliases' : { \
+    'orderstate-aliases' : { 
         'columns' : ('TID', 'Name', 'Title', 'Aliases',),
         'view'    : '[OrderState].[dbo].[SHOW_Aliases_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID клиента',
             'Name'         : 'Клиент', 
             'Title'        : 'Полное наименование',
@@ -679,50 +718,50 @@ database_config = { \
         },
         'export'  : ('TID', 'Name', 'Title', 'Aliases',),
     },
-    'orderstate-actions' : { \
+    'orderstate-actions' : { 
         'columns' : ('TID', 'Name',),
         'view'    : '[OrderState].[dbo].[DIC_Actions_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'Name'         : 'Операция',
         },
         'clients' : 'TID',
     },
-    'orderstate-clients' : { \
+    'orderstate-clients' : { 
         'columns' : ('TID', 'Name',),
         'view'    : '[OrderState].[dbo].[DIC_Clients_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'Name'         : 'Клиент',
         },
         'clients' : 'TID',
     },
-    'orderstate-configs' : { \
+    'orderstate-configs' : { 
         'columns' : ('TID', 'Name',),
         'view'    : '[OrderState].[dbo].[DIC_Configs_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'Name'         : 'Сценарий',
         },
         'clients' : 'TID',
     },
-    'orderstate-types' : { \
+    'orderstate-types' : { 
         'columns' : ('Type',),
         'view'    : '[OrderState].[dbo].[DIC_Configs_tb]',
     },
-    'orderstate-eventinfo' : { \
+    'orderstate-eventinfo' : { 
         'columns' : ('PName', 'PValue', 'PSortIndex', 'PType',),
         'exec'    : '[OrderState].[dbo].[WEB_GetEventInfo_sp]',
-        'headers' : { \
+        'headers' : { 
             'PName'        : 'Название параметра',
             'PValue'       : 'Значение',
             'PSortIndex'   : 'Индекс сортировки',
             'PType'        : 'Тип параметра',
         },
     },
-    'orderstate-log': { \
+    'orderstate-log': { 
         'columns' : ('Date', 'Code', 'Message',),
-        'headers' : { \
+        'headers' : { 
             'Date'         : 'Дата Время',
             'Code'         : 'Результат',
             'Message'      : 'Текст сообщения',
@@ -731,9 +770,9 @@ database_config = { \
     # ======================
     # BANKPERSO CONFIGURATOR
     # ======================
-    'configurator-files' : { \
+    'configurator-files-default' : { \
         'columns' : ('TID', 'ClientID', 'Client', 'FileType', 'ReportPrefix',),
-        'view'    : '[BankDB].[dbo].[WEB_FileTypes_vw]',
+        'view'    : '[BankDB].[dbo].[WEB_FileTypesDefault_vw]',
         'headers' : { \
             'TID'          : ('ID типа файла',  '',),
             'ClientID'     : ('ID клиента',     '',),
@@ -748,10 +787,28 @@ database_config = { \
             'ClientID', 'FileTypeID',
             ),
     },
-    'configurator-batches' : { \
+    'configurator-files' : { 
+        'columns' : ('TID', 'ClientID', 'Client', 'FileType', 'ReportPrefix',),
+        'view'    : '[BankDB].[dbo].[WEB_FileTypes_vw]',
+        'headers' : { 
+            'TID'          : ('ID типа файла',  '',),
+            'ClientID'     : ('ID клиента',     '',),
+            'Client'       : ('КЛИЕНТ',         '',),
+            'FileType'     : ('ТИП ФАЙЛА',      '',),
+            'ReportPrefix' : ('Префикс отчета', '',),
+        },
+        'clients' : 'ClientID',
+        'export'  : (
+            'TID', 
+            'Client', 'FileType', 'ReportPrefix', 
+            'ClientID', 'FileTypeID', 
+            'BatchTypeID',
+            ),
+    },
+    'configurator-batches' : { 
         'columns'   : ('TID', 'BatchTypeID', 'BatchType', 'BatchMaxQty', 'IsErpBatch', 'CreateBatchSortIndex', 'CreateBatchGroupIndex',), #, 'BatchCreateType', 'BatchResultType'
         'view'      : '[BankDB].[dbo].[WEB_BatchTypes_vw]',
-        'headers'   : { \
+        'headers'   : { 
             'TID'                   : 'ID партии',
             'BatchTypeID'           : 'ID типа партии',
             'FileType'              : 'Тип файла',
@@ -769,16 +826,16 @@ database_config = { \
             'FileTypeID', 'BatchTypeID', 'BatchCreateTypeID', 'BatchResultTypeID',
         ),
     },
-    'configurator-processes' : { \
+    'configurator-processes' : { 
         'columns' : ('TID', 'FileType', 'BatchType', 'CurrFileStatus', 'NextFileStatus', 'CloseFileStatus', 'ActivateBatchStatus_', 'ARMBatchStatus_', 'Memo'),
         'view'    : '[BankDB].[dbo].[WEB_FileProcesses_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID сценария',
             'FileType'            : 'Тип файла', 
             'BatchType'           : 'Тип партии',
-            'CurrFileStatus'      : 'Текущий статус партии', 
-            'NextFileStatus'      : 'Следующий статус партии', 
-            'CloseFileStatus'     : 'Конечный статус партии', 
+            'CurrFileStatus'      : 'Текущий статус файла', 
+            'NextFileStatus'      : 'Следующий статус файла', 
+            'CloseFileStatus'     : 'Конечный статус файла', 
             'ActivateBatchStatus_': 'Статус активации партии', 
             'ARMBatchStatus_'     : 'Статус партии в АРМ', 
             'Memo'                : 'Примечания',
@@ -789,10 +846,10 @@ database_config = { \
             'ActivateBatchStatus', 'ARMBatchStatus', 'CurrFileStatusID', 'NextFileStatusID', 'CloseFileStatusID', 'LinkID', 'FileTypeID', 'BatchTypeID', 'BatchCreateTypeID', 'BatchResultTypeID',
             ),
     },
-    'configurator-opers' : { \
+    'configurator-opers' : { 
         'columns' : ('TID', 'FileType', 'BatchType', 'OperTypeName', 'OperType', 'OperSortIndex',),
         'view'    : '[BankDB].[dbo].[WEB_FileOpers_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID операции',
             'FileType'            : 'Тип файла', 
             'BatchType'           : 'Тип партии',
@@ -806,10 +863,10 @@ database_config = { \
             'FBLinkID', 'OperID', 'BatchTypeID', 'FileTypeID'
             ),
     },
-    'configurator-operparams' : { \
+    'configurator-operparams' : { 
         'columns' : ('TID', 'FileType', 'BatchType', 'OperTypeName', 'OperType', 'PName', 'PValue', 'Comment',),
         'view'    : '[BankDB].[dbo].[WEB_FileOperParams_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
             'BatchType'           : 'Тип партии',
@@ -825,10 +882,10 @@ database_config = { \
             'FBOLinkID', 'FileTypeID', 'BatchTypeID', 'FBLinkID', 'OperID',
             ),
     },
-    'configurator-filters' : { \
+    'configurator-filters' : { 
         'columns' : ('TID', 'FileType', 'BatchType', 'TName', 'CriticalValues',),
         'view'    : '[BankDB].[dbo].[WEB_FileFilters_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID фильтра',
             'FileType'            : 'Тип файла', 
             'BatchType'           : 'Тип партии',
@@ -841,10 +898,10 @@ database_config = { \
             'FileTypeID', 'BatchTypeID', 'FBLinkID', 'FTLinkID',
             ),
     },
-    'configurator-tags' : { \
+    'configurator-tags' : { 
         'columns' : ('TID', 'FileType', 'TName', 'TMemo',),
         'view'    : '[BankDB].[dbo].[WEB_FileTags_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID тега',
             'FileType'            : 'Тип файла', 
             'TName'               : 'ТЕГ',
@@ -856,10 +913,10 @@ database_config = { \
             'FileTypeID', 'ClientID',
             ),
     },
-    'configurator-tagvalues' : { \
+    'configurator-tagvalues' : { 
         'columns' : ('TID', 'FileType', 'TName', 'TValue',),
         'view'    : '[BankDB].[dbo].[WEB_FileTagValues_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
             'TName'               : 'Тег',
@@ -872,10 +929,10 @@ database_config = { \
             'FTLinkID', 'FileTypeID', 'ClientID',
             ),
     },
-    'configurator-tzs' : { \
+    'configurator-tzs' : { 
         'columns' : ('TID', 'FileType', 'TName', 'TValue', 'PName', 'PValue', 'PSortIndex', 'Comment',),
         'view'    : '[BankDB].[dbo].[WEB_FileTZs_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
             'TName'               : 'Тег',
@@ -891,10 +948,10 @@ database_config = { \
             'FileTypeID', 'FTVLinkID', 'TagParamID',
             ),
     },
-    'configurator-erpcodes' : { \
+    'configurator-erpcodes' : { 
         'columns' : ('TID', 'FileType', 'BatchType', 'TName', 'TValue', 'ERP_CODE', 'AdditionalInfo',),
         'view'    : '[BankDB].[dbo].[WEB_FileERPCodes_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
             'BatchType'           : 'Тип партии',
@@ -909,10 +966,10 @@ database_config = { \
             'FileTypeID', 'BatchTypeID', 'FTVLinkID',
             ),
     },
-    'configurator-materials' : { \
+    'configurator-materials' : { 
         'columns' : ('TID', 'FileType', 'BatchType', 'TName', 'TValue', 'PName', 'QtyMode', 'MMin', 'MBadPercent',),
         'view'    : '[BankDB].[dbo].[WEB_FileMaterials_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
             'BatchType'           : 'Тип партии',
@@ -929,10 +986,10 @@ database_config = { \
             'FileTypeID', 'BatchTypeID', 'FTVLinkID', 'TagParamID',
             ),
     },
-    'configurator-posts' : { \
+    'configurator-posts' : { 
         'columns' : ('TID', 'FileType', 'TName', 'TValue', 'PName', 'PValue', 'Comment',),
         'view'    : '[BankDB].[dbo].[WEB_FilePosts_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
             'TName'               : 'Тег',
@@ -947,10 +1004,10 @@ database_config = { \
             'FileTypeID', 'FTVLinkID', 'TagParamID',
             ),
     },
-    'configurator-tagopers' : { \
+    'configurator-tagopers' : { 
         'columns' : ('TID', 'FileType', 'TName', 'TValue', 'OperType', 'Oper', 'PName', 'PValue', 'OperSortIndex', 'Comment',),
         'view'    : '[BankDB].[dbo].[WEB_FileTagOpers_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
             'TName'               : 'Тег',
@@ -968,10 +1025,10 @@ database_config = { \
             'FileTypeID', 'FTVLinkID', 'TagParamID', 'OperTypeID'
             ),
     },
-    'configurator-tagoperparams' : { \
+    'configurator-tagoperparams' : { 
         'columns' : ('TID', 'FileType', 'TName', 'TValue', 'OperTypeValue', 'OperValue', 'PName', 'PValue',),
         'view'    : '[BankDB].[dbo].[WEB_FileTagOperParams_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
             'TName'               : 'Тег',
@@ -988,10 +1045,10 @@ database_config = { \
             'FileTypeID', 'FTV_OPER_ID', 'TagParamID',
             ),
     },
-    'configurator-processparams' : { \
+    'configurator-processparams' : { 
         'columns' : ('TID', 'FileType', 'TName', 'TValue', 'PName', 'PValue', 'Comment', 'PSortIndex',),
         'view'    : '[BankDB].[dbo].[WEB_FileProcessParams_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'                 : 'ID параметра',
             'FileType'            : 'Тип файла', 
             'TName'               : 'Тег',
@@ -1010,37 +1067,37 @@ database_config = { \
     # --------------------
     # Фильтр конфигуратора
     # --------------------
-    'configurator-clients' : { \
+    'configurator-clients' : { 
         'columns' : ('TID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_Clients_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'CName'        : 'Клиент',
         },
         'clients' : 'TID',
     },
-    'configurator-filetypes' : { \
+    'configurator-filetypes' : { 
         'columns' : ('TID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_FileType_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'CName'        : 'Тип файла',
         },
         'filetypes' : 'TID',
     },
-    'configurator-batchtypes' : { \
+    'configurator-batchtypes' : { 
         'columns' : ('TID', 'CName',),
         'view'    : '[BankDB].[dbo].[DIC_BatchType_tb]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'BatchType'    : 'Тип партии',
         },
         'batchtypes' : 'TID',
     },
-    'configurator-batchinfo' : { \
+    'configurator-batchinfo' : { 
         'columns' : ('PName', 'PValue', 'PSortIndex', 'PType',),
         'exec'    : '[BankDB].[dbo].[WEB_GetBatchTypeInfo_sp]',
-        'headers' : { \
+        'headers' : { 
             'PName'        : 'Название параметра',
             'PValue'       : 'Значение',
             'PSortIndex'   : 'Индекс сортировки',
@@ -1050,10 +1107,10 @@ database_config = { \
     # ==============
     # LOGGER SERVICE
     # ==============
-    'orderlog-messages' : { \
+    'orderlog-messages' : { 
         'columns' : ('TID', 'IP', 'Root', 'Module', 'LogFile', 'Code', 'Count', 'Message', 'EventDate',),
         'view'    : '[OrderLog].[dbo].[WEB_OrderMessages_vw]',
-        'headers' : { \
+        'headers' : { 
             'TID'          : 'ID',
             'FileID'       : 'ID файла',
             'Client'       : 'КЛИЕНТ',
@@ -1069,25 +1126,450 @@ database_config = { \
         },
         'export'  : ('TID', 'SourceID', 'ModuleID', 'LogID', 'FileID', 'FileName', 'BatchID', 'Client', 'Code', 'Count', 'Message', 'IsError', 'IsWarning', 'IsInfo', 'SystemType', 'IP', 'Root', 'Module', 'LogFile', 'EventDate', 'RD'),
     },
-    'orderlog-check-source' : { \
+    'orderlog-check-source' : { 
         'params'  : "0,'%(root)s','%(ip)s','%(ctype)s',null",
         'args'    : '0,%s,%s,%s,null',
         'exec'    : '[OrderLog].[dbo].[CHECK_Source_sp]',
     },
-    'orderlog-check-module' : { \
+    'orderlog-check-module' : { 
         'params'  : "0,%(source_id)s,'%(cname)s','%(cpath)s',null",
         'args'    : '0,%d,%s,%s,null',
         'exec'    : '[OrderLog].[dbo].[CHECK_Module_sp]',
     },
-    'orderlog-check-log' : { \
+    'orderlog-check-log' : { 
         'params'  : "0,%(source_id)s,%(module_id)s,'%(cname)s',null",
         'args'    : '0,%d,%d,%s,null',
         'exec'    : '[OrderLog].[dbo].[CHECK_Log_sp]',
     },
-    'orderlog-register-log-message' : { \
+    'orderlog-register-log-message' : { 
         'params'  : "0,%(source_id)s,%(module_id)s,%(log_id)s,'%(source_info)s','%(module_info)s','%(log_info)s',%(fileid)s,%(batchid)s,'%(client)s','%(filename)s','%(code)s',%(count)s,'%(message)s','%(event_date)s','%(rd)s',null",
         'args'    : '0,%d,%d,%d,%s,%s,%s,%d,%d,%s,%s,%s,%d,%s,%s,%s,null',
         'exec'    : '[OrderLog].[dbo].[REGISTER_LogMessage_sp]',
+    },
+    # =======================
+    # PERSOSTATION BATCH TIME
+    # =======================
+    'persostation-actions' : { 
+        'columns' : ('OrderID', 'BP_FileID', 'Client', 'FName', 'FQty', 'RegisterDate',),
+        'view'    : '[BatchTime].[dbo].[WEB_Actions_vw]',
+        'headers' : { 
+            'TID'          : ('ID',                 ''),
+            'OrderID'      : ('ID',                 ''),
+            'BP_ClientID'  : ('BP-ID клиента',      ''),
+            'BP_FileID'    : ('BP-ID файла',        ''),
+            'BP_BatchID'   : ('BP-ID партии',       ''),
+            'Client'       : ('КЛИЕНТ',             'nowrap'),
+            'FName'        : ('ФАЙЛ',               'nowrap'),
+            'FQty'         : ('Кол-во в файле',     ''),
+            'BatchName'    : ('ПАРТИЯ',             ''),
+            'BatchTypeID'  : ('Тип партии',         ''),
+            'BatchNo'      : ('Кол-во в файле',     ''),
+            'TZ'           : ('ТЗ',                 ''),
+            'ElementQty'   : ('Кол-во в партии',    ''),
+            'Operator'     : ('Оператор',           ''),
+            'RegisterDate' : ('Дата файла',         ''),
+            'RD'           : ('Дата регистрации',   ''),
+        },
+        'export'  : ('TID', 'ClientID', 'OrderID', 'BatchID', 'BP_ClientID', 'BP_FileID', 'BP_BatchID', 'Client', 'FName', 'FQty', 'RegisterDate', 'BatchName', 'BatchTypeID', 'BatchNo', 'TZ', 'ElementQty', 'Operator', 'RD',),
+    },
+    'persostation-clients' : { 
+        'columns' : ('TID', 'Client',),
+        'view'    : '[BatchTime].[dbo].[WEB_Clients_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Client'       : 'КЛИЕНТ',
+        },
+    },
+    'persostation-orders' : { 
+        'columns' : ('TID', 'BP_FileID', 'Client', 'FName', 'FQty', 'RegisterDate',),
+        'view'    : '[BatchTime].[dbo].[WEB_Orders_vw]',
+        'headers' : { 
+            'TID'          : ('ID',                 ''),
+            'ClientID'     : ('ID клиента',         ''),
+            'BP_ClientID'  : ('BP-ID клиента',      ''), 
+            'BP_FileID'    : ('BP-ID файла',        ''),
+            'BP_BatchID'   : ('BP-ID партии',       ''),
+            'Client'       : ('КЛИЕНТ',             'nowrap',),
+            'FName'        : ('ФАЙЛ',               'nowrap',),
+            'FQty'         : ('Кол-во в файле',     ''),
+            'RegisterDate' : ('Дата файла',         ''),
+        },
+        'export'  : ('TID', 'ClientID', 'BP_ClientID', 'BP_FileID', 'Client', 'FName', 'FQty', 'RegisterDate',),
+    },
+    'persostation-batches' : { 
+        'columns' : ('BatchID', 'BP_BatchID', 'BatchName', 'BatchTypeID', 'BatchNo', 'TZ', 'ElementQty',),
+        'view'    : '[BatchTime].[dbo].[WEB_Batches_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'BatchID'      : 'ID',
+            'BP_FileID'    : 'BP-ID файла',
+            'BP_BatchID'   : 'BP-ID партии',
+            'Client'       : 'КЛИЕНТ',
+            'FName'        : 'ФАЙЛ',
+            'FQty'         : 'Кол-во в файле',
+            'RegisterDate' : 'Дата файла',
+            'BatchName'    : 'ПАРТИЯ',
+            'BatchTypeID'  : 'Тип партии',
+            'BatchNo'      : '№ партии',
+            'TZ'           : 'ТЗ',
+            'ElementQty'   : 'Кол-во в партии',
+        },
+        'export'  : ('TID', 'BP_FileID', 'BP_BatchID', 'FName', 'FQty', 'BatchName', 'BatchTypeID', 'BatchNo', 'TZ', 'ElementQty',),
+    },
+    'persostation-batchtypes' : { 
+        'columns' : ('BatchTypeID', 'BatchName',),
+        'view'    : '[BatchTime].[dbo].[WEB_Batches_vw]',
+        'headers' : { 
+            'BatchTypeID'  : 'Тип партии',
+            'BatchName'    : 'ПАРТИЯ',
+        },
+    },
+    'persostation-operators' : { 
+        'columns' : ('Login', 'Name', 'FullName',),
+        'view'    : '[BatchTime].[dbo].[Operators_tb]',
+        'headers' : { 
+            'Login'        : 'Оператор',
+            'Name'         : 'Имя',
+            'FullName'     : 'Полное имя',
+        },
+    },
+    'persostation-check-client' : { 
+        'params'  : "0,%(bp_client_id)s,'%(name)s',null",
+        'args'    : '0,%d,%s,null',
+        'exec'    : '[BatchTime].[dbo].[CHECK_Client_sp]',
+    },
+    'persostation-check-order' : { 
+        'params'  : "0,%(client_id)s,%(bp_file_id)s,'%(fname)s',%(fqty)s,'%(register_date)s',null",
+        'args'    : '0,%d,%d,%s,%d,%s,null',
+        'exec'    : '[BatchTime].[dbo].[CHECK_Order_sp]',
+    },
+    'persostation-check-batch' : { 
+        'params'  : "0,%(order_id)s,%(bp_batch_id)s,'%(batchname)s',%(batchtype_id)s,%(batchno)s,%(pers_tz)s,%(element_qty)s,null",
+        'args'    : '0,%d,%d,%s,%d,%d,%d,%d,%s,null',
+        'exec'    : '[BatchTime].[dbo].[CHECK_Order_sp]',
+    },
+    'persostation-register-action' : { 
+        'params'  : "0,%(bp_client_id)s,%(bp_file_id)s,%(bp_batch_id)s,'%(client)s','%(fname)s',%(fqty)s,'%(register_date)s','%(batchname)s',%(batchtype_id)s,%(batchno)s,%(pers_tz)s,%(element_qty)s,'%(login)s','%(fullname)s',%(add)s,%(delete)s,null",
+        'args'    : '0,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%d,%d,%s,%s,%d,%d,null',
+        'exec'    : '[BatchTime].[dbo].[REGISTER_Action_sp]',
+    },
+    'persostation-search-actions' : { 
+        'params'  : "0,'%(ids)s'",
+        'args'    : '0,%s,null',
+        'exec'    : '[BatchTime].[dbo].[SearchActions_sp]',
+    },
+    # =====================
+    # PROVISION ORDERS LIST
+    # =====================
+    'provision-orders' : { 
+        'columns' : ['TID', 'Article', 'Qty', 'Subdivision', 'Price', 'Currency', 'Total', 'Condition', 'Seller', 'RD',],
+        'noprice' : ['TID', 'Article', 'Qty', 'Subdivision', 'Purpose', 'RD',],
+        'view'    : '[ProvisionDB].[dbo].[WEB_Orders_vw]',
+        'headers' : { 
+            'TID'          : ('№ заявки',            'npp',          ''),
+            'Article'      : ('НАИМЕНОВАНИЕ ТОВАРА', 'article',      ''),
+            'Author'       : ('Автор заявки',        '',             ''),
+            'Qty'          : ('Кол-во, шт.',         'qty',          ''),
+            'Category'     : ('Категория',           '',             ''),
+            'Purpose'      : ('ОБОСНОВАНИЕ',         '',             ''),
+            'Price'        : ('Цена за единицу',     'money price',  ''),
+            'Currency'     : ('Валюта платежа',      'currency',     ''),
+            'Total'        : ('СУММА',               'money _total', ''),
+            'Tax'          : ('НДС',                 'money tax',    ''),
+            'Subdivision'  : ('ПОТРЕБИТЕЛЬ',         'office',       ''),
+            'Condition'    : ('Условия оплаты',      '',             ''),
+            'Equipment'    : ('Описание',            '',             ''),
+            'Account'      : ('Номер счета',         '',             ''),
+            'Seller'       : ('ПОСТАВЩИК',           'seller',       ''),
+            'Status'       : ('Статус заявки',       '',             ''),
+            'ReviewStatus' : ('Статус заказа',       '',             ''),
+            'RD'           : ('Дата',                'rd',           ''),
+        },
+        'export'  : ('TID', 'Subdivision', 'Article', 'Qty', 'Price', 'Total', 'Seller', 'SellerTitle', 'SellerAddress', 'Status', 'RD', 'ReviewStatus', 'Author', 'Purpose', 'Currency', 'Tax', 'Condition', 'Equipment', 'EquipmentName', 'Category', 'Account', 'EditedBy', 'SubdivisionCode', 'SubdivisionID', 'ConditionID', 'EquipmentID', 'SellerID', 'CategoryID', 'RowSpan', 'UnreadByLogin',),
+        'status'  : ('Qty', 'Price',),
+        'updated' : ('Author', 'Article', 'Qty', 'Purpose', 'Price', 'Currency', 'EditedBy', 'SubdivisionID', 'ConditionID', 'EquipmentID', 'SellerID', 'CategoryID',),
+        'sorted'  : ('TID', 'Subdivision', 'Article', 'Qty', 'Price', 'Total', 'Seller', 'Status', 'RD',),
+    },
+    'provision-order-dates' : { 
+        'columns' : ('TID', 'Created', 'Approved', 'Paid', 'Delivered', 'ReviewDueDate', 'WithMail',),
+        'view'    : '[ProvisionDB].[dbo].[OrderDates_tb]',
+    },
+    'provision-order-unreads' : { 
+        'columns' : ('Login',),
+        'view'    : '[ProvisionDB].[dbo].[OrderUnreads_tb]',
+    },
+    'provision-order-reviewers' : { 
+        'columns' : ('ID', 'OrderID', 'Login',),
+        'view'    : '[ProvisionDB].[dbo].[Reviewers_tb]',
+    },
+    'provision-order-authors' : { 
+        'columns' : ('Author',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Authors_vw]',
+    },
+    'provision-order-changes' : { 
+        'columns' : ('TID', 'Login', 'Name', 'Value', 'RD',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_OrderChanges_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Login'        : 'Автор',
+            'Name'         : 'Наименование реквизита',
+            'Value'        : 'Значение',
+            'RD'           : 'Дата изменения',
+        },
+        'export'  : ('TID', 'Login', 'Name', 'Value', 'RD',),
+    },
+    'provision-reviews' : { 
+        'columns' : ('TID', 'StatusDate', 'Reviewer', 'Status', 'Note',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Reviews_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'OrderID'      : '№ заявки',
+            'RegistryDate' : 'Дата заявки',
+            'Reviewer'     : 'ФИО должностного лица',
+            'Status'       : 'Статус',
+            'Note'         : 'Рецензия',
+            'StatusDate'   : 'Дата',
+        },
+        'export'  : ('TID', 'OrderID', 'Login', 'Reviewer', 'Status', 'Note', 'RegistryDate', 'StatusDate',),
+    },
+    'provision-subdivisions' : { 
+        'columns' : ('TID', 'Name',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Subdivisions_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Name'         : 'Отдел',
+            'Code'         : 'Код',
+            'Manager'      : 'Руководитель',
+            'FullName'     : 'Полное наименование подразделения',
+        },
+        'export'  : ('TID', 'Name', 'Code', 'Manager', 'FullName',),
+    },
+    'provision-categories' : { 
+        'columns' : ('TID', 'Name',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Categories_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Name'         : 'Категория',
+        },
+        'export'  : ('TID', 'Name',),
+    },
+    'provision-sellers' : { 
+        'columns' : ('TID', 'Name',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Sellers_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Name'         : 'Поставщик',
+            'Title'        : 'Наименование',
+            'Address'      : 'Адрес организации',
+        },
+        'export'  : ('TID', 'Name', 'Title', 'Address',),
+    },
+    'provision-conditions' : { 
+        'columns' : ('TID', 'Name',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Conditions_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Name'         : 'Условие оплаты',
+        },
+        'export'  : ('TID', 'Name',),
+    },
+    'provision-equipments' : { 
+        'columns' : ('TID', 'Name',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Equipments_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Title'        : 'Категория',
+            'Name'         : 'Наименование',
+        },
+        'export'  : ('TID', 'Title', 'Name',),
+    },
+    'provision-params' : { 
+        'columns' : ('TID', 'Name',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Params_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Name'         : 'Наименование',
+        },
+        'export' : ('TID', 'Name',),
+    },
+    'provision-order-params' : { 
+        'columns' : ('TID', 'Login', 'Name', 'Value',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_OrderParams_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'ParamID'      : 'ID параметра',
+            'Login'        : 'Автор',
+            'Name'         : 'Параметр',
+            'Value'        : 'Значение',
+        },
+        'export'  : ('TID', 'ParamID', 'Login', 'Name', 'Value', 'RD',),
+    },
+    'provision-order-items' : { 
+        'columns' : ('TID', 'Login', 'Name', 'Qty', 'Units', 'Total', 'Tax', 'Account'),
+        'view'    : '[ProvisionDB].[dbo].[WEB_OrderItems_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Login'        : 'Автор',
+            'Name'         : 'Наименование',
+            'Qty'          : 'Кол-во',
+            'Units'        : 'Ед/изм.',
+            'Total'        : 'Сумма',
+            'Account'      : 'Номер в 1С (расход)',
+            'Tax'          : 'НДС',
+        },
+        'export'  : ('TID', 'Login', 'Name', 'Qty', 'Units', 'Total', 'Tax', 'Account', 'RD',),
+    },
+    'provision-payments' : { 
+        'columns' : ('TID', 'Name',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Payments_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Name'         : 'Наименование',
+        },
+        'export' : ('TID', 'Name',),
+    },
+    'provision-order-payments' : { 
+        'columns' : ('TID', 'Login', 'Purpose', 'PaymentDate', 'Total', 'Tax', 'Status',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_OrderPayments_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'PaymentID'    : 'ID параметра',
+            'Login'        : 'Автор',
+            'Purpose'      : 'Назначение платежа',
+            'PaymentDate'  : 'Дата платежа',
+            'Total'        : 'Сумма',
+            'Tax'          : 'НДС',
+            'Status'       : 'Статус',
+        },
+        'export'  : ('TID', 'PaymentID', 'Login', 'Purpose', 'PaymentDate', 'Total', 'Tax', 'Status', 'RD',),
+    },
+    'provision-comments' : { 
+        'columns' : ('TID', 'Name',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_Comments_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'Name'         : 'Наименование',
+        },
+        'export' : ('TID', 'Name',),
+    },
+    'provision-order-comments' : { 
+        'columns' : ('TID', 'Login', 'Author', 'Note',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_OrderComments_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'CommentID'    : 'ID параметра',
+            'Login'        : 'Автор',
+            'Author'       : 'Автор комментария',
+            'Note'         : 'Комментарий',
+        },
+        'export'  : ('TID', 'CommentID', 'Login', 'Author', 'Note', 'RD',),
+    },
+    'provision-order-documents' : { 
+        'columns' : ('TID', 'Login', 'FileName', 'Note', 'FileSize',),
+        'view'    : '[ProvisionDB].[dbo].[WEB_OrderDocuments_vw]',
+        'headers' : { 
+            'TID'          : 'ID',
+            'OrderID'      : '№ заявки',
+            'Login'        : 'Автор',
+            'FileName'     : 'Документ',
+            'FileSize'     : 'Размер файла',
+            'ContentType'  : 'Тип',
+            'Note'         : 'Содержание',
+            'UID'          : 'UID',
+            'RD'           : 'Дата',
+        },
+        'export'  : ('TID', 'OrderID', 'Login', 'FileName', 'FileSize', 'ContentType', 'Note', 'IsExist', 'UID', 'RD',),
+    },
+    'provision-register-order' : { 
+        'params'  : "0,'%(login)s','%(article)s',%(qty)s,'%(purpose)s',%(price).5f,'%(currency)s',%(total).2f,%(tax).2f,'%(subdivision)s','%(category)s','%(equipment)s','%(seller)s','%(condition)s','%(account)s','%(duedate)s','%(author)s',%(status)s,%(is_no_price)s,0,null",
+        'args'    : "%d,'%s','%s',%d,'%s',%.2f,'%s',%.2f,%.2f,'%s','%s','%s','%s','%s','%s','%s','%s',%s,%d,%d,null",
+        'exec'    : '[ProvisionDB].[dbo].[REGISTER_Order_sp]',
+    },
+    'provision-refresh-order' : { 
+        'params'  : "0,%(id)d,'%(login)s','%(article)s',%(qty)s,'%(purpose)s',%(price).5f,'%(currency)s',%(total).2f,%(tax).2f,'%(subdivision)s','%(category)s','%(equipment)s','%(seller)s','%(condition)s','%(duedate)s','%(author)s',%(is_no_price)s,null",
+        'exec'    : '[ProvisionDB].[dbo].[UPDATE_Order_sp]',
+    },
+    'provision-remove-order' : { 
+        'params'  : "0,%(id)d,'%(login)s',null",
+        'exec'    : '[ProvisionDB].[dbo].[DELETE_Order_sp]',
+    },
+    'provision-register-review' : { 
+        'params'  : "0,%(order_id)d,'%(login)s','%(reviewer)s',%(status)d,'%(note)s','%(review_duedate)s',%(with_mail)d,null",
+        'args'    : '0,%d,%s,%s,%d,%s,%s,%d,null',
+        'exec'    : '[ProvisionDB].[dbo].[REGISTER_Review_sp]',
+    },
+    'provision-set-unread' : { 
+        'params'  : "0,%(order_id)d,'%(logins)s',null",
+        'args'    : '0,%d,%s,null',
+        'exec'    : '[ProvisionDB].[dbo].[SET_Unread_sp]',
+    },
+    'provision-set-read' : { 
+        'params'  : "0,%(order_id)s,'%(logins)s',null",
+        'args'    : '0,%d,%s,null',
+        'exec'    : '[ProvisionDB].[dbo].[SET_Read_sp]',
+    },
+    'provision-add-param-order' : { 
+        'params'  : "0,%(order_id)d,%(id)d,%(param_id)d,'%(login)s','%(new_param)s','%(value)s',null",
+        'args'    : "%d,%d,%d,%d,'%s','%s','%s',null",
+        'exec'    : '[ProvisionDB].[dbo].[ADD_Param_sp]',
+    },
+    'provision-add-item-order' : { 
+        'params'  : "0,%(order_id)d,%(id)d,'%(login)s','%(item)s',%(qty)d,'%(units)s',%(total).2f,%(tax).2f,'%(account)s',null",
+        'args'    : "%d,%d,%d,'%s','%s',%d,'%s',%.2f,%.2f,'%s',null",
+        'exec'    : '[ProvisionDB].[dbo].[ADD_Item_sp]',
+    },
+    'provision-add-payment-order' : { 
+        'params'  : "0,%(order_id)d,%(id)d,%(payment_id)d,'%(login)s','%(new_payment)s','%(date)s',%(total).2f,%(tax).2f,%(status)s,null",
+        'args'    : "%d,%d,%d,%d,'%s','%s','%s',%.2f,%.2f,%d,null",
+        'exec'    : '[ProvisionDB].[dbo].[ADD_Payment_sp]',
+    },
+    'provision-add-document-order' : { 
+        'params'  : "0,'%(uid)s',%(order_id)d,'%(login)s','%(filename)s',%(filesize)s,%(content_type)s,'%(note)s','%(image)s',null",
+        'args'    : "%d,%s,%d,%s,%s,%d,%s,%s,%s,null",
+        'exec'    : '[ProvisionDB].[dbo].[ADD_Comment_sp]',
+    },
+    'provision-add-comment-order' : { 
+        'params'  : "0,%(order_id)d,%(id)d,%(comment_id)d,'%(login)s','%(new_comment)s','%(note)s',null",
+        'args'    : "%d,%d,%d,%d,%s,%s,%s,null",
+        'exec'    : '[ProvisionDB].[dbo].[ADD_Comment_sp]',
+    },
+    'provision-del-param-order' : { 
+        'params'  : "0,%(order_id)d,%(id)d,%(param_id)d,'%(login)s',null",
+        'args'    : "%d,%d,%d,%d,'%s',null",
+        'exec'    : '[ProvisionDB].[dbo].[DEL_Param_sp]',
+    },
+    'provision-del-item-order' : { 
+        'params'  : "0,%(order_id)d,%(id)d,'%(login)s',null",
+        'args'    : "%d,%d,%d,'%s',null",
+        'exec'    : '[ProvisionDB].[dbo].[DEL_Item_sp]',
+    },
+    'provision-del-payment-order' : { 
+        'params'  : "0,%(order_id)d,%(id)d,%(payment_id)d,'%(login)s',null",
+        'args'    : "%d,%d,%d,%d,'%s',null",
+        'exec'    : '[ProvisionDB].[dbo].[DEL_Payment_sp]',
+    },
+    'provision-del-comment-order' : { 
+        'params'  : "0,%(order_id)d,%(id)d,%(comment_id)d,'%(login)s',null",
+        'args'    : "%d,%d,%d,%d,'%s',null",
+        'exec'    : '[ProvisionDB].[dbo].[DEL_Comment_sp]',
+    },
+    'provision-del-document-order' : { 
+        'params'  : "0,%(order_id)d,%(id)d,'%(login)s',null",
+        'args'    : "%d,%d,%d,'%s',null",
+        'exec'    : '[ProvisionDB].[dbo].[DEL_Document_sp]',
+    },
+    'provision-del-seller-order' : { 
+        'params'  : "0,%(id)d,'%(login)s',null",
+        'args'    : "%d,%d,'%s',null",
+        'exec'    : '[ProvisionDB].[dbo].[DEL_Seller_sp]',
+    },
+    'provision-set-status-order' : { 
+        'params'  : "0,%(order_id)d,'%(login)s',%(status)s,null",
+        'exec'    : '[ProvisionDB].[dbo].[SET_Status_sp]',
+    },
+    'provision-download-image' : { 
+        'columns' : ('FileName', 'FileSize', 'ContentType', 'Image',),
+        'view'    : '[ProvisionDB].[dbo].[OrderDocuments_tb]',
     },
 }
 
@@ -1787,7 +2269,8 @@ def getReferenceConfig(view):
 
 class BankPersoEngine():
     
-    def __init__(self, user=None, connection=None):
+    def __init__(self, name=None, user=None, connection=None):
+        self.name = name or 'default'
         self.connection = connection or default_connection
         self.engine = create_engine('mssql+pymssql://%(user)s:%(password)s@%(server)s' % self.connection)
         self.conn = self.engine.connect()
@@ -1795,7 +2278,15 @@ class BankPersoEngine():
         self.user = user
 
         if IsDeepDebug:
-            print('>>> open connection')
+            print('>>> open connection[%s]' % self.name)
+
+    @property
+    def database(self):
+        return self.connection.get('database')
+
+    @property
+    def is_error(self):
+        return self.engine_error
 
     def getReferenceID(self, name, key, value, tid='TID'):
         id = None
@@ -1814,7 +2305,7 @@ class BankPersoEngine():
     def _get_params(self, config, **kw):
         return 'exec_params' in kw and (config['params'] % kw['exec_params']) or kw.get('params') or ''
 
-    def runProcedure(self, name, args=None, no_cursor=False, **kw):
+    def runProcedure(self, name, args=None, no_cursor=False, with_log=False, **kw):
         """
             Executes database stored procedure.
             Could be returned cursor.
@@ -1827,24 +2318,27 @@ class BankPersoEngine():
         config = kw.get('config') or database_config[name]
 
         if args:
-            sql = 'EXEC %(sql)s %(args)s' % { \
+            sql = 'EXEC %(sql)s %(args)s' % { 
                 'sql'    : config['exec'],
                 'args'   : config['args'],
             }
         else:
-            sql = 'EXEC %(sql)s %(params)s' % { \
+            sql = 'EXEC %(sql)s %(params)s' % { 
                 'sql'    : config['exec'],
                 'params' : config['params'] % kw,
             }
 
         if IsDeepDebug:
-            print('>>> runProcedure: %s' % sql)
+            print('>>> runProcedure: %s' % out(sql))
+
+        if with_log:
+            print_to(None, '>>> runProcedure: %s' % sql, encoding=default_encoding)
 
         with_error = kw.get('with_error') and True or False
 
         return self.run(sql, args=args, no_cursor=no_cursor, with_error=with_error)
 
-    def runQuery(self, name, top=None, columns=None, where=None, order=None, distinct=False, as_dict=False, **kw):
+    def runQuery(self, name, top=None, offset=None, columns=None, where=None, order=None, distinct=False, as_dict=False, with_log=False, **kw):
         """
             Executes as database query so a stored procedure.
             Returns cursor.
@@ -1859,7 +2353,7 @@ class BankPersoEngine():
         if 'clients' in config and self.user is not None:
             profile_clients = self.user.get_profile_clients(True)
             if profile_clients:
-                clients = '%s in (%s)' % ( \
+                clients = '%s in (%s)' % (
                     config['clients'],
                     ','.join([str(x) for x in profile_clients])
                 )
@@ -1869,25 +2363,65 @@ class BankPersoEngine():
                 else:
                     where = clients
 
-        if 'view' in config and config['view']:
-            params = { \
+        _view = kw.get('view') or 'view'
+
+        if _view in config and config[_view]:
+            is_union = isIterable(where)
+            union = is_union and where or [(offset, top, where)]
+
+            items, params, sql = [], {}, ''
+
+            params = { 
                 'distinct' : distinct and 'DISTINCT' or '',
-                'top'      : (top and 'TOP %s' % str(top)) or '',
                 'columns'  : ','.join(query_columns),
-                'view'     : config['view'],
-                'where'    : (where and 'WHERE %s' % where) or '',
-                'order'    : (order and 'ORDER BY %s' % order) or '',
+                'view'     : config[_view],
             }
-            sql = 'SELECT %(distinct)s %(top)s %(columns)s FROM %(view)s %(where)s %(order)s' % params
+
+            for o, t, w in union:
+                params.update({
+                    'where' : (where and 'WHERE %s' % w) or '',
+                    'top'   : (t and 'TOP %s' % str(t)) or '',
+                })
+
+                if o is not None:
+                    params.update({
+                        'order'  : (order and 'ORDER BY %s' % order) or '',
+                        'offset' : o or 0,
+                    })
+
+                    sql = ('SELECT %(distinct)s %(top)s %(columns)s FROM (select *, ROW_NUMBER() over (%(order)s) as rows ' + 
+                          'from %(view)s %(where)s) x where rows > %(offset)s') % params
+                else:
+                    sql = 'SELECT %(distinct)s %(top)s %(columns)s FROM %(view)s %(where)s' % params
+
+                if kw.get('as_subquery') and 'sql' in kw:
+                    sql = kw['sql'] % sql
+
+                if kw.get('with_updlock'):
+                    x = sql.split('WHERE')
+                    sql = '%s WITH (UPDLOCK)%s' % (x[0].strip(), len(x) > 1 and (' WHERE %s' % x[1].strip()) or '')
+
+                items.append(sql)
+
+            if is_union:
+                sql = ' UNION '.join(items)
+            else:
+                sql = items[0]
+
+            sql += (order and ' ORDER BY %s' % order) or ''
+
         else:
-            params = { \
+            params = { 
                 'sql'      : config['exec'],
                 'params'   : self._get_params(config, **kw),
             }
             sql = 'EXEC %(sql)s %(params)s' % params
 
         if IsDeepDebug:
-            print('>>> runQuery: %s' % sql)
+            print('>>> runQuery: %s' % out(sql))
+
+        if with_log:
+            print_to(None, '>>> runQuery: %s' % sql, encoding=default_encoding)
 
         rows = []
 
@@ -1896,7 +2430,7 @@ class BankPersoEngine():
 
         mapping = kw.get('mapping')
 
-        cursor = self.execute(sql)
+        cursor = self.execute(sql, no_traceback=kw.get('no_traceback'))
 
         if cursor is not None and not cursor.closed:
             if IsDeepDebug:
@@ -1907,6 +2441,10 @@ class BankPersoEngine():
                     row = dict(zip(query_columns, line))
                 else:
                     row = [x for x in line]
+
+                line = None
+                del line
+
                 for column in encode_columns:
                     if column in row or isinstance(column, int):
                         row[column] = row[column] and row[column].encode(default_iso).decode(default_encoding) or ''
@@ -1960,13 +2498,19 @@ class BankPersoEngine():
                 if IsDeepDebug:
                     print('--> in_transaction:%s' % cursor.connection.in_transaction())
 
-                if not no_cursor:
-                    rows = [row for row in cursor if cursor]
+                if not no_cursor and cursor:
+                    rows = [row for row in cursor if row]
 
                 trans.commit()
 
             except Exception as err:
-                trans.rollback()
+                try:
+                    trans.rollback()
+                except:
+                    pass
+
+                if not no_cursor:
+                    rows = []
 
                 if err is not None and hasattr(err, 'orig') and (
                         isinstance(err.orig, pymssql.OperationalError) or 
@@ -1984,21 +2528,27 @@ class BankPersoEngine():
                 self.engine_error = True
 
                 print_to(None, 'NO SQL QUERY: %s ERROR: %s' % (sql, error_msg))
-                print_exception()
+
+                if IsPrintExceptions:
+                    print_exception()
 
         if with_error:
             return rows, error_msg
 
         return rows
 
-    def execute(self, sql):
+    def execute(self, sql, no_traceback=None, raise_error=None):
         try:
             return self.engine.execute(sql)
         except:
-            print_to(None, 'NO SQL EXEC: %s' % sql)
-            print_exception()
+            if not no_traceback:
+                print_to(None, 'NO SQL EXEC: %s' % sql)
+                print_exception(1)
 
             self.engine_error = True
+
+            if raise_error:
+                raise
 
             return None
 
@@ -2009,9 +2559,259 @@ class BankPersoEngine():
             print('>>> dispose')
 
     def close(self):
+        if self.conn is None or self.conn.closed:
+            return
+
         self.conn.close()
 
         if IsDeepDebug:
-            print('>>> close connection')
+            print('>>> close connection[%s]' % self.name)
 
         self.dispose()
+
+
+class Base:
+
+    def __init__(self, requested_object, *args, **kwargs):
+        if IsTrace:
+            print_to(None, 'Base.init')
+
+        super().__init__(*args, **kwargs)
+
+        self.requested_object = requested_object
+
+        self._id = None
+
+    @property
+    def id(self):
+        return self._id
+
+
+class Connection(Base):
+    
+    def __init__(self, connection, *args, **kwargs):
+        if IsTrace:
+            print_to(None, 'Connection.init')
+
+        super().__init__(*args, **kwargs)
+
+        self._connection = connection
+
+        self.conn = None
+        self.cursor = None
+        self.is_error = False
+
+    def open(self, autocommit=None):
+        if IsTrace:
+            print_to(None, 'Connection.open, autocommit:%s, connection:%s' % (autocommit, self._connection))
+
+        server = self._connection['server']
+        user = self._connection['user']
+        password = self._connection['password']
+        database = self._connection['database']
+        timeout = int(self._connection.get('timeout') or 0)
+        login_timeout = int(self._connection.get('login_timeout') or 60)
+
+        self.conn, self.is_error = pymssql.connect(server, user, password, database, timeout, login_timeout), False
+
+        if IsTrace:
+            print_to(None, 'Connection.open, done')
+
+        if autocommit is None:
+            return
+
+        self.conn.autocommit(autocommit and True or False)
+        self.cursor = self.conn.cursor()
+
+    def begin(self):
+        pass
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
+    def close(self):
+        if self.is_error is not None:
+            if self.is_error:
+                self.rollback()
+            else:
+                self.commit()
+
+        self.conn.close()
+
+    def connect(self, sql, params, **kw):
+        """
+            Parameterized query.
+
+            Arguments:
+                sql     -- String, SQL query with params scheme
+                params  -- List, query parameters
+
+            Keyword arguments:
+                with_commit -- Boolean, use transaction or not
+                with_result -- Boolean, should be returned recodset
+                callproc    -- Boolean, run stored procedure
+
+            Returns:
+                cursor      -- List, cursor or query results recordset
+        """
+        if IsTrace:
+            print_to(None, 'Connection.connect, sql:%s' % sql)
+
+        if kw.get('check_error') and self.is_error:
+            return None
+
+        _with_commit = kw.get('with_commit')
+        _with_result = kw.get('with_result')
+        _callproc = kw.get('callproc')
+
+        _is_error = False
+
+        if not hasattr(self, 'conn') or self.conn is None:
+            self.open()
+
+        conn = self.conn
+
+        # ------------------
+        # Check `autocommit`
+        # ------------------
+
+        if _with_commit is not None:
+            if _with_commit: # and conn.autocommit_state:
+                conn.autocommit(False)
+            else:
+                conn.autocommit(True)
+
+        cursor = self.cursor
+
+        if IsDeepDebug:
+            print_to(None, 'with_commit: %s' % _with_commit)
+            print_to(None, 'sql: %s' % sql)
+
+        res = None
+
+        try:
+            p = params is not None and tuple(params) or ()
+
+            if IsTrace:
+                print_to(None, 'connect:execute, sql:%s, params:%s' % (sql, len(p)))
+
+            if _callproc:
+                res = cursor.callproc(sql, p)
+            else:
+                cursor.execute(sql, p)
+
+            if IsTrace:
+                print_to(None, 'connect:done')
+        except:
+            if IsPrintExceptions:
+                print_exception()
+
+            print_to(None, 'SQL:[%s]' % sql)
+
+            if IsDeepDebug:
+                print_to(None, 'params:%s' % repr(params))
+        
+            _is_error = True
+
+        # ------------------------------------------------
+        # Manage transaction if `autocommit` is turned off
+        # ------------------------------------------------
+
+        if _with_commit is not None:
+            if _with_commit and not conn.autocommit_state:
+                if _is_error:
+                    conn.rollback()
+                else:
+                    conn.commit()
+
+        self.conn, self.is_error = conn, _is_error
+
+        if _with_result:
+            if _callproc:
+                return res
+            else:
+                res = list(cursor.fetchall())
+                return self.encode_columns(res, kw.get('encode_columns'))
+
+        return cursor
+
+    @staticmethod
+    def encode_columns(cursor, columns):
+        if not (cursor and columns):
+            return cursor
+        rows = []
+        for n, line in enumerate(cursor):
+            row = [x for x in line]
+            for column in columns:
+                if column in row or isinstance(column, int):
+                    row[column] = row[column] and row[column].encode(default_iso).decode(default_encoding) or ''
+            rows.append(row)        
+        return rows
+
+    @staticmethod
+    def get_value(x):
+        return x and len(x) > 0 and x[0][0] or None
+
+
+class DBEngine():
+    
+    def __init__(self, connection=None):
+        self.connection = connection
+        self.engine = create_engine('mssql+pymssql://%(user)s:%(password)s@%(server)s' % self.connection)
+        self.conn = self.engine.connect()
+        self.engine_error = False
+
+        self.transaction = None
+
+    def begin(self):
+        self.transaction = self.conn.begin()
+
+    def commit(self):
+        self.transaction.commit()
+
+    def rollback(self):
+        self.transaction.rollback()
+
+    def close(self):
+        if self.engine_error:
+            self.rollback()
+        else:
+            self.commit()
+
+        self.conn.close()
+        del self.conn
+
+    def run(self, sp, params, raise_error=None):
+        sql = 'EXEC %s' % (sp % params)
+
+        cursor = None
+
+        try:
+            cursor = self.conn.execute(sql)
+        except Exception as err:
+            self.engine_error = True
+
+            if IsPrintExceptions:
+                print_exception()
+
+            print_to(None, 'SQL:[%s]' % sql)
+            
+            if raise_error:
+                raise
+        
+        rows = []
+
+        if cursor is not None:
+            for n, line in enumerate(cursor):
+                row = []
+                for x in line:
+                    if x and isinstance(x, str):
+                        row.append(x.encode(default_iso).decode(default_encoding))
+                    else:
+                        row.append(x)
+                rows.append(row)
+
+        return rows

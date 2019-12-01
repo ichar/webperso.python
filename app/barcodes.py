@@ -1,7 +1,6 @@
 #!flask/bin/python
 
 """
-
 barcodes.py
 ===========
 

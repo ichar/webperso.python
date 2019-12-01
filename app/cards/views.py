@@ -19,7 +19,7 @@ from ..settings import *
 from ..database import database_config, BankPersoEngine
 from ..utils import (
      getToday, getDate, getDateOnly, checkDate, cdate, indentXMLTree, isIterable, makeXLSContent, makeIDList, 
-     checkPaginationRange, getMaskedPAN, reprSortedDict
+     checkPaginationRange, getMaskedPAN, reprSortedDict, spent_time
      )
 
 from ..semaphore.views import initDefaultSemaphore
@@ -33,7 +33,10 @@ default_action = '700'
 default_template = 'cards.batches'
 engine = None
 
+# Локальный отладчик
 IsLocalDebug = LocalDebug[default_page]
+# Использовать OFFSET в SQL запросах
+IsApplyOffset = 1
 
 TEMPLATE_TID_INDEX   = 0
 TEMPLATE_QUERY_INDEX = 1
@@ -60,7 +63,8 @@ def before(f):
         global engine
         if engine is not None:
             engine.close()
-        engine = BankPersoEngine(current_user, connection=CONNECTION[kw.get('engine') or 'cards'])
+        name = kw.get('engine') or 'cards'
+        engine = BankPersoEngine(name=name, user=current_user, connection=CONNECTION[name])
         return f(**kw)
     return wrapper
 
@@ -68,13 +72,16 @@ def before(f):
 def refresh(**kw):
     global requested_batch
 
-    if 'pers_id' in kw and kw.get('pers_id'):
-        requested_batch = _get_batch(kw['pers_id']).copy()
+    pers_id = kw.get('pers_id')
+    if pers_id is None:
+        return
+
+    requested_batch = _get_batch(pers_id).copy()
 
 def getBatchInfo(pers_id):
     #getDate(requested_batch.get('StatusDate'), UTC_EASY_TIMESTAMP)
     #requested_batch.get('FName')
-    return 'ID [%s-%s]' % (pers_id, requested_batch.get('BatchID'))
+    return 'ID [%s-%s]' % (pers_id, requested_batch.get('BatchID') or 0)
 
 def _get_columns(name):
     return ','.join(database_config[name]['columns'])
@@ -103,6 +110,7 @@ def _get_page_args():
             'perstype'   : ('PersTypeID', int(get_request_item('perstype') or '0')),
             'date_from'  : ('StatusDate', get_request_item('date_from') or ''),
             'date_to'    : ('StatusDate', get_request_item('date_to') or ''),
+            'pan'        : ('PAN', get_request_item('pan') or ''),
             'id'         : ('TID', int(get_request_item('_id') or '0')),
         })
     except:
@@ -114,6 +122,7 @@ def _get_page_args():
             'perstype'   : ('PersTypeID', 0),
             'date_from'  : ('StatusDate', ''),
             'date_to'    : ('StatusDate', ''),
+            'pan'        : ('PAN', ''),
             'id'         : ('TID', 0),
         })
         flash('Please, update the page by Ctrl-F5!')
@@ -121,10 +130,10 @@ def _get_page_args():
     return args
 
 def _get_batch(id):
+    columns = database_config[default_template].get('export')
     where = 'TID=%s' % id
-    cursor = engine.runQuery(default_template, top=1, where=where, as_dict=True, 
-                             encode_columns=('Client','FName','PersType','Status','PersStatus',),
-                             columns=database_config[default_template].get('export'))
+    encode_columns = ('Client','FName','PersType','Status','PersStatus',)
+    cursor = engine.runQuery(default_template, columns=columns, top=1, where=where, as_dict=True, encode_columns=encode_columns)
     return cursor and cursor[0] or {}
 
 def _get_batch_ids(pers_ids):
@@ -132,12 +141,13 @@ def _get_batch_ids(pers_ids):
     cursor = engine.runQuery(default_template, where=where, columns=('BatchID',))
     return cursor and [row[0] for row in cursor] or []
 
-def _get_bankperso_batches(ids=None, file_id=None):
+def _get_bankperso_batches(ids=None, file_id=None, **kw):
+    batchtype_id = ','.join([str(x) for x in kw.get('batchtype_id') or (7,14)])
     if file_id is not None:
-        where = 'BatchTypeID in (7,14) AND FileID=%s' % file_id
+        where = 'BatchTypeID in (%s) AND FileID=%s' % (batchtype_id, file_id)
     elif ids:
-        where = 'TZ in (%s) AND BatchTypeID in (7,14) AND FileStatusID not in (%s)' % (
-            makeIDList(ids), makeIDList(COMPLETE_STATUSES))
+        where = 'TZ in (%s) AND BatchTypeID in (%s) AND FileStatusID not in (%s)' % (
+            makeIDList(ids), batchtype_id, makeIDList(COMPLETE_STATUSES))
     else:
         return []
 
@@ -162,7 +172,7 @@ def _get_opers(pers_id, **kw):
     cursor = engine.runQuery('cards.pers-batch-opers', where=where, order='PersOperTypeID', as_dict=True,
                              encode_columns=('Status',))
     if cursor:
-        IsSelected = False
+        is_selected = False
         
         for n, row in enumerate(cursor):
             if is_simple:
@@ -176,13 +186,13 @@ def _get_opers(pers_id, **kw):
                 if (oper_id and oper_id == row['TID']):
                     row['selected'] = 'selected'
                     selected_id = oper_id
-                    IsSelected = True
+                    is_selected = True
                 else:
                     row['selected'] = ''
 
             opers.append(row)
 
-        if not is_simple and not IsSelected:
+        if not is_simple and not is_selected:
             row = opers[0]
             selected_id = row['id']
             row['selected'] = 'selected'
@@ -266,6 +276,14 @@ def _get_params(batch_id, **kw):
             params.append(row)
 
     return params
+
+def _get_top(per_page, page):
+    if IsApplyOffset:
+        top = per_page
+    else:
+        top = per_page * page
+    offset = page > 1 and (page - 1) * per_page or 0
+    return top, offset
 
 ## ==================================================== ##
 
@@ -564,17 +582,30 @@ def activateBatches(pers_ids, params=None):
         for i, row in enumerate(data[0]):
             batch_id = row['BatchID']
 
-            blank = None
+            name, blank = '', None
             for param in params[batch_id]:
                 if param[0] == 'Бланк листовки':
-                    blank = param[1]
+                    name, blank = param[0], param[1]
                     break
 
             if not blank:
                 continue
 
+            # -----------------------------
+            # Check Batch ID (TZ) in BankDB
+            # -----------------------------
+
+            PersoTZ, TZ = None, row['SysBatchID']
+
+            try:
+                exec_params = {'tz' : TZ, 'batchtype_id' : 10, 'param_name' : name}
+                cursor = engine.runQuery('search.batch_by_param', exec_params=exec_params, as_dict=True)
+                PersoTZ = cursor and cursor[0].get('PERS_TZ') or None
+            except:
+                pass
+
             blanks.append({
-                'SysBatchID'  : row['SysBatchID'],
+                'SysBatchID'  : PersoTZ or TZ,
                 'PersBatchID' : row['PersBatchID'],
                 'BQty'        : row['BQty'],
                 'Blank'       : blank,
@@ -778,13 +809,6 @@ def activateBatches(pers_ids, params=None):
         else:
             total_cards = ['', '']
 
-    except:
-        if IsError:
-            pass
-        elif IsPrintExceptions:
-            print_exception()
-
-    finally:
         if responses:
             b = responses[0][0]
 
@@ -806,6 +830,14 @@ def activateBatches(pers_ids, params=None):
                 'TotalCards'   : total_cards,
                 'show'         : 0,
             })
+
+    except:
+        if IsError:
+            pass
+        elif IsPrintExceptions:
+            print_exception()
+
+        print_to(None, repr(responses))
 
     confirms = [x[1] for x in sorted(errors, key=itemgetter(0), reverse=True) if x[0] == _CONFIRMED_ERROR]
 
@@ -860,15 +892,14 @@ def _make_page_default(kw):
     # -----------------------------------
 
     page, per_page = get_page_params(default_page)
-    top = per_page * page
-    offset = page > 1 and (page - 1) * per_page or 0
+    top, offset = _get_top(per_page, page)
 
     # ------------------------
     # Поиск контекста (search)
     # ------------------------
 
-    search = get_request_item('search')
-    IsSearchByNumber = False
+    search = get_request_search()
+    is_search_batch = False
     items = []
     TZ = None
 
@@ -880,7 +911,7 @@ def _make_page_default(kw):
         try:
             TID = BatchID = TZ = int(search)
             items.append('(TID=%s OR BatchID=%s OR TZ=%s)' % (TID, BatchID, TZ))
-            IsSearchByNumber = True
+            is_search_batch = True
             pers_tz = TZ
         except:
             TZ = 0
@@ -899,6 +930,7 @@ def _make_page_default(kw):
     Client = args['client'][1]
     StatusID = args['status'][1]
     PersTypeID = args['perstype'][1]
+    PAN = args['pan'][1]
 
     StatusDate = None
 
@@ -910,6 +942,11 @@ def _make_page_default(kw):
             if value:
                 if key in ('...'):
                     pass
+                elif key == 'pan':
+                    view = database_config[_views['units'][3]]['view'] # '[Cards].[dbo].[BatchUnits_tb]'
+                    v = ' or '.join(["PAN like '%s'" % re.sub(r'[*]+', r'%%', x) for x in value.split(';')])
+                    x = 'BatchID in (select distinct BatchID from %s where %s)' % (view, v)
+                    items.append(x)
                 elif key == 'date_from':
                     if checkDate(value, DEFAULT_DATE_FORMAT[1]):
                         items.append("%s >= '%s 00:00'" % (name, value))
@@ -970,7 +1007,7 @@ def _make_page_default(kw):
     # ----------------------
 
     state = get_request_item('state')
-    IsState = state and state != 'R0' and True or False
+    is_state = state and state != 'R0' and True or False
 
     args.update({
         'state' : ('State', state)
@@ -985,10 +1022,10 @@ def _make_page_default(kw):
     if engine != None:
 
         # ---------------------------------------------------
-        # Поиск партии по ID или номеру ТЗ (IsSearchByNumber)
+        # Поиск партии по ID или номеру ТЗ (is_search_batch)
         # ---------------------------------------------------
         
-        if IsSearchByNumber:
+        if is_search_batch:
             pers_id = 0
 
             cursor = engine.runQuery('cards.pers-batch-opers', columns=('PersBatchID',), where='TID=%s' % TZ, top=1)
@@ -1002,18 +1039,18 @@ def _make_page_default(kw):
 
             where = 'TID=%s' % pers_id
 
-        # ---------------------------------------------------
+        # ------------------------------------------------
         # Кол-во записей по запросу в журнале (total_pers)
-        # ---------------------------------------------------
+        # ------------------------------------------------
 
-        cursor = engine.runQuery(default_template, columns=('count(*)', 'sum(BQty)',), where=where)
+        cursor = engine.runQuery(default_template, columns=('count(*)', 'sum(BQty)',), where=where, no_traceback=True)
         if cursor:
             total_pers, total_cards = cursor[0]
             if total_cards is None:
                 total_cards = 0
 
-        if IsState:
-            top = 1000
+        if is_state:
+            top, offset = 1000, None
         if command == 'export':
             top = 10000
 
@@ -1021,13 +1058,16 @@ def _make_page_default(kw):
         # Заказы (batches)
         # ================
 
-        cursor = engine.runQuery(default_template, top=top, where=where, order='%s' % order, as_dict=True,
+        cursor = engine.runQuery(default_template, top=top, offset=offset, where=where, order='%s' % order, as_dict=True,
                                  encode_columns=('Client','FName','PersType','Status','PersStatus',),
                                  columns=database_config[default_template].get('export'))
         if cursor:
-            IsSelected = False
+            is_selected = False
             
             for n, row in enumerate(cursor):
+                #if not is_state and offset and n < offset:
+                #    continue
+
                 x = row['Status'].lower()
 
                 state_error = 'брак' in x
@@ -1040,9 +1080,6 @@ def _make_page_default(kw):
                 if state == 'R3' and not state_error:
                     continue
 
-                if not IsState and offset and n < offset:
-                    continue
-
                 if pers_id:
                     if not confirmed_pers_id and pers_id == row['TID']:
                         confirmed_pers_id = pers_id
@@ -1051,7 +1088,7 @@ def _make_page_default(kw):
 
                     if pers_id == row['TID']:
                         row['selected'] = 'selected'
-                        IsSelected = True
+                        is_selected = True
                 else:
                     row['selected'] = ''
 
@@ -1074,7 +1111,7 @@ def _make_page_default(kw):
             if line > len(batches):
                 line = 1
 
-            if not IsSelected and len(batches) >= line:
+            if not is_selected and len(batches) >= line:
                 row = batches[line-1]
                 confirmed_pers_id = pers_id = row['id'] = row['TID']
                 file_name = row['FName']
@@ -1091,22 +1128,22 @@ def _make_page_default(kw):
             pers_id = 0
             file_name = ''
 
-        if IsState and batches:
+        if is_state and batches:
             total_pers = len(batches)
             total_cards = 0
             batches = batches[offset:offset+per_page]
-            IsSelected = False
+            is_selected = False
 
             for n, row in enumerate(batches):
                 if pers_id == row['TID']:
                     row['selected'] = 'selected'
                     file_name = row['FName']
-                    IsSelected = True
+                    is_selected = True
                 else:
                     row['selected'] = ''
                 total_cards += row['BQty']
 
-            if not IsSelected:
+            if not is_selected:
                 row = batches[0]
                 row['selected'] = 'selected'
                 pers_id = row['TID']
@@ -1252,7 +1289,6 @@ def _make_page_default(kw):
 
 ## ==================================================== ##
 
-@cards.route('/', methods = ['GET'])
 @cards.route('/cards', methods = ['GET','POST'])
 @login_required
 def index():
@@ -1282,7 +1318,10 @@ def index():
     if command and command.startswith('admin'):
         command = command.split(DEFAULT_HTML_SPLITTER)[1]
 
-        if not is_operator:
+        if get_request_item('OK') != 'run':
+            command = ''
+
+        elif not is_operator:
             flash('You have not permission to run this action!')
             command = ''
         
@@ -1328,13 +1367,13 @@ def index():
             kw = _make_page_default(kw)
 
         if IsTrace:
-            print_to(errorlog, '--> cards:%s %s %s %s' % ( \
-                     command, current_user.login, str(kw.get('current_file')), info,), 
+            print_to(errorlog, '--> cards:%s %s [%s:%s] %s %s' % ( 
+                     command, current_user.login, request.remote_addr, kw.get('browser_info'), str(kw.get('current_file')), info,), 
                      request=request)
     except:
         print_exception()
 
-    kw['vsc'] = (IsDebug or IsIE() or IsForceRefresh) and ('?%s' % str(int(random.random()*10**12))) or ''
+    kw['vsc'] = vsc()
 
     if command:
         is_extra = has_request_item(EXTRA_)
@@ -1374,6 +1413,9 @@ def loader():
     exchange_error = ''
     exchange_message = ''
 
+    #if IsDebug:
+    #    start = getToday()
+
     is_extra = has_request_item(EXTRA_)
 
     action = get_request_item('action') or default_action
@@ -1410,10 +1452,16 @@ def loader():
     number = ''
     columns = []
     total = None
+    status = ''
+    path = ''
 
     props = None
     errors = None
     confirms = None
+
+    #if IsDebug:
+    #    print_to(errorlog, '>>> Spent time[p1]: %s sec' % spent_time(start))
+    #    start = getToday()
 
     try:
         if action == default_action:
@@ -1481,10 +1529,15 @@ def loader():
         # --------------------------
         'total'            : total or len(data),
         'data'             : data,
+        'status'           : status,
+        'path'             : path,
         'props'            : props,
         'columns'          : columns,
         'errors'           : errors,
         'confirms'         : confirms,
     })
+
+    #if IsDebug:
+    #    print_to(errorlog, '>>> Spent time[p2]: %s sec' % spent_time(start))
 
     return jsonify(response)
