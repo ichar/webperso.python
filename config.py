@@ -68,13 +68,13 @@ default_iso            = 'ISO-8859-1'
 # ---------------------------- #
 
 CONNECTION = {
-    'bankperso'    : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'BankDB',      'timeout':15 },
-    'cards'        : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'Cards',       'timeout':15 },
-    'orderstate'   : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'OrderState',  'timeout':15 },
-    'preload'      : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'BankDB',      'timeout':15 },
-    'configurator' : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'BankDB',      'timeout':15 },
-    'orderlog'     : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'OrderLog',    'timeout':15 },
-    'provision'    : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'ProvisionDB', 'timeout':15 },
+    'bankperso'    : { 'server':'localhost', 'user':'sa', 'password':'*****', 'database':'BankDB',      'timeout':15 },
+    'cards'        : { 'server':'localhost', 'user':'sa', 'password':'*****', 'database':'Cards',       'timeout':15 },
+    'orderstate'   : { 'server':'localhost', 'user':'sa', 'password':'*****', 'database':'OrderState',  'timeout':15 },
+    'preload'      : { 'server':'localhost', 'user':'sa', 'password':'*****', 'database':'BankDB',      'timeout':15 },
+    'configurator' : { 'server':'localhost', 'user':'sa', 'password':'*****', 'database':'BankDB',      'timeout':15 },
+    'orderlog'     : { 'server':'localhost', 'user':'sa', 'password':'*****', 'database':'OrderLog',    'timeout':15 },
+    'provision'    : { 'server':'localhost', 'user':'sa', 'password':'*****', 'database':'ProvisionDB', 'timeout':15 },
 }
 
 smtphost = {
