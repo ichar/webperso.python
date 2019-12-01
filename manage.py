@@ -7,34 +7,32 @@ from config import setup_console, isIterable #, SQLALCHEMY_DATABASE_URI, SQLALCH
 from sqlalchemy import func, asc, desc, and_, or_
 
 from app.models import (
-     Pagination, User, ClientProfile, Setting, UserProfile,
-     StringSettingValue, IntSettingValue, FloatSettingValue, BooleanSettingValue, DateTimeSettingValue,
-     admin_view_users,
-     setup, updateSettings
+     Pagination, User, Photo, Settings, Subdivision, Privileges, ExchangeRate,
+     admin_view_users, get_users, get_users_dict, print_users, drop_table, show_tables, print_tables, show_all, 
+     gen_subdivisions, get_subdivisions, print_subdivisions,
+     app_roles, get_app_roles
      )
 
-app = create_app(os.getenv('APP_CONFIG') or 'default')
+app = create_app(os.getenv('APP_CONFIG') or 'production')
 
 manager = Manager(app)
 
+#setup_console()
+
 def make_shell_context():
-    return dict( \
-            app=app, db=db,
+    return dict(
+            app=app, db=db, 
             Pagination=Pagination, func=func, asc=asc, desc=desc, and_=and_, or_=or_,
-            User=User, ClientProfile=ClientProfile, Setting=Setting, UserProfile=UserProfile,
-            StringSettingValue=StringSettingValue, 
-            IntSettingValue=IntSettingValue, 
-            FloatSettingValue=FloatSettingValue, 
-            BooleanSettingValue=BooleanSettingValue, 
-            DateTimeSettingValue=DateTimeSettingValue,
-            admin_view_users=admin_view_users,
+            User=User, Photo=Photo, Settings=Settings, Subdivision=Subdivision, Privileges=Privileges, ExchangeRate=ExchangeRate,
+            admin_view_users=admin_view_users, get_users=get_users, get_users_dict=get_users_dict, print_users=print_users,
+            drop_table=drop_table, show_tables=show_tables, print_tables=print_tables, show_all=show_all, 
+            gen_subdivisions=gen_subdivisions, get_subdivisions=get_subdivisions, print_subdivisions=print_subdivisions,
+            app_roles=app_roles, get_app_roles=get_app_roles,
             isIterable=isIterable,
-            setup=setup,
-            updateSettings=updateSettings,
         )
 
 manager.add_command("shell", Shell(make_context=make_shell_context))
-#manager.add_command("start", Server(host='0.0.0.0', port=5000))
+manager.add_command("start", Server(host='0.0.0.0', port=5000))
 
 @manager.command
 def test(coverage=False):
@@ -60,7 +58,10 @@ def deploy():
 @manager.command
 def start():
     """Run server."""
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    #ssl_context = 'adhoc'
+    ssl_context = ('secure/ssl.crt', 'secure/ssl.key')
+    app.run(host='0.0.0.0', port=5000, debug=True, ssl_context=ssl_context)
+    #app.run(host='0.0.0.0', port=5000, debug=True)
 
 
 if __name__ == '__main__':

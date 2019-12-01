@@ -16,29 +16,34 @@ errorlog = os.path.join(basedir, 'traceback.log')
 # Global application constants
 # ----------------------------
 
-IsDebug                = 1  # Debug[stdout]: prints general info (1 - forbidden with apache!)
+IsDebug                = 0  # Debug[stdout]: prints general info (1 - forbidden with apache!)
 IsDeepDebug            = 0  # Debug[stdout]: prints detailed info (1 - forbidden with apache!)
 IsTrace                = 1  # Trace[errorlog]: output execution trace for http-requests
-IsSemaphoreTrace       = 0  # Trace[errorlog]: output trace for semaphore actions
+IsSemaphoreTrace       = 1  # Trace[errorlog]: output trace for semaphore actions
 IsLogTrace             = 1  # Trace[errorlog]: output detailed trace for Log-actions
+IsTmpClean             = 1  # Flag: clean temp-folder
 IsUseDecodeCyrillic    = 1  # Flag: sets decode cyrillic mode
 IsUseDBLog             = 1  # Flag: sets DB OrderLog enabled to get log-messages
 IsPrintExceptions      = 1  # Flag: sets printing of exceptions
 IsForceRefresh         = 1  # Flag: sets http forced refresh for static files (css/js)
-IsDecoderTrace         = 1  # Flag: sets decoder output
+IsDecoderTrace         = 0  # Flag: sets decoder output
 IsShowLoader           = 0  # Flag: sets page loader show enabled
+IsNoEmail              = 1  # Flag: don't send email
 IsFuture               = 0  # Flag: opens inactive future menu items
 IsDemo                 = 0  # Flag: sets demo-mode (inactive)
 
 LocalDebug = {
     'bankperso'    : 0,
+    'calculator'   : 0,
+    'cards'        : 0,
     'configurator' : 0,
-    'cards'        : 1,
     'database'     : 0,
+    'diamond'      : 0,
     'mails'        : 0,
     'models'       : 0,
     'orderstate'   : 0,
-    'profile'      : 0,
+    'persostation' : 0,
+    'provision'    : 0,
     'reporter'     : 0,
     'semaphore'    : 0,
     'settings'     : 0,
@@ -60,29 +65,34 @@ default_unicode        = 'utf-8'
 default_encoding       = 'cp1251'
 default_iso            = 'ISO-8859-1'
 
+# ---------------------------- #
+
 CONNECTION = {
-    'bankperso'    : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'BankDB',     'timeout':15 },
-    'cards'        : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'Cards',      'timeout':15 },
-    'orderstate'   : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'OrderState', 'timeout':15 },
-    'preload'      : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'BankDB',     'timeout':15 },
-    'configurator' : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'BankDB',     'timeout':15 },
-    'orderlog'     : { 'server':'localhost', 'user':'sa', 'password':'***', 'database':'OrderLog',   'timeout':15 },
+    'bankperso'    : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'BankDB',      'timeout':15 },
+    'cards'        : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'Cards',       'timeout':15 },
+    'orderstate'   : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'OrderState',  'timeout':15 },
+    'preload'      : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'BankDB',      'timeout':15 },
+    'configurator' : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'BankDB',      'timeout':15 },
+    'orderlog'     : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'OrderLog',    'timeout':15 },
+    'provision'    : { 'server':'localhost', 'user':'sa', 'password':'admin', 'database':'ProvisionDB', 'timeout':15 },
 }
 
 smtphost = {
-    'host' : 'mail2.company.ru', 
+    'host' : 'mail2.rosan.ru', 
     'port' : 25
 }
 
 email_address_list = {
-    'adminbd'      : 'admin@company.ru',     
-    'support'      : 'support@company.ru',
-    'warehouse'    : 'user@company.ru',
+    'adminbd'      : 'admin_bd@rosan.ru',     
+    'support'      : 'support@expresscard.ru',
+    'warehouse'    : 'kharlamov@rosan.ru',
 }
 
 image_encoding = {
     'default'      : (default_encoding, default_unicode, default_iso,),
-    'CITI_BANK'    : (default_print_encoding, default_encoding,),
+    'CITI_BANK'    : (default_encoding, default_print_encoding,),
+    'BIN_BANK'     : (default_encoding, default_print_encoding,),
+    'PostBank'     : {'image' : (default_unicode,), 'body' : (default_encoding, default_print_encoding,)}
 }
 
 BP_ROOT = { 
@@ -102,9 +112,24 @@ SDC_ROOT = {
 }
 
 EXCHANGE_ROOT = {
-    'default'      : (default_unicode, 'Z:/exchange/11.01', '(.*)_(\d{2}\.\d{2}\.\d{4}).*', 'with_aliases:jzdo:unique:count',),
-    'CITI_BANK'    : (default_unicode, 'Z:/exchange/11.02', '(.*)_(\d{2}\.\d{2}\.\d{4}).*', '*',),
+    'default'      : (default_unicode, 'Z:/exchange/11.21', '(.*)_(\d{2}\.\d{2}\.\d{4}).*', 'with_aliases:jzdo:unique:count',),
+    'CITI_BANK'    : (default_unicode, 'Z:/exchange/11.18', '(.*)_(\d{2}\.\d{2}\.\d{4}).*', '*',),
+    'PostBank'     : (default_unicode, 'Z:/exchange/11.24', '(logfile)_(\d{2}\.\d{2}\.\d{4}).*', 'with_aliases:unique:count',),
 }
+
+INDIGO_IMAGE_PATH = {
+    'Raiffeisen_ID': 'C:/USER/CLIENTDATA/Raiffeisen/image',
+    'PostBank_ID'  : 'C:/USER/CLIENTDATA/Postbank/image',
+}
+
+DEFAULT_ROOT = {
+    'local'  : '', # 'http://localhost:5000/' #'http://webperso.rosan.local/'
+    'public' : '', # 'https://192.168.0.27:5000' #'https://195.191.175.6',
+}
+
+POSTONLINE_DATA_PATH = 'C:/PersoStation/Inkass/InputData'
+
+# ---------------------------- #
 
 ansi = not sys.platform.startswith("win")
 
@@ -143,7 +168,7 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'storage', 'app.db')
+        'sqlite:///' + os.path.join(basedir, 'storage', 'app.db.new')
 
     @classmethod
     def init_app(cls, app):
@@ -192,13 +217,16 @@ def print_to(f, v, mode='ab', request=None, encoding=default_encoding):
         f = getErrorlog()
     fo = open(f, mode=mode)
     def _out(s):
-        fo.write(s.encode(encoding, 'ignore'))
+        if not isinstance(s, bytes):
+            fo.write(s.encode(encoding, 'ignore'))
+        else:
+            fo.write(s)
         fo.write(cr.encode())
     for text in items:
         try:
             if IsDeepDebug:
                 print(text)
-            if request:
+            if request is not None:
                 _out('%s>>> %s [%s]' % (cr, datetime.datetime.now().strftime(UTC_FULL_TIMESTAMP), request.url))
             _out(text)
         except Exception as e:

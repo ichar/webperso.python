@@ -1,12 +1,676 @@
 WebPerso change log
 ===================
 
+ФУНКЦИОНАЛЬНЫЕ ИЗМЕНЕНИЯ
+------------------------
+
+20191130:
+
+  - журнал снабжения, Информация о контрагенте.
+
+20191126:
+
+  - журнал снабжения, создать копию существующего заказа, меню "Панель управления\Создать копию заказа".
+
+    ПРИМЕЧАНИЕ: блокируются ценовые параметры.
+
+  - разрешена смена статуса "Исполнено" -> "На исполнении".
+
+20191123:
+
+  - Администратор WebPerso (админка) - фильтры, сортировка.
+  - Рассылка информационных писем.
+
+20191116:
+
+  - операция смены адреса филиала доставки, меню БанкПерсо/Операции/Адрес филиала доставки.
+
+    ПРИМЕЧАНИЕ: операция доступна для пользователей с полномочиями Администратор/Оператор.
+    Смена адреса филиала доставки в контенте файла для последующей регистрации на портале ФГУП "ПОЧТА РОССИИ".
+
+    Клиент ПАО "ПОЧТАБАНК".
+
+20191028:
+
+  - журнал снабжения, поле "Категория": 
+        аварийная
+        срочная
+        ТЗ
+        общехозяйственные расходы
+        переоснащение оборудования, рабочих мест
+        ЗИП
+
+    ПРИМЕЧАНИЕ: поле доступно для выбора пользователям, корректировка (расширение списка) менеджерам отдела снабжения.
+
+20191022:
+
+  - операция смены даты отгрузки, меню БанкПерсо/Операции/Дата отгрузки.
+
+    ПРИМЕЧАНИЕ: операция доступна для пользователей с полномочиями Администратор/Оператор.
+    Смена даты отгрузки в контенте файла и на сайте ФГУП "ПОЧТА РОССИИ". Полная выгрузка данных, отправка в ОПС.
+
+    Клиент ПАО "ПОЧТАБАНК".
+
+20191016:
+
+  - журнал снабжения, расшифровка счета: закладка доступна для корректировки авторам заявок в статусе "В работе"
+
+20191005:
+
+  - журнал снабжения, история заказа
+
+    Меню "Панель управления":
+    
+  - История заказа
+
+20190928:
+
+  - журнал снабжения, контроль рецензирования и рассылка уведомлений
+
+    Меню "Операции":
+    
+  - Проверить статус рецензирования заказов
+  - Разослать напоминания
+
+20190926:
+
+  - журнал снабжения, статус заказа "прочтено/непрочтено"
+
+    ПРИМЕЧАНИЕ: Записи, содержащие непрочтенные сведения по рецензиям, добавленным с момента последнего рецензирования, 
+    отображаются в стилизации "Непрочтено" с выделением наименования товара.
+
+    Меню "Дополнительно":
+    
+  - Отметить как непрочтенное
+  - Отметить как прочтенное
+
+...
+
+20190714:
+
+  - журнал снабжения, пересчет валютного эквивалента цены закупки
+  - журнал снабжения, операции "Удалить данные за период", "Очистить историю согласований"
+
 ВАЖНЫЕ ИЗМЕНЕНИЯ И ИСПРАВЛЕНИЯ
 ------------------------------
+
+20191130:
+
+  - журнал снабжения, Информация о контрагенте (RESTful):
+
+    > provision.views.seller
+    > provision.sellers
+    > ext/seller.html
+    > seller.css
+    > seller.js
+
+20191126:
+
+  - журнал снабжения, клонировать заказ command:'cloneorder'
+
+    > provision.views.cloneOrder
+    > provision.dialogs.js, $ProvisionSelectorDialog.clone
+
+  - параметр querystring `__` (!!!)
+
+20191123:
+  
+  - Администратор WebPerso:
+
+    > admin.forms
+    > admin.views
+    > model.py
+    > admin.js
+    > admin.dialogs.js
+
+20191116:
+
+  - интеграция с приложением ExtPerso C:\apps\perso, сборка run.exe 1.32 (Windows Service), 2019-11-16
+  - команда "Сменить адрес филиала доставки":
+  
+    CDA::PostBank_v1::21-0-0::[everything,ext.order_generate.postbank.change_delivery_address,'<address>',<recno>,'<branch>',<forced>]
+  
+  - операция смены адреса филиала доставки, меню Операции "Адрес филиала доставки"
+
+    > bankperso.views.changeDeliveryAddress [command 'admin:changeaddress']
+    > bankperso.dialogs.js, $BankpersoSubmitDialog, $("#changeaddress-confirm-container").dialog
+    > bankperso.js
+  
+  - модуль почтовой рассылки (ошибка соединения):
+
+    > mails.py
+
+20191028:
+
+  - журнал снабжения, поле "Категория"
+
+    > provision.views.Provision
+    > controls.js, $BaseScreenDialog
+    > provision.dialogs.js, $ProvisionSelectorDialog, $ProvisionOrderHistoryDialog
+    > provision.js, subline_refresh:x5
+    
+    > dbo.DIC_Categories_tb.Table.sql
+    > dbo.WEB_Categories_vw
+    > dbo.CHECK_Category_sp.StoredProcedure.sql
+    > dbo.REGISTER_Order_sp.StoredProcedure.sql
+    > dbo.UPDATE_Order_sp.StoredProcedure.sql
+
+20191022:
+
+  - интеграция с приложением ExtPerso C:\apps\perso, сборка run.exe 1.30 (Windows Service), 2019-10-22
+  - команда "Сменить дату отгрузки":
+  
+    CSD::<filetype>::<current status>-0-0::[everything,ext.order_generate.<client>.change_delivery_date,'<send date>',<file_id>]
+    
+    > C:\apps\perso\popen.py
+  
+  - операция смены даты отгрузки, меню Операции "Дата отгрузки"
+
+    > bankperso.views.changeDeliveryDate [command 'admin:changedate']
+    > bankperso.dialogs.js, $BankpersoSubmitDialog, $("#changedate-confirm-container").dialog
+    > bankperso.js
+
+  - добавлен модуль pikaday:
+
+    > pikaday.js
+    > pikaday.jquery.js
+
+  - стилизация календаря:
+
+    > css\pikaday\pikaday.css
+
+20191016:
+
+  - доступ к редактированию разделов заявки снабжения:
+
+    > provision.views.Provision: _is_disabled_edit, _is_disabled_delete
+    > provision.default.js, $PageLoader.disable_edit
+
+20191005:
+
+  - постраничная выборка данных, режим UNION
+
+    > database.runQuery, arguments: top, offset, applied ROW_NUMBER() (SQL 2008 R2)
+    > bankperso.views._make_page_default
+    > cards.views._make_page_default
+    > configurator.views._make_page_default
+    > provision.views._make_page_default
+
+20190926:
+
+  - журнал снабжения, статус заказа "прочтено/непрочтено"
+
+    > provision.views.Provision
+    > provision.loader, actions: [848, 849]
+    > provision.dialogs.js, $ProvisionReviewDialog.set_unread/set_read/done
+    > provision.js, action:set-unread/set-read
+    > provision.html
+
+    > dbo.Unreads_tb.Table.sql
+    > dbo.GET_UnreadByLogin_fn.UserDefinedFunction.sql
+    > dbo.SET_Unread_sp.StoredProcedure.sql
+    > dbo.SET_Read_sp.StoredProcedure.sql
+    > dbo.WEB_Orders_vw.view.sql
+
+20190714:
+
+  - журнал снабжения, пересчет валютного эквивалента цены закупки
+
+    > models.ExchangeRate [sqlite:rates]
+    > provision.view
+
+  - журнал снабжения, модели загрузчика файлов заявок
+
+    > provision.views.ApplicationGenerator [_MODELS]
+
+  - журнал снабжения, операции "Удалить данные за период", "Очистить историю согласований"
+
+    > provision.views.ApplicationService
+    > provision.html
+    > provision.js
+
+  - оптимизация js-скриптов, параметр `title` диалоговых форм
+
+    > controls.js
+    > *.dialogs
+
+20190701:
+
+  - маскирование PAN в записях об ошибках <PROCESS_ERR_MSG>
+
+    > bankperso.views._get_process_err_msg
+    > utils.getMaskedPAN
+
+20190701:
+
+  - Конфигуратор. Исправлена ошибка в функции "Добавить новый дизайн":
+  
+    > common.js
+    > configurator.dialogs.js
+    > database.Connections
+    > configurator.views._create_design
+    > configurator.generator.FileTypeSettingsGenerator.createNewDesign, self.get_value
+
+20190606:
+
+  - сброс (отмена) поискового запроса по контексту (Найти)
+  
+    > common.js (reset_search)
+    > settings.make_platform.get_request_search
+
+20190531:
+
+  - печать списка Ф103
+
+20190508:
+
+  - печать Информации о статусе файла (Ф103) - печатаем форму 103 для банков с регистрацией отправлений ПАО "ПочтаРоссии",
+    закладка История заказа, для пользователей с полномочиями: оператор, менеджер, администратор
+
+    > bankperso.views._get_process_info
+    > settings.make_platform
+    > config.py: POSTONLINE_DATA_PATH
+    > db.controller.js
+    > log.default.js
+    > bankperso.js
+
+  - выгрузка файлов F103.pdf в каталог /static/files
+
+20190506:
+
+  - Индивидуальный дизайн, закладка Индиго - баркод карты (EAND):
+
+    Список карт (FileRecNo: PAN {BARCODE} - CardholderName)
+
+    > bankperso.views._get_indigo
+    > database.py, database_config[indigo]
+    > utils.getEANDBarcode
+
+20190425:
+
+  - информация о статусе файла для пользователей с полномочиями "Оператор" отображается дополнительно всплывающим окном:
+
+    ---------------------------------------------------------------------------------
+    |   ПочтаРоссии: C2-LETTER:85, Дата процессинга: 2019-04-19 15:19:34, Карт: 3   |
+    ---------------------------------------------------------------------------------
+
+    > settings.PROCESS_INFO = ('PostBank',)
+
+    > settings.make_platform
+    > templates/base.html, IsOperator
+    > js/common.js
+    > js/bankperso.js
+    > js/log.default.js
+
+20190424:
+
+  - галерея изображений Индиго, формат base64, dump/*.base64:
+
+    > bankperso.views._get_indigo
+    > C:\apps\gallery\*.*
+    > gallery.py
+
+  - История заказа, информация о процессинге файла, например:
+
+    Всего записей: 21 [ПочтаРоссии: C2-LETTER:85, Дата процессинга: 2019-04-19 15:19:34, Карт: 3]
+
+    21 : количество статусов, пройденных файлом
+    C2-LETTER : вид упаковки C1/C2 и тип отправления, LETTER - Заказное письмо, A1 - Посылка 1 класса (Пластиковый конверт)
+    85 : номер отправления ПАО "ПочтаРоссии", папка Ф103:
+
+    \\172.19.12.4\BankApplicationsOTK\!Pers2.0\PersoStation\Inkass\InputData\PostBank\postonline\<Дата отгрузки>\85
+
+    > bankperso.views._get_process_info
+    > js/log.default.js
+
+  - фильтр Журнала заказов: Ошибки (ошибка, отбраковка, приостановлено)
+
+20190416:
+
+  - справочник "Статусы файлов", ключ explicit_pk - явный ввод значения первичного ключа:
+
+    > configurator.references.AbstractReference.addItem
+    > configurator.references.DicFileStatus.addItem
+
+20190415:
+
+  - Конфигуратор, фильтр по полю Тип партии:
+
+    > dbo.WEB_FileTypes_vw.view.sql (BatchTypeID)
+    > configurator.views._make_page_default (default_template:distinct=True)
+
+20190402:
+
+  - статус файла 255 "обработка заказа приостановлена", цвет строки в Журнале заказов - маджента (малиновый)
+  - статус файла 199 "выполнена архивация заказа", цвет строки в Журнале заказов - серый текст на белом фоне
+  - статус файла 99 "ожидание файла заказа", цвет строки в Журнале заказов - сине-фиолетовый
+
+  - стили style.mobile.css (мобильные устройства)
+
+20190329:
+
+  - смена статуса файла, опция "Сохранить контент статусов (данные текущего статуса будут сохранены)":
+
+    > bankperso.index, command='change-filestatus', параметр 'keep_history'
+    > dbo.WEB_ChangeOrderState_sp.StoredProcedure.sql
+    > js\controls.$StatusChangeDialog
+  
+    Опция сохраняет список пройденных статусов файла и их контент IBody, что дает возможность перенести данные выполненного
+    статуса в новый с меньшим кодом.
+    
+    Например:
+    ---------
+    файл переведен в статус 78 с генерацией данных, список текущих статусов: 1,2,3,78. Как перевести сгенерированные данные в
+    статус 4?
+    
+    - установить статус файла 4
+    - добавить/перенести данные файла [BankDB].[dbo].[OrderFilesBody_tb] из статуса 78 в статус 4
+
+    Опция сохраняет список статусов, что обеспечивает требуемый результат. 
+    
+    BankPerso (DBAdmin.exe) статусы "видит", но понимает ли? 
+    ExtPerso с качестве данных статуса 4 будет использовать последний созданный статус, 78.
+
+    Если Опция не включена, при переходе в статусы "генерации данных" (FileStatusID < 6) и при условии отсутствия целевого статуса
+    в списке пройденных, статусы с большим кодом, в примере: 78, будут удалены.
+
+20190327:
+
+  - просмотр изображений Индиго, упаковка изображений, параметр size: (200, 120):
+
+    > bankperso._get_indigo
+    > settings.INDIGO_DEFAULT_SIZE
+    > utils.image_base64
+
+  - информация об ошибках PROCESS-ERR-MSG, тег <errorList>:
+
+    > bankperso.getTabProcessErrMsg
+    > decoders, FileImageDecoder.chooseBodyParser
+
+20190326:
+
+  - Почта Банк (Тип файла: PostBank_ID) - индивидуальный дизайн, просмотр изображений Индиго:
+
+    > bankperso._get_indigo
+    > settings.INDIGO_FILETYPES
+
+  - изменен тип (словарь)
+
+    > config.INDIGO_IMAGE_PATH
+
+  - Персонализация, добавлено поле для просмотра "Дата статуса":
+
+    > database.database_config['cards.batches'] : 'StatusDate'
+
+20190325:
+
+  - Конфигуратор, ключ сортировки "По умолчанию" ('Client, FileType') + ключ 'ID типа файла'
+
+    > cards._make_page_default [current_sort]
+
+20190125:
+
+  - Протокол проверки карт (обновление)
+
+    > app\static\js\reports.js (makeCardsReport_5)
+
+20190124:
+
+  - Калькулятор себестоимости продукции /calculator
+
+    > calculator.views.py
+    > app\static\js\calculator.js
+    > app\templates\calculator\show.html
+
+20181228:
+
+  - Администратор WebPerso (Настройки интерфейса)
+
+    > models.Settings, User
+    > admin.views.index
+    > admin.views.loader [102]
+    > templates\admin.html
+    > templates\forms.html
+    > common.js
+    > admin.js
+
+20181227:
+
+  - фильтр "PAN/BIN", Администратор персонализации, поиск файлов (ТЗ) с заданным PAN/BIN или их комбинацией вида:
+    5158%3930;5158********4442
+
+    > cards.views._make_page_default
+    > common.js (#sidebarFrame)
+    > templates\cards.html
+
+20181225:
+
+  - отчет "Статистика отгрузки по филиалам"
+
+    > bankperso.views._make_report_branch_list
+
+20181217:
+
+  - опция SQL-запросов 'no_traceback' (запрос без печати traceback)
+
+    > database.BankPersoEngine.runQuery
+
+20181214:
+
+  - опция SQL-запросов 'with_updlock' (Transaction (Process ID) was deadlocked on lock resources with another process 
+    and has been chosen as the deadlock victim (Msg 1205))
+
+    > database.BankPersoEngine.runQuery
+    > card.views._make_page_default
+
+20181210:
+
+  - Конфигуратор, "Создать сценарий" - шаблон CardStandard Easy
+
+    > configurator.generator.py
+
+  - печать remote_addr -> traceback.log
+
+    > bankperso.views.index
+    > cards.views.index
+    > configurator.views.index
+    > persostation.views.index
+
+20181205:
+
+  - Учет рабочего времени операторов персонализации, форма ввода данных /persostation/register:
+
+    > persostation.forms.py
+    > persostation.views.py
+    > templates\persostation\register.html
+    > persostation.js
+
+  - Журнал инкассации БанкПерсо, пункт главного меню "ОТК" /persostation?sidebar=0:
+
+    > persostation.views.py
+    > templates\persostation.html
+    > persostation.js
+
+20181128:
+
+  - Печать листовок, контроль партии для печати листовок:
+
+    > database.py database_config['search.batch_by_param']
+    > cards.views.activateBatches
+    > BankDB:dbo.WEB_SearchBatchForBlanks_sp.StoredProcedure.sql
+    > BankDB:dbo.WEB_BatchParams_vw.view.sql
+    > BankDB.DIC_FTV_TZ_tb:CASE_LEAFLET.C2-I, PostBank, Comment[BatchTypeID:8]
+
+20181114:
+
+  - Отчет "Лист персонализации", формат < 500 - xls, иначе - csv (вывод листа персонализации файла):
+
+    > bankperso.views._make_xls_content
+    > utils.makeCSVContent
+
+20181031:
+
+  - Вывод для просмотра: Журнал заказов, вкладка "Персонализация" - расширяемый список полей:
+
+    > database.py [cardholders]
+    
+      'Barcode'      : 'VBRR:CITI_BANK:BIN_BANK:PostBank',
+      'StampCode'    : 'PostBank',
+      'PackageCode'  : 'PostBank',
+
+20181020:
+
+  - Позиционирование курсора в командных операциях Журнала заказов: 
+
+      Shift-F: Сменить статус файла
+      Shift-B: Сменить статус партии
+      Shift-D: Удалить заказ
+
+    > db.controller.js: $LineSelector.set_current()
+    > bankperso.js: jQuery.$(window).keydown
+
+20181003:
+
+  - Просмотр XML-контента записи файла (DoubleClick на вкладке "Персонализация")
+  
+    > bankperso.getTabIBody
+    > bankperso.js:$openRecordNode
+    > db.controller.js:$DblClickAction
+
+20181002:
+
+  - Полный список карт файла: Журнал заказов БанкПерсо/Отчеты/Лист персонализации (MS Excel < 2000 стр.)
+  - Поиск дублированных PAN: Журнал заказов БанкПерсо/Отчеты/Дубли PAN
+
+20180928:
+
+  - Конфигуратор, "Создать сценарий" - шаблон CardStandard
+  - Конфигуратор, "Удалить конфигурацию" (disabled)
+
+20180926:
+
+  - генератор конфигурации БанкПерсо: Конфигуратор/Генератор, "Добавить дизайн CardStandard"
+  
+    > configurator.generator.py
+    > configurator.html
+    > configurator.js
+    > controls.js
+    > common.js
+
+20180915:
+
+  - потоковый загрузчик XML
+  
+    > decoders.py
+
+20180718:
+
+  - именованные соединения с СУБД
+
+    > database.__init__(self, name=None, user=None, connection=None)
+
+20180702:
+
+  - фильтр текущего дня
+
+    > bankperso.views._make_page_default
+    > common.html
+
+20180614:
+
+  - декодер кириллицы Unicode во входящих файлах заказов
+
+    > bankperso._decode_image._get_image_encoding
+
+  - структура дескриптора кодировки (dict|list)
+
+    > config.image_encoding
+
+20180607:
+
+  - печать параметров ТЗ с учетом символа "перенос строки"
+
+  - просмотр изображений "Индивидиуальный дизайн. Индиго" (Raiffeisen)
+
+    > bankperso.views.getTabIndigo
+    > bankperso.js
+    > db.controller.js
+    > log.default.js
+
+  - колонка "Файлы изображений" и просмотр списка файлов, включая фоновые изображения
+
+    > bankperso.js.indigo
+    > controls.js
+
+20180412:
+
+  - подсчет кол-ва ТЗ и кол-ва карт во всех ТЗ для печати в Протоколах проверки карт (включая Мир)
+
+    > cards.views.activateBatches
+    > reports.js, total_cards
+
+    BINы отбираем и сортируем явно по Unit-блокам (закладка Персонализация <ПК>)
+    Параметры ТЗ БИН, Тип пластика не анализируем.
+
+    Печать при условии отбора всех партий файла, п/м <Активировать партии файла>.
+
+  - контроль отобранных партий в составе файла на персонализацию
+    Применяется к операции <Активировать партии файла>
+
+    Перед отправкой на производство и печатью документов проверяем все ли партии файла отобраны в список <Активировать>.
+
+    Сообщение: "Не все партии файла отобраны для отправки на производство".
+
+    > cards.views.activateBatches
+    > cards.js, параметр 'file_id', activate_file_batches
+
+  - конфигуратор, параметры ТЗ - textarea с возможностью многострочного ввода данных (применительно к параметрам
+    Лицевая, Оборотная сторона)
+
+  - фильтр <Условие отбора: Активно> - отбор файлов, содержащих партии для отправки на производство в статусе "активна":
+
+    > bankperso.views._make_page_default
+
+  - автоформирование Протокола проверки карточной продукции МИР (BIN 2***):
+
+    > cards.views.activateBatches
+    > reports.js, has_mir
+
+20180331:
+
+  - печатаем штрих-код для VBRR(!):
+    вывод значения "Штрих-код" в инфоблоке, закладка "Персонализация"
+    колонка выводится в <Листе персонализации> для банков, заданных в настройках представления:
+
+    > database.database_config['cardholders']
+
+  - добавлены теги ('BarCode', 'LoyaltyBarcode', 'Barcode', 'BarcodeNum',) для клиентв 'VBRR:CITI_BANK:BIN_BANK'
+
+20180329:
+
+  - доработка модуля декодирования кириллицы:
+
+    > utils.decoder
+    > settings.IMAGE_TAGS_DECODE_CYRILLIC
+    > bankperso.views._decode_cyrillic
+
+  - конфигурирование декодера для типа файла FileType (CITIEMV)
+  - настройка декодера СИТИ, БИН БАНКА: 
+
+    > config.image_encoding
 
 20180325:
 
   - 1.80 (beta)
+
+20180307:
+
+  - обновлен jQuery/jQuery UI:
+
+    jquery.js v1.11.1
+    jQuery UI v1.11.2 - 2014-10-16
+
+    работа с диалогами: W:\apps\perso\#save\app\static\js\1\ui.html
 
 20180220:
 
@@ -36,10 +700,130 @@ WebPerso change log
 
   - переопределена команда F5 (Refresh) для web-form (status/js/common.js, keydown, e.keyCode==116)
 
-  - параметр querystring `__` - блокировка маскирования (!!!)
+  - параметр querystring `__` (!!!)
 
 ВЕРСИИ
 ------
+
+# 2.85: 
+
+  - seller
+
+# 2.83: 
+
+  - admin
+
+# 2.80: 
+
+  - интеграция с приложением ExtPerso
+
+# 2.70: 
+
+  - модуль "Журнал заказов Отдела снабжения":
+  
+    > app/provision.view
+    > js/provision.js
+    > js/provision.default.js
+    > js/provision.dialogs.js
+
+# 2.50: 
+
+  - привилегии пользователей, структура предприятия, администрирование:
+
+    > app.db.subdivisions
+    > app.db.privileges
+    > models
+    > admin.views
+
+  - Журнал заявок Отдела снабжения /provision
+
+    > databases
+    > provisions.views.py
+    > common.js
+    > provision.js
+    > provision.dialogs.js
+    > provision.html
+
+  - стилизация HTML/CSS для мобильных устройств:
+  
+    > stype.controls.css
+    > style.mobile.css
+    > style.web.css
+
+  ...
+
+# 2.20: 
+
+  - профайл пользователя
+
+    > app.db.settings
+    > app.db.photo
+    > models
+    > databases
+    > admin.views
+    > templates.admin.html
+    > templates.admin.forms
+    > common.js
+    > admin.js
+
+# 2.10: 
+
+  - учет рабочего времени операторов персонализации
+
+    > persostation.forms.py
+    > persostation.views.py
+    > templates\persostation\register.html
+    > templates\persostation.html
+    > persostation.js
+
+# 2.00: 
+
+  - оптимизация загрузчика контента, подбор метода разбора XML
+  
+    > LET.iterparse
+    > ET.parse
+    > ET.fromstring
+
+  - временные файлы, идентификатор сессии (0155ba74-a53f-4c48-baf0-97e12b07b8a6, /tmp)
+  - инкрементальный разбор XML, потоковый генератор (unload, fullunload)
+  
+    > flask: RequestID, current_request_id
+    > decoders.py
+    > bankperso.views.decoder
+
+  - декодер кириллицы: CITI, BIN_BANK, VTB
+
+  - п/м "Журнал заказов", закладки: Персонализация, Индиго, IBODY, PROCESS-ERR-MSG
+    
+    > bankperso.views._get_cardholders
+    > bankperso.views._get_indigo
+    > bankperso.views.getTabIBody
+    > bankperso.views.getTabProcessErrMsg
+
+  - выгрузка XML: текущий статус, контент файла, полная выгрузка, список тегов
+
+    > bankperso.views.getCurrentState
+    > bankperso.views.getFullState
+    > bankperso.views.getTagSearchDump
+    
+  - отчет "Статистика доставки по филиалам"
+    
+    > bankperso.views._make_report_branch_list
+
+  - метод разбора XML: <?xml version="1.0" encoding="cp1251" parser="LET.iterparse" tags="PAN,PASSREG,EMBNAME1,ADD1,ADD2,ADD3,ADD4,ADD5"?>
+
+  - параметры контента: Общая длина контента: 203879 [лимит 0.2Mb], статусы: 1,3,6 [11]
+  
+    > db.controller.js
+    > log.default.js
+
+# 1.90: 
+
+  - Production application release.
+
+# 1.86: 
+
+  - Индиго
 
 # 1.80: 
 

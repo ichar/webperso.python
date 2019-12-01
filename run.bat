@@ -1,1 +1,1 @@
-flask\Scripts\python.exe manage.py start
+python.exe manage.py start
