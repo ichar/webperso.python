@@ -19,7 +19,7 @@ flipflop==1.0
 guess-language==0.2
 httpauth==0.3
 itsdangerous==0.24
-Jinja2==2.8
+Jinja2==2.11.3
 MarkupSafe==0.23
 pbr==1.9.1
 Pillow==3.0.0
