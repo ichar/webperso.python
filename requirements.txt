@@ -36,7 +36,7 @@ sqlparse==0.1.19
 Tempita==0.5.2
 virtualenv==15.0.1
 visitor==0.1.2
-Werkzeug==0.11.9
+Werkzeug==0.15.3
 Whoosh==2.7.4
 WTForms==2.1
 xlwt==1.0.0
